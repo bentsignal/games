@@ -58,15 +58,19 @@ await assert.rejects(
     action: { type: "start" },
   }),
 );
-for (let i = 0; i < 2; i++) {
-  r = await get(i);
-  await client.mutation(api.rooms.play, {
-    code,
-    token: tokens[i],
-    revision: r.revision,
-    action: { type: "keep", tickets: r.game.me!.pending.slice(0, 3) },
-  });
-}
+const offers = await Promise.all([get(0), get(1)]);
+assert.equal(offers[0].revision, offers[1].revision);
+await Promise.all(
+  offers.map((offer, i) =>
+    client.mutation(api.rooms.play, {
+      code,
+      token: tokens[i],
+      revision: offer.revision,
+      action: { type: "keep", tickets: offer.game.me!.pending.slice(0, 3) },
+    }),
+  ),
+);
+console.log("Concurrent starting-ticket choices verified.");
 await client.mutation(api.rooms.send, {
   code,
   token: tokens[0],

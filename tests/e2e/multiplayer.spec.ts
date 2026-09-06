@@ -152,6 +152,12 @@ test("mobile landing, catalog, and room remain usable", async ({ page }) => {
   );
   await page.getByRole("button", { name: "Close dialog" }).click();
   await page.getByLabel("YOUR CONDUCTOR NAME").fill("Mobile QA");
+  await page.getByLabel("Room code").fill("ZZZZZZZZ");
+  await page.getByRole("button", { name: "Join", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText(
+    "That room does not exist.",
+  );
+  await page.getByRole("button", { name: "Dismiss error" }).click();
   await page.getByRole("button", { name: "Create a private table" }).click();
   await page.getByRole("button", { name: "Add computer opponent" }).click();
   await page.getByRole("button", { name: "Start the journey" }).click();

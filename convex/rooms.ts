@@ -1,6 +1,6 @@
 import { mutation, query, internalMutation } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import {
@@ -51,13 +51,13 @@ const action = v.union(
 );
 function identity(token: string) {
   if (!/^[a-f0-9]{64}$/.test(token))
-    throw new Error("Invalid session. Reload the page.");
+    throw new ConvexError("Invalid session. Reload the page.");
   return bytesToHex(sha256(new TextEncoder().encode(token)));
 }
 function nameOf(name: string) {
   const n = name.trim().replace(/[\u0000-\u001f]/g, "");
   if (n.length < 1 || n.length > 24)
-    throw new Error("Use a name between 1 and 24 characters.");
+    throw new ConvexError("Use a name between 1 and 24 characters.");
   return n;
 }
 export const create = mutation({
@@ -70,7 +70,7 @@ export const create = mutation({
       .withIndex("by_hash", (q) => q.eq("hash", id))
       .unique();
     if (session && Date.now() - session.lastCreate < 10000)
-      throw new Error(
+      throw new ConvexError(
         "Please wait a few seconds before creating another room.",
       );
     if (session) await ctx.db.patch(session._id, { lastCreate: Date.now() });
@@ -139,14 +139,14 @@ export const join = mutation({
       .query("rooms")
       .withIndex("by_code", (q) => q.eq("code", code.toUpperCase()))
       .unique();
-    if (!room) throw new Error("That room does not exist.");
+    if (!room) throw new ConvexError("That room does not exist.");
     const g = room.game as Game;
     if (g.players.some((p) => p.id === id)) return room.code;
     if (g.phase !== "lobby")
-      throw new Error(
+      throw new ConvexError(
         "This train has departed. Ask the host for the next game.",
       );
-    if (g.players.length >= 5) throw new Error("This room is full.");
+    if (g.players.length >= 5) throw new ConvexError("This room is full.");
     const available = [0, 1, 2, 3, 4].find(
       (c) => !g.players.some((p) => p.color === c),
     )!;
@@ -167,12 +167,25 @@ export const play = mutation({
         .query("rooms")
         .withIndex("by_code", (q) => q.eq("code", args.code))
         .unique();
-    if (!room) throw new Error("Room not found.");
-    if (room.revision !== args.revision)
-      throw new Error("The game changed. Please try your move again.");
+    if (!room) throw new ConvexError("Room not found.");
+    // Starting choices affect only the actor's offered tickets. Let all players
+    // choose concurrently; applyAction still rejects duplicate or invented keeps.
+    const independentSetupChoice =
+      args.action.type === "keep" && (room.game as Game).phase === "setup";
+    if (room.revision !== args.revision && !independentSetupChoice)
+      throw new ConvexError("The game changed. Please try your move again.");
     if ((room.game as Game).players.find((p) => p.id === id)?.bot)
-      throw new Error("This seat is now controlled by the computer.");
-    const game = applyAction(room.game as Game, id, args.action);
+      throw new ConvexError("This seat is now controlled by the computer.");
+    let game: Game;
+    try {
+      game = applyAction(room.game as Game, id, args.action);
+    } catch (error) {
+      throw new ConvexError(
+        error instanceof Error
+          ? error.message
+          : "That move could not be completed.",
+      );
+    }
     await ctx.db.patch(room._id, {
       game,
       revision: room.revision + 1,
@@ -205,27 +218,29 @@ export const manage = mutation({
         .query("rooms")
         .withIndex("by_code", (q) => q.eq("code", args.code))
         .unique();
-    if (!room) throw new Error("Room not found.");
+    if (!room) throw new ConvexError("Room not found.");
     let g = room.game as Game;
     const me = g.players.find((p) => p.id === id);
-    if (!me) throw new Error("Not seated.");
+    if (!me) throw new ConvexError("Not seated.");
     if (args.operation === "resign") {
       if (g.phase !== "playing" && g.phase !== "setup")
-        throw new Error("No active game.");
+        throw new ConvexError("No active game.");
       if (me.bot)
-        throw new Error("This seat is already controlled by a computer.");
+        throw new ConvexError("This seat is already controlled by a computer.");
       me.bot = true;
       me.name = me.name + " (AI)";
     } else if (args.operation === "leave") {
       if (g.phase !== "lobby")
-        throw new Error("You can only leave your seat before a game starts.");
+        throw new ConvexError(
+          "You can only leave your seat before a game starts.",
+        );
       g.players = g.players.filter((p) => p.id !== id);
     } else {
       if (g.players[0].id !== id)
-        throw new Error("Only the host can change the table.");
+        throw new ConvexError("Only the host can change the table.");
       if (args.operation === "rematch") {
         if (g.phase !== "finished")
-          throw new Error("Finish the current game first.");
+          throw new ConvexError("Finish the current game first.");
         const players = g.players.map((p) =>
           newPlayer(
             p.id,
@@ -240,9 +255,10 @@ export const manage = mutation({
         g.players = players;
       } else {
         if (g.phase !== "lobby")
-          throw new Error("The game has already started.");
+          throw new ConvexError("The game has already started.");
         if (args.operation === "bot") {
-          if (g.players.length >= 5) throw new Error("The table is full.");
+          if (g.players.length >= 5)
+            throw new ConvexError("The table is full.");
           const c = [0, 1, 2, 3, 4].find(
             (c) => !g.players.some((p) => p.color === c),
           )!;
@@ -257,7 +273,7 @@ export const manage = mutation({
         }
         if (args.operation === "remove") {
           if (args.player === id)
-            throw new Error("Use leave to leave the table.");
+            throw new ConvexError("Use leave to leave the table.");
           g.players = g.players.filter((p) => p.id !== args.player);
         }
         if (args.operation === "mode" && args.mode) g.mode = args.mode;
@@ -339,16 +355,16 @@ export const send = mutation({
     const p = (room?.game as Game | undefined)?.players.find(
       (p) => p.id === id,
     );
-    if (!room || !p) throw new Error("Join this room to chat.");
+    if (!room || !p) throw new ConvexError("Join this room to chat.");
     const message = text.trim();
     if (!message || message.length > 500)
-      throw new Error("Messages must be 1–500 characters.");
+      throw new ConvexError("Messages must be 1–500 characters.");
     const session = await ctx.db
       .query("sessions")
       .withIndex("by_hash", (q) => q.eq("hash", id))
       .unique();
     if (session && Date.now() - session.lastChat < 750)
-      throw new Error("Please slow down.");
+      throw new ConvexError("Please slow down.");
     if (session) await ctx.db.patch(session._id, { lastChat: Date.now() });
     else
       await ctx.db.insert("sessions", {

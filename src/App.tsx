@@ -35,6 +35,7 @@ import {
   WifiOff,
 } from "lucide-react";
 import { api } from "../convex/_generated/api";
+import { ConvexError } from "convex/values";
 import {
   COLORS,
   MODES,
@@ -434,9 +435,11 @@ export default function App() {
       await fn();
     } catch (e) {
       setError(
-        e instanceof Error
-          ? e.message.replace(/^.*Uncaught Error: /, "").split("\n")[0]
-          : "Something went wrong. Please try again.",
+        e instanceof ConvexError && typeof e.data === "string"
+          ? e.data
+          : e instanceof Error && !e.message.includes("[CONVEX")
+            ? e.message
+            : "Something went wrong. Please try again.",
       );
     } finally {
       setBusy(false);
@@ -815,7 +818,10 @@ export default function App() {
                   </div>
                   {game.phase !== "lobby" && (
                     <b className="player-score">
-                      {p.score}
+                      {game.phase === "finished"
+                        ? (game.results.find((r) => r.id === p.id)?.total ??
+                          p.score)
+                        : p.score}
                       <small>PTS</small>
                     </b>
                   )}
