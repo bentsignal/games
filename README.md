@@ -1,15 +1,16 @@
-# Railbound · USA 1910
+# Ticket to Ride
 
 A browser multiplayer railway game built with React and Convex. The illustrated 2D USA board pairs real geographic outlines with a spacious printed-board layout, bold player trains, and engraved railway cards. Create a private room, share its link, and play a complete game with 2–5 people or computer opponents.
 
-**Play:** https://railbound-1910.vercel.app  
+**Play:** https://ticket.bentsignal.com
+
 **Repository:** https://github.com/bentsignal/railbound-1910
 
 Production backend: `https://proficient-porpoise-581.convex.cloud`, in the Personal Convex team. Its Free plan was confirmed in the billing dashboard on September 6, 2026. Vercel uses the existing BSX workspace. No paid subscription was added.
 
 ## Play
 
-1. Enter a conductor name and choose Classic, USA 1910, Big Cities, or Mega.
+1. Enter a name and choose Classic, USA 1910, Big Cities, or Mega.
 2. Create a table and copy the room invitation. Friends join with a name; no account is required.
 3. Add optional computer players, then start. Each player selects their secret tickets.
 4. On your turn, draw train cards, claim a route, or draw destination tickets. Drag a colored card from your hand onto a highlighted route; the game pays with that color and the fewest necessary locomotives. You can also select a hand color and then a route, or use the searchable route list.
@@ -42,6 +43,7 @@ npm test                       # game rules + complete simulated matches
 npm run build                  # TypeScript + production build
 npx playwright install chromium
 npm run test:e2e                # isolated multiplayer sessions and mobile UI
+npm run test:map                # coastal train footprints on land
 npm run test:live               # full game against configured live backend
 ```
 
@@ -82,3 +84,5 @@ See [docs/SOURCES.md](docs/SOURCES.md) for factual data verification and asset p
 React Compiler runs in both development and production through the Vite React compiler preset. Chat has an independent sending state, so messages do not disable or dim game controls.
 
 For an all-routes-occupied visual proof, run `npx tsx scripts/map-proof.tsx` and open `/tmp/railbound-map-proof.html`. The interaction suite checks every pair of occupied train footprints, including stroke, wheels and shadow.
+
+Lobby controls have independent pending states, and game mode changes update optimistically. Five fixed player slots keep chat stationary. Chat errors appear as local Server messages and are never broadcast. The custom production domain is `ticket.bentsignal.com`; the original Vercel project alias remains available.

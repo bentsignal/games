@@ -1129,7 +1129,7 @@ label {
   pointer-events: none;
 }
 .ticket-tile:after {
-  content: "RAILWAY EXPRESS";
+  content: none;
   position: absolute;
   left: 49%;
   top: 45%;
@@ -2663,4 +2663,99 @@ label {
 }
 .lobby-layout .sidebar-content.chat-content {
   min-height: 180px;
+}
+
+/* Game controls, without promotional panels or shifting setup sections. */
+.home-page {
+  align-items: center;
+}
+.hero-copy h1 {
+  font-size: clamp(30px, 2.8vw, 40px);
+  margin-bottom: 30px;
+}
+.hero-world {
+  min-height: 0;
+  height: auto;
+}
+.hero-board {
+  max-height: none;
+  transform: none;
+}
+.masthead {
+  justify-content: space-between;
+}
+.masthead nav {
+  margin-left: auto;
+}
+.table-actions {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 20px;
+  flex-shrink: 0;
+}
+.table-actions .full {
+  margin: 0;
+  min-height: 43px;
+}
+.lobby-layout .mode-description {
+  min-height: 36px;
+  margin-bottom: 20px;
+}
+.lobby-layout .invite-box {
+  margin-top: 0;
+}
+.lobby-layout .add-bot {
+  margin: 12px 0 10px;
+  min-height: 36px;
+}
+.lobby-layout .add-bot[aria-busy="true"] {
+  opacity: 1;
+  cursor: progress;
+}
+.lobby-layout .seat-list {
+  flex: 0 0 195px;
+  height: 195px;
+  margin-bottom: 0;
+}
+.lobby-layout .seat-list > div {
+  height: 39px;
+  min-height: 39px;
+  box-sizing: border-box;
+}
+.lobby-layout .seat-list .open-seat {
+  color: #958269;
+  font-size: 11px;
+  border-bottom-style: dashed;
+}
+.lobby-layout .seat-list .open-seat svg {
+  opacity: 0.55;
+}
+.lobby-layout .sidebar-tabs {
+  margin-top: 12px;
+}
+.lobby-layout .sidebar-content.chat-content {
+  min-height: 150px;
+}
+.server-message {
+  border-left: 2px solid #ac773b;
+  background: #dfbc7720;
+  padding: 8px 10px;
+}
+.server-message strong {
+  color: #865726;
+}
+@media (max-width: 600px) {
+  .brand {
+    font-size: 18px;
+    gap: 6px;
+  }
+  .brand-icon {
+    display: none;
+  }
+  .hero-copy h1 {
+    font-size: 34px;
+  }
+  .hero-board {
+    min-height: 250px;
+  }
 }

@@ -68,8 +68,7 @@ export const MODES: Record<
 > = {
   classic: {
     name: "Classic",
-    description:
-      "30 original tickets, with revised 1910 values. The timeless coast-to-coast adventure.",
+    description: "30 tickets with 1910 values. Longest route bonus.",
     initial: 3,
     keep: 2,
     draw: 3,
@@ -79,7 +78,7 @@ export const MODES: Record<
   "1910": {
     name: "USA 1910",
     description:
-      "35 new journeys. Complete the most tickets to win the Globetrotter bonus.",
+      "35 tickets. Globetrotter bonus for the most completed tickets.",
     initial: 3,
     keep: 2,
     draw: 3,
@@ -89,7 +88,7 @@ export const MODES: Record<
   big: {
     name: "Big Cities",
     description:
-      "35 tickets through seven major cities. Close competition, no end-game bonuses.",
+      "35 tickets connecting seven major cities. No end-game bonuses.",
     initial: 4,
     keep: 2,
     draw: 4,
@@ -97,9 +96,8 @@ export const MODES: Record<
     globe: false,
   },
   mega: {
-    name: "The Mega Game",
-    description:
-      "All 69 tickets. Both bonuses. A grand American railway adventure.",
+    name: "Mega",
+    description: "69 tickets. Longest route and Globetrotter bonuses.",
     initial: 5,
     keep: 3,
     draw: 4,

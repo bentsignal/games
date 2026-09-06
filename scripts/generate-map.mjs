@@ -81,14 +81,33 @@ function solve(rhs) {
 const weights = [0, 1].map((axis) =>
   solve(entries.map(([name]) => cities[name][axis])),
 );
+// A restrained cartographic widening preserves the peninsula's outline while
+// giving the three Florida routes room for readable train pieces on land.
+function widenFlorida([x, y]) {
+  const t = Math.max(0, Math.min(1, (y - 550) / 280));
+  const center = 1100 + (y - 600) * 0.5;
+  const dx = x - center;
+  const edge = Math.max(0, Math.min(1, (x - 1050) / 60));
+  return [
+    x +
+      dx *
+        0.7 *
+        edge *
+        Math.sin(Math.PI * t) ** 2 *
+        Math.exp(-((dx / 150) ** 2)),
+    y,
+  ];
+}
 function project([lon, lat]) {
   const p = [lon * 0.76, lat];
-  return weights.map(
-    (w) =>
-      w[n] +
-      w[n + 1] * p[0] +
-      w[n + 2] * p[1] +
-      anchors.reduce((s, a, i) => s + w[i] * kernel(p, a), 0),
+  return widenFlorida(
+    weights.map(
+      (w) =>
+        w[n] +
+        w[n + 1] * p[0] +
+        w[n + 2] * p[1] +
+        anchors.reduce((s, a, i) => s + w[i] * kernel(p, a), 0),
+    ),
   );
 }
 function line(points, close = false) {

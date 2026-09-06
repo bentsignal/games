@@ -15,13 +15,13 @@ test("two independent friends join, choose tickets, chat, draw, and reconnect", 
   a.on("pageerror", (e) => errors.push(e.message));
   b.on("pageerror", (e) => errors.push(e.message));
   await a.goto(baseURL!);
-  await a.getByLabel("YOUR CONDUCTOR NAME").fill("Alice QA");
-  await a.getByRole("button", { name: "Create a private table" }).click();
+  await a.getByLabel("Name").fill("Alice QA");
+  await a.getByRole("button", { name: "Create a game" }).click();
   await expect(a).toHaveURL(/\/room\/[A-Z2-9]{8}/);
   const url = a.url();
   await b.goto(url);
-  await b.getByLabel("YOUR CONDUCTOR NAME").fill("Bob QA");
-  await b.getByRole("button", { name: "Take your seat" }).click();
+  await b.getByLabel("Name").fill("Bob QA");
+  await b.getByRole("button", { name: "Join game" }).click();
   await expect(a.getByText("Bob QA", { exact: true }).first()).toBeVisible();
   await a.getByRole("tab", { name: /Chat/ }).click();
   const composerY = (await a.getByLabel("Chat message").boundingBox())!.y;
@@ -52,9 +52,7 @@ test("two independent friends join, choose tickets, chat, draw, and reconnect", 
     await dialog.getByRole("button", { name: "Keep 3 tickets" }).click();
     await expect(dialog).toBeHidden();
   }
-  await expect(
-    a.getByText("Your turn, conductor.", { exact: true }),
-  ).toBeVisible();
+  await expect(a.getByText("Your turn", { exact: true })).toBeVisible();
   // Chat must not briefly disable, replace, or animate any draw controls.
   await a.getByRole("tab", { name: /Chat/ }).click();
   await a.evaluate(() => {
@@ -97,13 +95,9 @@ test("two independent friends join, choose tickets, chat, draw, and reconnect", 
   await a.getByRole("button", { name: "Draw from hidden deck" }).click();
   await expect(a.getByText("Choose one more train card.")).toBeVisible();
   await a.getByRole("button", { name: "Draw from hidden deck" }).click();
-  await expect(
-    b.getByText("Your turn, conductor.", { exact: true }),
-  ).toBeVisible();
+  await expect(b.getByText("Your turn", { exact: true })).toBeVisible();
   await b.reload();
-  await expect(
-    b.getByText("Your turn, conductor.", { exact: true }),
-  ).toBeVisible();
+  await expect(b.getByText("Your turn", { exact: true })).toBeVisible();
   await expect(b.getByText("Bob QA (you)", { exact: true })).toBeVisible();
   await expect(b.getByRole("dialog")).toHaveCount(0);
   await b.getByRole("button", { name: "Draw destination tickets" }).click();
@@ -111,9 +105,7 @@ test("two independent friends join, choose tickets, chat, draw, and reconnect", 
   await expect(dialog.locator(".ticket-tile")).toHaveCount(4);
   await dialog.locator(".ticket-tile").first().click();
   await dialog.getByRole("button", { name: "Keep 1 tickets" }).click();
-  await expect(
-    a.getByText("Your turn, conductor.", { exact: true }),
-  ).toBeVisible();
+  await expect(a.getByText("Your turn", { exact: true })).toBeVisible();
   await a.getByRole("button", { name: "Open route list" }).click();
   await a.getByLabel("Search routes").fill("Vancouver");
   await expect(
@@ -154,9 +146,7 @@ test("two independent friends join, choose tickets, chat, draw, and reconnect", 
     { steps: 18 },
   );
   await a.mouse.up();
-  await expect(
-    b.getByText("Your turn, conductor.", { exact: true }),
-  ).toBeVisible();
+  await expect(b.getByText("Your turn", { exact: true })).toBeVisible();
   await b.getByRole("tab", { name: "Activity" }).click();
   await expect(
     b.getByText("Alice QA claimed Vancouver → Seattle (+1).", { exact: true }),
@@ -183,8 +173,8 @@ test("the 2D atlas supports keyboard route selection, pan, zoom, and optional so
   page,
 }) => {
   await page.goto("/");
-  await page.getByLabel("YOUR CONDUCTOR NAME").fill("Atlas QA");
-  await page.getByRole("button", { name: "Create a private table" }).click();
+  await page.getByLabel("Name").fill("Atlas QA");
+  await page.getByRole("button", { name: "Create a game" }).click();
   const map = page.getByRole("group", { name: "USA railway map" });
   await expect(map).toBeVisible();
   await expect(map.getByRole("button")).toHaveCount(100);
@@ -227,8 +217,8 @@ test("computer takeover finishes the game, reveals scores, and rematches", async
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("/");
-  await page.getByLabel("YOUR CONDUCTOR NAME").fill("Conductor QA");
-  await page.getByRole("button", { name: "Create a private table" }).click();
+  await page.getByLabel("Name").fill("Conductor QA");
+  await page.getByRole("button", { name: "Create a game" }).click();
   await page.getByRole("button", { name: "Add computer opponent" }).click();
   await page.getByRole("button", { name: "Start game" }).click();
   const tickets = page.getByRole("dialog", {
@@ -237,14 +227,15 @@ test("computer takeover finishes the game, reveals scores, and rematches", async
   for (let i = 0; i < 3; i++)
     await tickets.locator(".ticket-tile").nth(i).click();
   await tickets.getByRole("button", { name: "Keep 3 tickets" }).click();
-  await page
-    .getByRole("button", { name: "Let a computer finish my game" })
-    .click();
+  await page.getByRole("button", { name: "Leave table" }).click();
+  const gameUrl = page.url();
   await page
     .getByRole("button", { name: "Hand over my seat", exact: true })
     .click();
+  await expect(page).toHaveURL(/\/$/);
+  await page.goto(gameUrl);
   await expect(
-    page.getByRole("heading", { name: "The final whistle.", exact: true }),
+    page.getByRole("heading", { name: "Game over", exact: true }),
   ).toBeVisible({ timeout: 210000 });
   await expect(page.locator(".result-row")).toHaveCount(2);
   await expect(page.getByText("Map unavailable")).toHaveCount(0);
@@ -258,7 +249,7 @@ test("computer takeover finishes the game, reveals scores, and rematches", async
     fullPage: true,
   });
   await page.getByRole("button", { name: "Play again", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Game setup" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Start game" })).toBeVisible();
   await expect(
     page.locator(".seat-list").getByText("Conductor QA", { exact: true }),
   ).toBeVisible();
@@ -270,21 +261,21 @@ test("mobile landing, catalog, and room remain usable", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: "Railbound USA · 1910" }),
+    page.getByRole("heading", { name: "Ticket to Ride" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "View the tickets" }).click();
   await expect(page.getByRole("dialog").locator(".ticket-tile")).toHaveCount(
     69,
   );
   await page.getByRole("button", { name: "Close dialog" }).click();
-  await page.getByLabel("YOUR CONDUCTOR NAME").fill("Mobile QA");
+  await page.getByLabel("Name").fill("Mobile QA");
   await page.getByLabel("Room code").fill("ZZZZZZZZ");
   await page.getByRole("button", { name: "Join", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText(
     "That room does not exist.",
   );
   await page.getByRole("button", { name: "Dismiss error" }).click();
-  await page.getByRole("button", { name: "Create a private table" }).click();
+  await page.getByRole("button", { name: "Create a game" }).click();
   await page.getByRole("button", { name: "Add computer opponent" }).click();
   await page.getByRole("button", { name: "Start game" }).click();
   const dialog = page.getByRole("dialog", {
@@ -293,9 +284,7 @@ test("mobile landing, catalog, and room remain usable", async ({ page }) => {
   for (let i = 0; i < 3; i++)
     await dialog.locator(".ticket-tile").nth(i).click();
   await dialog.getByRole("button", { name: "Keep 3 tickets" }).click();
-  await expect(
-    page.getByText("Your turn, conductor.", { exact: true }),
-  ).toBeVisible();
+  await expect(page.getByText("Your turn", { exact: true })).toBeVisible();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
@@ -432,8 +421,8 @@ test("lobby controls stay put as opponents join, and only chat is shown", async 
   page,
 }) => {
   await page.goto("/");
-  await page.getByLabel("YOUR CONDUCTOR NAME").fill("Lobby QA");
-  await page.getByRole("button", { name: "Create a private table" }).click();
+  await page.getByLabel("Name").fill("Lobby QA");
+  await page.getByRole("button", { name: "Create a game" }).click();
   const add = page.getByRole("button", { name: "Add computer opponent" });
   await expect(add).toBeVisible();
   const initial = (await add.boundingBox())!;
@@ -445,7 +434,9 @@ test("lobby controls stay put as opponents join, and only chat is shown", async 
   ).toBeVisible();
   for (let i = 0; i < 4; i++) {
     await add.click();
-    await expect(page.locator(".seat-list > div")).toHaveCount(i + 2);
+    await expect(page.locator(".seat-list > div:not(.open-seat)")).toHaveCount(
+      i + 2,
+    );
     expect((await add.boundingBox())!.y).toBeCloseTo(initial.y, 0);
   }
   await expect(add).toBeDisabled();
@@ -453,4 +444,126 @@ test("lobby controls stay put as opponents join, and only chat is shown", async 
     path: "test-results/lobby-desktop.png",
     fullPage: true,
   });
+});
+
+test("setup actions keep unrelated controls enabled and chat stays in place", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "Ticket to Ride", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.locator(
+      ".postmark,.edition-label,.hero-caption,.home-footer,.resume,.nav-center,.hero-tags",
+    ),
+  ).toHaveCount(0);
+  await page.getByLabel("Name", { exact: true }).fill("Setup QA");
+  await page.getByRole("button", { name: "Create a game" }).click();
+  const add = page.getByRole("button", { name: "Add computer opponent" });
+  await add.click();
+  await expect(page.locator(".seat-list > div:not(.open-seat)")).toHaveCount(2);
+  const start = page.getByRole("button", { name: "Start game" });
+  const leave = page.getByRole("button", { name: "Leave table", exact: true });
+  const mode = page.getByLabel("GAME MODE");
+  const chatY = (await page.getByLabel("Chat message").boundingBox())!.y;
+  expect((await start.boundingBox())!.y).toBeLessThan(
+    (await leave.boundingBox())!.y,
+  );
+  expect((await leave.boundingBox())!.y).toBeLessThan(
+    (await mode.boundingBox())!.y,
+  );
+  await page.evaluate(() => {
+    (window as any).__disabledChanges = [];
+    const observer = new MutationObserver((records) => {
+      for (const record of records)
+        if (record.attributeName === "disabled")
+          (window as any).__disabledChanges.push(
+            (record.target as HTMLElement).textContent,
+          );
+    });
+    for (const el of [
+      document.querySelector(".table-actions .primary"),
+      document.querySelector(".leave-table"),
+      document.querySelector("#table-mode"),
+    ])
+      observer.observe(el!, {
+        attributes: true,
+        attributeFilter: ["disabled"],
+      });
+    (window as any).__setupObserver = observer;
+  });
+  await add.click();
+  await expect(page.locator(".seat-list > div:not(.open-seat)")).toHaveCount(3);
+  await mode.selectOption("classic");
+  await expect(mode).toHaveValue("classic");
+  await expect(page.locator(".mode-description")).toContainText("30 tickets");
+  await mode.selectOption("1910");
+  await expect(mode).toHaveValue("1910");
+  await expect(mode).toHaveAttribute("aria-busy", "false");
+  await expect(start).toBeEnabled();
+  await expect(leave).toBeEnabled();
+  expect((await page.getByLabel("Chat message").boundingBox())!.y).toBeCloseTo(
+    chatY,
+    0,
+  );
+  expect(
+    await page.evaluate(() => {
+      (window as any).__setupObserver.disconnect();
+      return (window as any).__disabledChanges;
+    }),
+  ).toEqual([]);
+  await page.screenshot({
+    path: "test-results/setup-stable.png",
+    fullPage: true,
+  });
+});
+
+test("chat rate errors are private Server messages, never page toasts", async ({
+  browser,
+  baseURL,
+}) => {
+  const first = await browser.newContext(),
+    second = await browser.newContext();
+  const a = await first.newPage(),
+    b = await second.newPage();
+  await a.goto(baseURL!);
+  await a.getByLabel("Name", { exact: true }).fill("Chat QA");
+  await a.getByRole("button", { name: "Create a game" }).click();
+  await expect(a).toHaveURL(/room/);
+  await b.goto(a.url());
+  await b.getByLabel("Name", { exact: true }).fill("Friend QA");
+  await b.getByRole("button", { name: "Join game" }).click();
+  await expect(b.getByLabel("Chat message")).toBeVisible();
+  for (let i = 0; i < 5; i++) {
+    await a.getByLabel("Chat message").fill(`Quick message ${i}`);
+    await a.getByRole("button", { name: "Send message" }).click();
+    await expect(
+      a.getByRole("button", { name: "Send message" }),
+    ).not.toHaveAttribute("aria-busy", "true");
+    if (await a.locator(".server-message").count()) break;
+    await expect(a.getByLabel("Chat message")).toHaveValue("");
+  }
+  await expect(a.locator(".server-message").first()).toContainText("Server");
+  await expect(a.locator(".server-message").first()).toContainText(
+    "Please slow down.",
+  );
+  await expect(a.locator(".toast")).toHaveCount(0);
+  await expect(b.locator(".server-message")).toHaveCount(0);
+  await expect(b.getByText("Please slow down.")).toHaveCount(0);
+  await first.close();
+  await second.close();
+});
+
+test("hovering either available lane highlights the whole connection", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByLabel("Name", { exact: true }).fill("Hover QA");
+  await page.getByRole("button", { name: "Create a game" }).click();
+  for (const id of ["r1", "r2"]) {
+    await page.locator(`[data-route="${id}"][role="button"]`).focus();
+    await expect(page.locator('[data-route="r1"]')).toHaveClass(/highlighted/);
+    await expect(page.locator('[data-route="r2"]')).toHaveClass(/highlighted/);
+  }
 });

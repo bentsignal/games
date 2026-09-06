@@ -8,7 +8,12 @@ import {
   type ReactNode,
   type FormEvent,
 } from "react";
-import { useConvexConnectionState, useMutation, useQuery } from "convex/react";
+import {
+  useConvex,
+  useConvexConnectionState,
+  useMutation,
+  useQuery,
+} from "convex/react";
 import {
   TrainFront,
   ArrowRight,
@@ -108,7 +113,7 @@ function BoardView(props: React.ComponentProps<typeof Board>) {
         fallback={
           <div className="board-loading">
             <LoaderCircle className="spin" />
-            <span>Setting the table…</span>
+            <span>Loading map…</span>
           </div>
         }
       >
@@ -248,8 +253,8 @@ function TicketTile({
 function Rules({ onClose }: { onClose: () => void }) {
   return (
     <Modal label="How to play" onClose={onClose} wide>
-      <div className="eyebrow">THE CONDUCTOR’S HANDBOOK</div>
-      <h2>A continent of possibilities.</h2>
+      <div className="eyebrow">RULES</div>
+      <h2>How to play</h2>
       <p>
         Build railways between cities to complete your secret destination
         tickets. The highest final score wins.
@@ -280,7 +285,7 @@ function Rules({ onClose }: { onClose: () => void }) {
           </p>
         </article>
         <article>
-          <b>04 · Reach the final whistle</b>
+          <b>04 · Finish the game</b>
           <p>
             When a player finishes a turn with two or fewer trains, everyone
             gets one last turn—including that player. Completed tickets add
@@ -355,10 +360,25 @@ export default function App() {
   const [ticketSelection, setTicketSelection] = useState<string[]>([]),
     [pinnedTickets, setPinnedTickets] = useState<string[]>([]),
     [hoveredTicket, setHoveredTicket] = useState<string>();
+  const client = useConvex();
+  const tableQueue = useRef<Promise<unknown>>(Promise.resolve());
+  const pendingTableRef = useRef(new Set<string>());
+  const [pendingTable, setPendingTable] = useState<string[]>([]);
   const create = useMutation(api.rooms.create),
     join = useMutation(api.rooms.join),
     play = useMutation(api.rooms.play),
-    manage = useMutation(api.rooms.manage),
+    manage = useMutation(api.rooms.manage).withOptimisticUpdate(
+      (store, args) => {
+        if (args.operation !== "mode" || !args.mode) return;
+        const queryArgs = { code: args.code, token: args.token };
+        const current = store.getQuery(api.rooms.get, queryArgs);
+        if (current?.game)
+          store.setQuery(api.rooms.get, queryArgs, {
+            ...current,
+            game: { ...current.game, mode: args.mode },
+          });
+      },
+    ),
     send = useMutation(api.rooms.send);
   const room = useQuery(api.rooms.get, code ? { code, token } : "skip");
   const game = room?.game as View | null | undefined;
@@ -369,13 +389,27 @@ export default function App() {
     useQuery(api.rooms.chat, code && game ? { code, token } : "skip") || [];
   const [chatText, setChatText] = useState("");
   const [sendingChat, setSendingChat] = useState(false);
+  const [chatNotices, setChatNotices] = useState<
+    {
+      _id: string;
+      code: string;
+      time: number;
+      text: string;
+      name: string;
+      sender: string;
+    }[]
+  >([]);
+  const chatMessages = [
+    ...messages,
+    ...chatNotices.filter((m) => m.code === code),
+  ].sort((a, b) => a.time - b.time);
   const activeTab = game?.phase === "lobby" ? "chat" : tab;
   const chatEnd = useRef<HTMLDivElement>(null);
   const messagesBox = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const box = messagesBox.current;
     if (box) box.scrollTop = box.scrollHeight;
-  }, [messages.length, activeTab]);
+  }, [chatMessages.length, activeTab]);
   useEffect(() => {
     const pop = () => setCode(roomFromUrl());
     window.addEventListener("popstate", pop);
@@ -539,7 +573,15 @@ export default function App() {
   async function action(a: Action) {
     if (!room) return;
     await run(async () => {
-      await play({ code, token, revision: room.revision, action: a });
+      // Starting waits for earlier setup changes and reads their final revision.
+      let revision = room.revision;
+      if (a.type === "start") {
+        await tableQueue.current;
+        const latest = await client.query(api.rooms.get, { code, token });
+        if (!latest?.game) return;
+        revision = latest.revision;
+      }
+      await play({ code, token, revision, action: a });
       if (a.type === "claim") {
         setSelected(null);
         setFocus([]);
@@ -578,37 +620,75 @@ export default function App() {
     try {
       await send({ code, token, text });
       setChatText((current) => (current.trim() === text ? "" : current));
-    } catch {
-      setError("Message could not be sent. Please try again.");
+    } catch (e) {
+      const message =
+        e instanceof ConvexError && typeof e.data === "string"
+          ? e.data
+          : "Message could not be sent. Please try again.";
+      setChatNotices((current) => [
+        ...current,
+        {
+          _id: crypto.randomUUID(),
+          code,
+          time: Date.now(),
+          text: message,
+          name: "Server",
+          sender: "local-server",
+        },
+      ]);
     } finally {
       setSendingChat(false);
     }
   };
-  const setTable = (
+  const setTable = async (
     operation: "bot" | "remove" | "mode" | "rematch" | "leave" | "resign",
     extra: { player?: string; mode?: Mode } = {},
-  ) =>
-    run(async () => {
-      await manage({ code, token, operation, ...extra });
+  ) => {
+    const key =
+      operation === "mode"
+        ? "mode:" + crypto.randomUUID()
+        : operation + (extra.player ?? "");
+    if (pendingTableRef.current.has(key)) return;
+    pendingTableRef.current.add(key);
+    setPendingTable([...pendingTableRef.current]);
+    // Send immediately so optimistic mode changes appear on the same click.
+    // Start awaits this barrier; unrelated controls have no shared pending state.
+    const task = manage({ code, token, operation, ...extra });
+    tableQueue.current = Promise.all([
+      tableQueue.current.catch(() => {}),
+      task.catch(() => {}),
+    ]);
+    try {
+      await task;
       if (operation === "leave") visit("");
-      if (operation === "resign") setResign(false);
-    });
+      if (operation === "resign") {
+        setResign(false);
+        visit("");
+      }
+    } catch (e) {
+      setError(
+        e instanceof ConvexError && typeof e.data === "string"
+          ? e.data
+          : "Could not update the game. Please try again.",
+      );
+    } finally {
+      pendingTableRef.current.delete(key);
+      setPendingTable([...pendingTableRef.current]);
+    }
+  };
   return (
     <div className={`app ${code ? "at-table" : ""}`}>
       <header className="masthead">
         <button
           className="brand"
           onClick={() => visit("")}
-          aria-label="Railbound home"
+          aria-label="Ticket to Ride home"
         >
           <span className="brand-icon">
             <TrainFront size={23} />
           </span>
-          <span>Railbound</span>
+          <span>Ticket to Ride</span>
         </button>
-        <div className="nav-center">
-          THE GREAT AMERICAN RAILWAY GAME <span>EST. 1910</span>
-        </div>
         <nav>
           <Music />
           {code && (
@@ -645,30 +725,7 @@ export default function App() {
       {!code ? (
         <main className="home-page">
           <section className="hero-copy">
-            <div className="eyebrow">
-              <span className="little-line" /> THE GREAT AMERICAN RAILWAY GAME
-            </div>
-            <h1>
-              Railbound
-              <span className="title-ribbon">USA · 1910</span>
-            </h1>
-            <p className="hero-description">
-              Claim the rails. Connect the continent.
-            </p>
-            <div className="hero-tags">
-              <span>
-                <Users size={15} />
-                2–5 players
-              </span>
-              <span>
-                <Compass size={15} />
-                Play with friends
-              </span>
-              <span>
-                <TicketIcon size={15} />
-                USA + 1910
-              </span>
-            </div>
+            <h1>Ticket to Ride</h1>
             <form
               className="boarding-form"
               onSubmit={(e) => {
@@ -679,12 +736,12 @@ export default function App() {
                 );
               }}
             >
-              <label htmlFor="name">YOUR CONDUCTOR NAME</label>
+              <label htmlFor="name">Name</label>
               <input
                 id="name"
                 required
                 maxLength={24}
-                placeholder="What should we call you?"
+                placeholder="Your name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
@@ -722,13 +779,13 @@ export default function App() {
                 ) : (
                   <Plus size={18} />
                 )}
-                Create a private table
+                Create a game
                 <ArrowRight size={18} />
               </button>
             </form>
             <div className="join-divider">
               <span />
-              OR JOIN YOUR FRIENDS
+              Join your friends
               <span />
             </div>
             <form
@@ -763,50 +820,17 @@ export default function App() {
                 Join <ArrowRight size={16} />
               </button>
             </form>
-            {localStorage.getItem("railbound-last-room") && (
-              <button
-                className="resume text-button"
-                onClick={() =>
-                  visit(localStorage.getItem("railbound-last-room")!)
-                }
-              >
-                Return to your last table <ArrowRight size={14} />
-              </button>
-            )}
           </section>
-          <section className="hero-world">
-            <div className="edition-label">
-              <span>THE RAILROAD ATLAS</span>
-              <strong>
-                USA <i>1910</i>
-              </strong>
-              <span>69 TICKETS · ONE GREAT ADVENTURE</span>
-            </div>
+          <section className="hero-world" aria-label="USA map">
             <div className="hero-board">
               <BoardView onSelect={() => {}} top={false} />
             </div>
-            <div className="postmark">
-              <Compass size={32} />
-              <span>
-                ALL ABOARD!
-                <br />
-                NEXT STOP: GAME NIGHT
-              </span>
-            </div>
-            <div className="hero-caption">
-              <span className="live-dot" /> A COAST-TO-COAST ADVENTURE{" "}
-              <span>Map preview · USA 1910</span>
-            </div>
           </section>
-          <footer className="home-footer">
-            <span>✦ ALL ABOARD THE EVENING EXPRESS ✦</span>
-            <span>2–5 friends · Private tables · No account needed</span>
-          </footer>
         </main>
       ) : room === undefined ? (
         <div className="page-loading">
           <LoaderCircle className="spin" />
-          <h2>Finding your table…</h2>
+          <h2>Loading game…</h2>
         </div>
       ) : !room ? (
         <div className="page-loading">
@@ -814,7 +838,7 @@ export default function App() {
           <h2>That table couldn’t be found.</h2>
           <p>Check the eight-character room code and try again.</p>
           <button className="primary" onClick={() => visit("")}>
-            Back to the station
+            Back to home
           </button>
         </div>
       ) : !game ? (
@@ -822,8 +846,7 @@ export default function App() {
           <div className="join-illustration">
             <TrainFront size={70} strokeWidth={1} />
           </div>
-          <div className="eyebrow">AN INVITATION TO ADVENTURE</div>
-          <h1>A seat with your name on it.</h1>
+          <h1>Join game</h1>
           <p>
             Table <strong>{code}</strong> · {room.seats}/5 seats filled
           </p>
@@ -837,7 +860,7 @@ export default function App() {
                 });
               }}
             >
-              <label htmlFor="join-name">YOUR CONDUCTOR NAME</label>
+              <label htmlFor="join-name">Name</label>
               <input
                 id="join-name"
                 placeholder="Your name"
@@ -847,7 +870,7 @@ export default function App() {
                 maxLength={24}
               />
               <button className="primary" disabled={busy || !name.trim()}>
-                Take your seat <ArrowRight size={18} />
+                Join game <ArrowRight size={18} />
               </button>
             </form>
           ) : (
@@ -858,7 +881,7 @@ export default function App() {
             </p>
           )}
           <button className="text-button" onClick={() => visit("")}>
-            Back to the station
+            Back to home
           </button>
         </main>
       ) : (
@@ -869,26 +892,15 @@ export default function App() {
             <div
               className={`table-heading ${game.phase !== "finished" ? "compact-heading" : ""}`}
             >
-              <div>
-                <div className="eyebrow">
-                  NORTH AMERICA · {MODES[game.mode].name.toUpperCase()}
-                </div>
-                <h1>
-                  {game.phase === "lobby"
-                    ? "A new adventure awaits."
-                    : game.phase === "finished"
-                      ? "The final whistle."
-                      : "Coast to coast."}
-                </h1>
-              </div>
+              <div>{game.phase === "finished" && <h1>Game over</h1>}</div>
               <div className="table-meta">
                 <span className="live-dot" />
                 {game.phase === "lobby"
-                  ? "BOARDING"
+                  ? ""
                   : game.phase === "setup"
                     ? "CHOOSING TICKETS"
                     : game.phase === "finished"
-                      ? "JOURNEY COMPLETE"
+                      ? "GAME OVER"
                       : `TURN ${game.turnNumber}`}
               </div>
             </div>
@@ -1051,7 +1063,7 @@ export default function App() {
                   ) : (
                     <p>
                       {game.phase === "finished"
-                        ? "Unclaimed at the final whistle."
+                        ? "Unclaimed."
                         : "Not enough matching cards, trains, or the parallel route is blocked."}
                     </p>
                   )}
@@ -1096,6 +1108,39 @@ export default function App() {
           <aside
             className={`table-sidebar ${me?.pending.length ? "choosing-tickets" : ""}`}
           >
+            <div className="table-actions">
+              {game.phase === "lobby" &&
+                (host ? (
+                  <button
+                    className="primary full"
+                    disabled={
+                      busy || game.players.length < 2 || !connectedServer
+                    }
+                    onClick={() => action({ type: "start" })}
+                    aria-busy={busy}
+                  >
+                    Start game <ArrowRight size={18} />
+                  </button>
+                ) : (
+                  <p className="waiting-note">Waiting for the host to start…</p>
+                ))}
+              <button
+                className="secondary full leave-table"
+                disabled={
+                  pendingTable.includes("leave") ||
+                  pendingTable.includes("resign")
+                }
+                onClick={() =>
+                  game.phase === "lobby"
+                    ? setTable("leave")
+                    : !me?.bot && game.phase !== "finished"
+                      ? setResign(true)
+                      : visit("")
+                }
+              >
+                <LogOut size={16} /> Leave table
+              </button>
+            </div>
             {me?.pending.length && !me.bot ? (
               <TicketChoice
                 game={game}
@@ -1109,32 +1154,14 @@ export default function App() {
               <>
                 {game.phase === "lobby" ? (
                   <>
-                    <div className="lobby-heading">
-                      <h2>Game setup</h2>
-                      <button
-                        className="secondary"
-                        onClick={() => setTable("leave")}
-                        disabled={busy}
-                      >
-                        <LogOut size={16} /> Leave table
-                      </button>
-                    </div>
-                    <button className="invite-box" onClick={copy}>
-                      <div>
-                        <small>YOUR PRIVATE ROOM</small>
-                        <strong>{code}</strong>
-                      </div>
-                      {copied ? <Check size={21} /> : <Copy size={21} />}
-                    </button>
-                    <p className="small muted">
-                      Click to copy the invitation link. Your friends can join
-                      without an account.
-                    </p>
                     <label htmlFor="table-mode">GAME MODE</label>
                     <select
                       id="table-mode"
                       value={game.mode}
                       disabled={!host || busy}
+                      aria-busy={pendingTable.some((key) =>
+                        key.startsWith("mode"),
+                      )}
                       onChange={(e) =>
                         setTable("mode", { mode: e.target.value as Mode })
                       }
@@ -1148,17 +1175,33 @@ export default function App() {
                     <p className="mode-description">
                       {MODES[game.mode].description}
                     </p>
+                    <button className="invite-box" onClick={copy}>
+                      <div>
+                        <small>YOUR PRIVATE ROOM</small>
+                        <strong>{code}</strong>
+                      </div>
+                      {copied ? <Check size={21} /> : <Copy size={21} />}
+                    </button>
+                    <p className="small muted">
+                      Click to copy the invitation link. Your friends can join
+                      without an account.
+                    </p>
                     {host && (
                       <button
                         className="add-bot"
                         onClick={() => setTable("bot")}
-                        disabled={busy || game.players.length >= 5}
+                        disabled={
+                          pendingTable.includes("bot") ||
+                          busy ||
+                          game.players.length >= 5
+                        }
+                        aria-busy={pendingTable.includes("bot")}
                       >
                         <Plus size={16} />
                         Add computer opponent
                       </button>
                     )}
-                    <div className="seat-list">
+                    <div className="seat-list" aria-label="Players">
                       {game.players.map((p) => (
                         <div key={p.id}>
                           <span style={{ color: PLAYER_COLORS[p.color] }}>
@@ -1175,6 +1218,7 @@ export default function App() {
                           {host && p.id !== me?.id && (
                             <button
                               className="icon"
+                              disabled={pendingTable.includes("remove" + p.id)}
                               aria-label={`Remove ${p.name}`}
                               onClick={() =>
                                 setTable("remove", { player: p.id })
@@ -1185,26 +1229,28 @@ export default function App() {
                           )}
                         </div>
                       ))}
+                      {Array.from(
+                        { length: 5 - game.players.length },
+                        (_, i) => (
+                          <div
+                            className="open-seat"
+                            key={`open-${i}`}
+                            aria-hidden="true"
+                          >
+                            <Users size={19} />
+                            <span>
+                              {i === 0 && pendingTable.includes("bot")
+                                ? "Adding computer…"
+                                : "Open seat"}
+                            </span>
+                          </div>
+                        ),
+                      )}
                     </div>
-                    {host ? (
-                      <button
-                        className="primary full"
-                        disabled={
-                          busy || game.players.length < 2 || !connectedServer
-                        }
-                        onClick={() => action({ type: "start" })}
-                      >
-                        Start game <ArrowRight size={18} />
-                      </button>
-                    ) : (
-                      <div className="waiting-note">
-                        Waiting for the host to start…
-                      </div>
-                    )}
                   </>
                 ) : game.phase === "finished" ? (
                   <div className="results-side">
-                    <div className="eyebrow">JOURNEY COMPLETE</div>
+                    <div className="eyebrow">GAME OVER</div>
                     <Trophy size={38} className="trophy" />
                     <h2>
                       {game.results
@@ -1217,7 +1263,7 @@ export default function App() {
                         ? "wins!"
                         : "win!"}
                     </h2>
-                    <p>Every journey has a story. Here’s how this one ended.</p>
+
                     {[...game.results]
                       .sort((a, b) => b.total - a.total)
                       .map((r) => (
@@ -1272,7 +1318,7 @@ export default function App() {
                     {host && (
                       <button
                         className="primary full"
-                        disabled={busy}
+                        disabled={pendingTable.includes("rematch")}
                         onClick={() => setTable("rematch")}
                       >
                         <RotateCcw size={17} />
@@ -1287,9 +1333,9 @@ export default function App() {
                       <div>
                         <strong>
                           {game.phase === "setup"
-                            ? "Plan your journey"
+                            ? "Choose tickets"
                             : mine
-                              ? "Your turn, conductor."
+                              ? "Your turn"
                               : `${game.players[game.turn]?.name}’s turn`}
                         </strong>
                         <small>
@@ -1299,12 +1345,12 @@ export default function App() {
                               ? game.drawn
                                 ? "Choose one more train card."
                                 : "Draw cards, claim a route, or take tickets."
-                              : "Plan ahead while the railway grows."}
+                              : ""}
                         </small>
                       </div>
                     </div>
                     <div className="market-heading">
-                      <h3>The rail yard</h3>
+                      <h3>Train cards</h3>
                       <span>{game.deckCount + game.discardCount} in deck</span>
                     </div>
                     <div className="market-cards">
@@ -1434,20 +1480,23 @@ export default function App() {
                       ) : (
                         <div className="empty-note">
                           <TicketIcon size={27} />
-                          <p>
-                            Your secret destinations will appear here when the
-                            journey begins.
-                          </p>
+                          <p>Your destination tickets appear here.</p>
                         </div>
                       )}
                     </>
                   ) : activeTab === "chat" ? (
                     <div className="chat-box">
-                      <div className="messages" ref={messagesBox}>
-                        {messages.length ? (
-                          messages.map((m) => (
+                      <div
+                        className="messages"
+                        ref={messagesBox}
+                        role="log"
+                        aria-label="Conversation"
+                        aria-live="polite"
+                      >
+                        {chatMessages.length ? (
+                          chatMessages.map((m) => (
                             <div
-                              className={`message ${m.sender === me?.id ? "own" : ""}`}
+                              className={`message ${m.sender === "local-server" ? "server-message" : m.sender === me?.id ? "own" : ""}`}
                               key={m._id}
                             >
                               <div>
@@ -1465,7 +1514,7 @@ export default function App() {
                         ) : (
                           <div className="empty-note">
                             <Send size={25} />
-                            <p>Say hello to the table.</p>
+                            <p>No messages yet.</p>
                           </div>
                         )}
                         <div ref={chatEnd} />
@@ -1481,6 +1530,7 @@ export default function App() {
                         <button
                           className="icon"
                           aria-label="Send message"
+                          aria-busy={sendingChat}
                           disabled={sendingChat || !chatText.trim()}
                         >
                           <Send size={18} />
@@ -1492,7 +1542,9 @@ export default function App() {
                       {game.log.length ? (
                         [...game.log]
                           .reverse()
-                          .map((l, i) => <li key={i}>{l}</li>)
+                          .map((l, i) => (
+                            <li key={i}>{l.replace(/^All aboard! /, "")}</li>
+                          ))
                       ) : (
                         <li>
                           The table is open. Invite your friends to begin.
@@ -1501,16 +1553,6 @@ export default function App() {
                     </ol>
                   )}
                 </div>
-                {(game.phase === "playing" || game.phase === "setup") &&
-                  !me?.bot && (
-                    <button
-                      className="text-button resign"
-                      onClick={() => setResign(true)}
-                    >
-                      <LogOut size={12} />
-                      Let a computer finish my game
-                    </button>
-                  )}
               </>
             )}
           </aside>
@@ -1551,12 +1593,11 @@ export default function App() {
           <h2>Hand over to a computer?</h2>
           <p>
             A computer will play the rest of this game with your cards and
-            tickets. You can stay to watch and chat. This cannot be reversed
-            during this game.
+            tickets. This cannot be reversed during this game.
           </p>
           <button
             className="primary full"
-            disabled={busy}
+            disabled={pendingTable.includes("resign")}
             onClick={() => setTable("resign")}
           >
             Hand over my seat
@@ -1568,8 +1609,8 @@ export default function App() {
       )}
       {routesOpen && game && me && (
         <Modal label="Route list" wide onClose={() => setRoutesOpen(false)}>
-          <div className="eyebrow">THE RAILWAY DIRECTORY</div>
-          <h2>Find your next connection.</h2>
+          <div className="eyebrow">ROUTES</div>
+          <h2>Routes</h2>
           <input
             className="route-search"
             aria-label="Search routes"
@@ -1627,8 +1668,8 @@ export default function App() {
           wide
           onClose={() => setCatalog(false)}
         >
-          <div className="eyebrow">THE COMPLETE USA 1910 COLLECTION</div>
-          <h2>69 ways to go somewhere.</h2>
+          <div className="eyebrow">USA 1910</div>
+          <h2>Destination tickets</h2>
           <p>
             30 Classic · 35 USA 1910 · 4 Mystery Train. Big Cities draws from 35
             of these tickets.

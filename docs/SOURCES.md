@@ -23,3 +23,5 @@ Infrastructure references: [Convex pricing](https://www.convex.dev/pricing), [Co
 - The card, ticket, route-claim and turn cues in `src/audio.ts` are original Web Audio synthesis.
 
 The user requested the decorative Gulf label to read “Gulf of America.” The atlas labels are presentation text, independent of routing data.
+
+The Florida coastline, lakes, and boundaries are widened together in the map projection to fit its three train approaches. Miami’s station is inset from the shoreline. Coastal train footprints are checked against the rendered land polygons by `npm run test:map`.

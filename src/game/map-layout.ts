@@ -1,9 +1,14 @@
 import { ROUTES, type Route } from "./data";
 import geography from "./geography.json";
 export type Point = [number, number];
-export const cities = geography.cities as unknown as Record<string, Point>;
+// Station marker sits just inland, leaving space for the three Florida approaches.
+export const cities = {
+  ...geography.cities,
+  Miami: [1188, 734],
+} as unknown as Record<string, Point>;
 const bends: Record<string, number> = {
   r0: -25,
+  r1: -7,
   r3: 7,
   r4: 12,
   r7: -23,
@@ -11,7 +16,7 @@ const bends: Record<string, number> = {
   r9: 14,
   r10: -12,
   r11: -12,
-  r12: 8,
+  r12: -10,
   r13: 8,
   r14: -12,
   r15: -5,
@@ -54,15 +59,32 @@ const bends: Record<string, number> = {
   r81: 12,
   r82: 2,
   r84: 8,
-  r85: 38,
+  r85: -14,
   r89: -4,
   r90: -5,
-  r93: 6,
+  r93: -16,
   r94: 6,
-  r97: -20,
+  r97: -30,
+  r98: 8,
 };
 // Hand-shaped approaches give crowded stations separate entry angles.
 const guides: Record<string, [Point, Point]> = {
+  r62: [
+    [940, 561],
+    [952, 592],
+  ],
+  r61: [
+    [1067, 552],
+    [1010, 571],
+  ],
+  r89: [
+    [1070, 588],
+    [1228, 657],
+  ],
+  r95: [
+    [1190, 245],
+    [1214, 220],
+  ],
   r16: [
     [323, 690],
     [435, 734],
@@ -144,11 +166,32 @@ const guides: Record<string, [Point, Point]> = {
     [1119, 533],
   ],
   r86: [
-    [1090, 588],
-    [1134, 580],
+    [1175, 597],
+    [1128, 609],
+  ],
+  r85: [
+    [1113.238780242727, 623.7657364192208],
+    [1143.0734461281438, 623.2660933201481],
+  ],
+  r93: [
+    [1165.5118305411863, 343.84518028969165],
+    [1208.2891631583739, 298.0990265561631],
+  ],
+  r78: [
+    [1070.1776359375, 324.7174802489019],
+    [1178.7479466796876, 340.7174802489019],
+  ],
+  r80: [
+    [1184.360307569321, 411.06000452912707],
+    [1164.153285694321, 394.5777541630948],
   ],
 };
 const stationMargins: Record<string, [number, number]> = {
+  r61: [52, 57],
+  r85: [56, 50],
+  r89: [58, 20],
+  r93: [20, 55],
+  r95: [43, 20],
   r16: [50, 34],
   r10: [30, 42],
   r23: [34, 48],
@@ -165,6 +208,10 @@ const stationMargins: Record<string, [number, number]> = {
   r81: [45, 35],
   r82: [34, 47],
   r84: [34, 48],
+  r62: [41, 51],
+  r78: [46, 30],
+  r80: [20, 42],
+  r86: [42, 43],
 };
 export const LANE_SPACING = 22;
 export const TRAIN_HEIGHT = 17;

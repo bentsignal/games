@@ -8,7 +8,7 @@ import {
 } from "react";
 import { Minus, Plus, Info } from "lucide-react";
 import { PALETTE, PLAYER_COLORS, ROUTES, type Route } from "../game/data";
-import type { View } from "../game/engine";
+import { routeAvailable, type Game, type View } from "../game/engine";
 import geography from "../game/geography.json";
 import { ticketPath, type TicketPreview } from "../game/interactions";
 
@@ -77,6 +77,23 @@ export default function Board({
   );
   const demo = !game;
   const picked = ROUTES.find((r) => r.id === hover);
+  const hoveredRoutes = picked
+    ? ROUTES.filter(
+        (r) =>
+          r.a === picked.a &&
+          r.b === picked.b &&
+          (game?.me
+            ? routeAvailable(game as unknown as Game, game.me, r)
+            : !game?.claimed[r.id]),
+      )
+    : [];
+  // A claimed or fully blocked connection can still be inspected, but available
+  // double lanes are always highlighted together, regardless of pointer side.
+  const hoverIds = hoveredRoutes.length
+    ? hoveredRoutes.map((r) => r.id)
+    : hover
+      ? [hover]
+      : [];
   return (
     <div className={`atlas ${demo ? "atlas-preview" : ""}`}>
       <svg
@@ -261,7 +278,7 @@ export default function Board({
               <text x="650" y="95" className="country-name">
                 C A N A D A
               </text>
-              <text x="575" y="800" className="country-name">
+              <text x="610" y="864" className="country-name">
                 M É X I C O
               </text>
               <text
@@ -323,7 +340,9 @@ export default function Board({
                     ? PLAYER_COLORS[Math.floor(demoIndex / 4) % 5]
                     : PALETTE[r.color];
                 const highlighted =
-                  selected === r.id || hover === r.id || dropTarget === r.id;
+                  selected === r.id ||
+                  hoverIds.includes(r.id) ||
+                  dropTarget === r.id;
                 const droppable = eligible?.includes(r.id);
                 return (
                   <g
@@ -554,28 +573,6 @@ export default function Board({
                 fill="#645038"
               >
                 RAILWAYS · 1910
-              </text>
-            </g>
-            <g
-              transform="translate(1278 700)"
-              pointerEvents="none"
-              fill="none"
-              stroke="#53757a"
-              opacity=".75"
-            >
-              <circle r="32" />
-              <circle r="26" strokeDasharray="1 5" />
-              <path d="M0-40 7-7 40 0 7 7 0 40-7 7-40 0-7-7Z" />
-              <path d="M0-32V32M-32 0H32" />
-              <text
-                y="-46"
-                fill="#53757a"
-                stroke="none"
-                textAnchor="middle"
-                fontSize="13"
-                fontFamily="serif"
-              >
-                N
               </text>
             </g>
           </g>

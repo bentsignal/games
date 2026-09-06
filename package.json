@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "backend": "convex dev",
     "test:e2e": "playwright test",
+    "test:map": "tsx scripts/map-proof.tsx && tsx scripts/check-coast.ts",
     "test:live": "tsx scripts/live-smoke.ts",
     "format": "prettier --write src convex tests scripts/*.ts *.ts *.json *.md docs"
   },
