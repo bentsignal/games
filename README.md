@@ -12,14 +12,18 @@ Production backend: `https://proficient-porpoise-581.convex.cloud`, in the Perso
 1. Enter a conductor name and choose Classic, USA 1910, Big Cities, or Mega.
 2. Create a table and copy the room invitation. Friends join with a name; no account is required.
 3. Add optional computer players, then start. Each player selects their secret tickets.
-4. On your turn, draw train cards, claim a route, or draw destination tickets. Click the board or use the searchable route list.
+4. On your turn, draw train cards, claim a route, or draw destination tickets. Drag a colored card from your hand onto a highlighted route; the game pays with that color and the fewest necessary locomotives. You can also select a hand color and then a route, or use the searchable route list.
 5. The server runs the final round, reveals tickets, scores bonuses, resolves ties, and offers a rematch.
 
 Your seat is saved in the browser. Reloading, navigating away, and reopening the room recover it. Clearing browser storage or switching devices creates a new identity. Rooms wait for disconnected humans; a player can explicitly hand their seat to a computer. Room chat and the recent activity log persist.
 
-Use the map’s + / − buttons, scroll wheel, or pinch to zoom. Drag to pan; Reset map restores the whole board. Keyboard users can focus the map and use + / −, arrow keys, or 0 to reset, or use the route list. Claimed routes show the owner’s color and player number.
+Use the map’s + / − buttons, scroll wheel, or pinch to zoom. Drag to pan; Reset map restores the whole board. Keyboard users can focus the map and use + / −, arrow keys, or 0 to reset, or use the route list. Claimed routes use larger, saturated train pieces. Parallel routes maintain their full separation throughout each bend.
 
-The Music button opens the classic America track in a visible YouTube player. Playback starts from its own controls, can loop, and stops when the panel closes. YouTube availability and ads are controlled by YouTube. No soundtrack is downloaded or redistributed. Sound effects can be switched off in the same panel; this preference is saved locally.
+Music attempts to start automatically and loops the classic America track. Browser autoplay restrictions may require the first interaction or a click on Play music. The header button pauses/resumes playback; the adjacent settings button opens the YouTube player, volume slider, and sound-effects toggle. Closing settings preserves the player and its playback position. YouTube availability and ads are controlled by YouTube. No soundtrack is downloaded or redistributed. Sound effects can be switched off in the same panel; this preference is saved locally.
+
+Starting and mid-game destination choices sit beside the board. Hover or focus a ticket to preview its endpoints and a suggested connection; select several to keep their previews visible together. Suggestions prefer your existing rails and avoid opponents’ claims, but are not prescribed routes. During play, tickets can also be pinned for comparison.
+
+Dragging supports mouse and touch. Escape or releasing outside the map cancels without spending cards. A dropped locomotive contributes at least one wild card; the drag preview shows the resulting payment.
 
 ## Local development
 
@@ -48,10 +52,10 @@ Run the frontend before the browser tests. `PLAYWRIGHT_BASE_URL` targets a deplo
 - `src/game/data.ts`, `board.json`, `tickets.json`: 36 cities, 100 tracks, 69 tickets and variant metadata.
 - `src/game/engine.ts`: authoritative pure game transitions, legal payments, ticket connectivity, longest edge-simple trail, scoring, private views, computer decisions.
 - `convex/rooms.ts`: transactional room actions, session authorization, revision checks, chat, and scheduled computer turns.
-- `src/components/Board.tsx`: accessible SVG board, curved and separated routes, numbered player trains, city labels, mouse/touch pan and zoom.
+- `src/components/Board.tsx`: accessible SVG board, curved and separated routes, vibrant player trains, ticket previews, city labels, mouse/touch pan and zoom.
 - `src/game/geography.json`: generated Natural Earth coastlines, state borders, lakes, and aligned city coordinates. `node scripts/generate-map.mjs` regenerates these public-domain layers.
 - `src/components/TrainArtwork.tsx`: original train-car engravings and conductor portraits.
-- `src/components/Music.tsx` and `src/audio.ts`: opt-in YouTube soundtrack player and original synthesized game cues.
+- `src/components/Music.tsx` and `src/audio.ts`: persistent YouTube soundtrack player and original synthesized game cues.
 - `assets/locomotive.blend`: original editable Blender source. `scripts/create_locomotive.py` recreates it inside Blender. The earlier 3D prototype and its GLB are retained as source assets; the current game uses the 2D board.
 
 Session secrets contain 256 random bits and stay in local browser storage. The server hashes them before using public player IDs. Other players' cards, pending choices, ticket identities, and deck order are excluded from query responses until the final reveal. A revision check and Convex transactions prevent double submissions and concurrent conflicting claims. Browser actions never submit a new game state or score. Computer players use their own cards and public board information only.

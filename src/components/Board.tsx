@@ -1,138 +1,23 @@
-import { useEffect, useId, useRef, useState } from "react";
-import { Minus, Plus } from "lucide-react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  useMemo,
+  type ReactNode,
+} from "react";
+import { Minus, Plus, Info } from "lucide-react";
 import { PALETTE, PLAYER_COLORS, ROUTES, type Route } from "../game/data";
 import type { View } from "../game/engine";
 import geography from "../game/geography.json";
+import { ticketPath, type TicketPreview } from "../game/interactions";
 
-type Point = [number, number];
-const cities = geography.cities as unknown as Record<string, Point>;
-// Curves are authored per corridor; parallel lines share a curve with separate lanes.
-const bends: Record<string, number> = {
-  r0: -18,
-  r3: -12,
-  r4: 12,
-  r7: -23,
-  r8: 14,
-  r9: 14,
-  r10: -12,
-  r11: -12,
-  r12: 8,
-  r13: 8,
-  r14: -12,
-  r15: -5,
-  r16: 112,
-  r17: -45,
-  r19: -8,
-  r20: 8,
-  r22: -12,
-  r23: 15,
-  r26: -12,
-  r27: -47,
-  r28: -7,
-  r29: 12,
-  r30: -45,
-  r31: -10,
-  r32: -12,
-  r33: 43,
-  r34: 15,
-  r37: 4,
-  r51: 43,
-  r52: 12,
-  r53: -4,
-  r55: -8,
-  r56: 12,
-  r58: 6,
-  r59: 6,
-  r60: -8,
-  r61: 65,
-  r62: -13,
-  r63: -13,
-  r64: -7,
-  r65: 10,
-  r68: 19,
-  r73: -17,
-  r74: -38,
-  r75: -15,
-  r76: -7,
-  r77: 6,
-  r80: 12,
-  r81: -15,
-  r82: 2,
-  r84: -13,
-  r85: 38,
-  r89: 25,
-  r90: -5,
-  r93: 6,
-  r94: 6,
-  r97: -20,
-};
+import { cities, tracks, type Point } from "../game/map-layout";
 const demoRoutes = [
   1, 4, 8, 9, 12, 14, 15, 16, 17, 20, 21, 22, 23, 24, 29, 31, 33, 34, 35, 37,
   38, 40, 42, 45, 48, 50, 52, 55, 58, 60, 62, 66, 69, 71, 75, 78, 83, 85, 86,
   91, 95, 98,
 ];
-function curve(route: Route) {
-  const a = cities[route.a],
-    b = cities[route.b];
-  const dx = b[0] - a[0],
-    dy = b[1] - a[1],
-    len = Math.hypot(dx, dy),
-    nx = -dy / len,
-    ny = dx / len;
-  const siblings = ROUTES.filter((r) => r.a === route.a && r.b === route.b);
-  const lane = (siblings.indexOf(route) - (siblings.length - 1) / 2) * 13;
-  const bend = bends[route.id] || 0;
-  const from: Point = [a[0] + nx * lane, a[1] + ny * lane],
-    to: Point = [b[0] + nx * lane, b[1] + ny * lane];
-  const control: Point = [
-    (a[0] + b[0]) / 2 + nx * bend * 2,
-    (a[1] + b[1]) / 2 + ny * bend * 2,
-  ];
-  const at = (t: number): Point => [
-    (1 - t) ** 2 * from[0] + 2 * (1 - t) * t * control[0] + t * t * to[0],
-    (1 - t) ** 2 * from[1] + 2 * (1 - t) * t * control[1] + t * t * to[1],
-  ];
-  // Even distances along the curve, including on the long coastal routes.
-  const samples = Array.from({ length: 101 }, (_, i) => at(i / 100));
-  const distances = [0];
-  for (let i = 1; i < samples.length; i++)
-    distances.push(
-      distances[i - 1] +
-        Math.hypot(
-          samples[i][0] - samples[i - 1][0],
-          samples[i][1] - samples[i - 1][1],
-        ),
-    );
-  const total = distances[100],
-    usable = total - 28,
-    slot = Math.min(33, (usable - (route.length - 1) * 5) / route.length);
-  const pointAt = (distance: number) => {
-    let i = 1;
-    while (i < 100 && distances[i] < distance) i++;
-    return (
-      (i -
-        1 +
-        (distance - distances[i - 1]) / (distances[i] - distances[i - 1])) /
-      100
-    );
-  };
-  const cars = Array.from({ length: route.length }, (_, i) => {
-    const t = pointAt(14 + (usable * (i + 0.5)) / route.length),
-      p = at(t),
-      before = at(t - 0.001),
-      after = at(t + 0.001);
-    return {
-      x: p[0],
-      y: p[1],
-      angle:
-        (Math.atan2(after[1] - before[1], after[0] - before[0]) * 180) /
-        Math.PI,
-      width: slot,
-    };
-  });
-  return { path: `M${from} Q${control} ${to}`, cars };
-}
-const tracks = ROUTES.map((route) => ({ route, ...curve(route) }));
 // Label offsets keep station names off their outgoing rails.
 const labels: Record<string, [number, number, "start" | "middle" | "end"]> = {
   Vancouver: [-13, -13, "end"],
@@ -179,6 +64,10 @@ export default function Board({
   focus = [],
   reset = 0,
   top = false,
+  eligible,
+  dropTarget,
+  previews = [],
+  controls,
 }: {
   game?: View | null;
   selected?: string;
@@ -186,6 +75,10 @@ export default function Board({
   focus?: string[];
   reset?: number;
   top?: boolean;
+  eligible?: string[];
+  dropTarget?: string;
+  previews?: TicketPreview[];
+  controls?: ReactNode;
 }) {
   const id = useId().replace(/:/g, "");
   const svg = useRef<SVGSVGElement>(null);
@@ -215,6 +108,11 @@ export default function Board({
       return z === 1 ? { x: 0, y: 0, z } : { ...v, z };
     });
   }
+  const [help, setHelp] = useState(false);
+  const previewPaths = useMemo(
+    () => previews.map((p) => ({ ...p, routes: ticketPath(game, p.ticket) })),
+    [previews, game],
+  );
   const demo = !game;
   const picked = ROUTES.find((r) => r.id === hover);
   return (
@@ -402,175 +300,231 @@ export default function Board({
                 M É X I C O
               </text>
               <text
-                x="91"
-                y="519"
-                transform="rotate(-74 91 519)"
+                x="58"
+                y="530"
+                transform="rotate(-74 58 530)"
                 className="ocean-name"
               >
                 PACIFIC OCEAN
               </text>
               <text
-                x="1275"
-                y="485"
-                transform="rotate(-63 1275 485)"
+                x="1330"
+                y="465"
+                transform="rotate(-63 1330 465)"
                 className="ocean-name"
               >
                 ATLANTIC OCEAN
               </text>
               <text x="920" y="785" className="ocean-name gulf">
-                Gulf of Mexico
+                Gulf of America
               </text>
             </g>
-            {tracks.map(({ route: r, path, cars }) => {
-              const owner = game?.players.find(
-                (p) => p.id === game.claimed[r.id],
-              );
-              const demoIndex = demoRoutes.indexOf(Number(r.id.slice(1)));
-              const occupied = !!owner || (demo && demoIndex >= 0);
-              const color = owner
-                ? PLAYER_COLORS[owner.color]
-                : occupied
-                  ? PLAYER_COLORS[Math.floor(demoIndex / 4) % 5]
-                  : PALETTE[r.color];
-              const highlighted = selected === r.id || hover === r.id;
-              return (
+            <g className="ticket-paths" pointerEvents="none">
+              {previewPaths.map((p) => (
                 <g
-                  key={r.id}
-                  className={`map-route ${occupied ? "claimed" : ""} ${highlighted ? "highlighted" : ""}`}
-                  data-route={r.id}
-                  data-owner={owner?.id}
-                  role={demo ? undefined : "button"}
-                  tabIndex={demo ? undefined : 0}
-                  aria-label={`${r.a} to ${r.b}, ${r.length} ${r.color}${owner ? `, claimed by ${owner.name}` : ""}`}
-                  aria-pressed={demo ? undefined : selected === r.id}
-                  onMouseEnter={() => setHover(r.id)}
-                  onMouseLeave={() => setHover(undefined)}
-                  onFocus={() => setHover(r.id)}
-                  onBlur={() => setHover(undefined)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      onSelect(r);
-                    }
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (!moved.current && !demo) onSelect(r);
-                  }}
+                  key={p.ticket.id}
+                  data-ticket-preview={p.ticket.id}
+                  data-hovered={p.hovered || undefined}
                 >
-                  <title>
-                    {r.a} → {r.b} · {r.length} {r.color}
-                    {owner ? ` · ${owner.name}` : ""}
-                  </title>
-                  <path
-                    d={path}
-                    fill="none"
-                    stroke="transparent"
-                    strokeWidth="23"
-                  />
-                  {highlighted && (
+                  {p.routes.map((route) => (
                     <path
-                      className="route-halo"
+                      key={route}
+                      d={tracks.find((t) => t.route.id === route)!.path}
+                      fill="none"
+                      stroke={p.color}
+                      strokeWidth={p.hovered ? 22 : 18}
+                      strokeLinecap="round"
+                      opacity={p.hovered ? 0.6 : 0.34}
+                    />
+                  ))}
+                </g>
+              ))}
+            </g>
+            {[...tracks]
+              .sort(
+                (a, b) =>
+                  Number(!!game?.claimed[a.route.id]) -
+                  Number(!!game?.claimed[b.route.id]),
+              )
+              .map(({ route: r, path, cars }) => {
+                const owner = game?.players.find(
+                  (p) => p.id === game.claimed[r.id],
+                );
+                const demoIndex = demoRoutes.indexOf(Number(r.id.slice(1)));
+                const occupied = !!owner || (demo && demoIndex >= 0);
+                const color = owner
+                  ? PLAYER_COLORS[owner.color]
+                  : occupied
+                    ? PLAYER_COLORS[Math.floor(demoIndex / 4) % 5]
+                    : PALETTE[r.color];
+                const highlighted =
+                  selected === r.id || hover === r.id || dropTarget === r.id;
+                const droppable = eligible?.includes(r.id);
+                return (
+                  <g
+                    key={r.id}
+                    className={`map-route ${occupied ? "claimed" : ""} ${highlighted ? "highlighted" : ""} ${eligible ? (droppable ? "drop-eligible" : "drop-unavailable") : ""} ${dropTarget === r.id ? "drop-target" : ""}`}
+                    data-route={r.id}
+                    data-owner={owner?.id}
+                    data-droppable={droppable || undefined}
+                    role={demo ? undefined : "button"}
+                    tabIndex={demo ? undefined : 0}
+                    aria-label={`${r.a} to ${r.b}, ${r.length} ${r.color}${owner ? `, claimed by ${owner.name}` : ""}`}
+                    aria-pressed={demo ? undefined : selected === r.id}
+                    onMouseEnter={() => setHover(r.id)}
+                    onMouseLeave={() => setHover(undefined)}
+                    onFocus={() => setHover(r.id)}
+                    onBlur={() => setHover(undefined)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        onSelect(r);
+                      }
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!moved.current && !demo) onSelect(r);
+                    }}
+                  >
+                    <title>
+                      {r.a} → {r.b} · {r.length} {r.color}
+                      {owner ? ` · ${owner.name}` : ""}
+                    </title>
+                    <path
                       d={path}
                       fill="none"
-                      stroke="#fffae3"
-                      strokeWidth="23"
-                      strokeLinecap="round"
-                      opacity=".85"
+                      stroke="transparent"
+                      strokeWidth="24"
                     />
-                  )}
-                  {cars.map((c, i) => (
-                    <g
-                      key={i}
-                      transform={`translate(${c.x} ${c.y}) rotate(${c.angle})`}
-                      pointerEvents="none"
-                    >
-                      {occupied ? (
-                        <>
-                          <rect
-                            x={-c.width / 2 - 1}
-                            y="-6.5"
-                            width={c.width + 2}
-                            height="13"
-                            rx="3"
-                            fill={color}
-                            stroke="#372820"
-                            strokeWidth="3.5"
-                          />
-                          <rect
-                            x={-c.width / 2}
-                            y="-6"
-                            width={c.width}
-                            height="12"
-                            rx="2.5"
-                            fill={color}
-                            stroke="#fff1ce"
-                            strokeWidth="1.4"
-                          />
-                          <path
-                            d={`M${-c.width / 2 + 3} -3H${c.width / 2 - 3}`}
-                            stroke="white"
-                            strokeWidth="2"
-                            opacity=".6"
-                          />
-                          <path
-                            d={`M${-c.width / 2 + 4} 7v2m${c.width - 8} -2v2`}
-                            stroke="#372820"
-                            strokeWidth="2.8"
-                          />
-                        </>
-                      ) : (
-                        <>
-                          <rect
-                            x={-c.width / 2}
-                            y="-4.5"
-                            width={c.width}
-                            height="9"
-                            rx="1.5"
-                            fill={color}
-                            stroke="#675c4e"
-                            strokeWidth="1.2"
-                          />
-                          <rect
-                            x={-c.width / 2 + 2}
-                            y="-2.5"
-                            width={Math.max(1, c.width - 4)}
-                            height="5"
-                            rx=".5"
-                            fill="none"
-                            stroke="#fff9e1"
-                            strokeWidth=".7"
-                            opacity=".65"
-                          />
-                        </>
-                      )}
-                    </g>
-                  ))}
-                  {owner && (
-                    <g
-                      transform={`translate(${cars[Math.floor(cars.length / 2)].x} ${cars[Math.floor(cars.length / 2)].y})`}
-                      pointerEvents="none"
-                    >
+                    {(highlighted || droppable) && (
+                      <path
+                        className="route-halo"
+                        d={path}
+                        fill="none"
+                        stroke={droppable ? "#18a87d" : "#fffae3"}
+                        strokeWidth="24"
+                        strokeLinecap="round"
+                        opacity={
+                          dropTarget === r.id ? 0.75 : droppable ? 0.22 : 0.7
+                        }
+                      />
+                    )}
+                    {cars.map((c, i) => (
+                      <g
+                        key={i}
+                        transform={`translate(${c.x} ${c.y}) rotate(${c.angle})`}
+                        pointerEvents="none"
+                      >
+                        {occupied ? (
+                          <>
+                            <rect
+                              x={-c.width / 2}
+                              y="-6"
+                              width={c.width}
+                              height="17"
+                              rx="3"
+                              fill="#2b2429"
+                              opacity=".35"
+                              transform="translate(1.8 1.8)"
+                            />
+                            <path
+                              d={`M${-c.width / 2 + 4} 6v4m${c.width - 8} -4v4`}
+                              stroke="#30262a"
+                              strokeWidth="3"
+                            />
+                            <rect
+                              x={-c.width / 2}
+                              y="-8.5"
+                              width={c.width}
+                              height="17"
+                              rx="3"
+                              fill={color}
+                              stroke="#32232a"
+                              strokeWidth="1.7"
+                            />
+                            <path
+                              d={`M${-c.width / 2 + 2} -5.5H${c.width / 2 - 2}`}
+                              stroke="#fff"
+                              strokeWidth="1.6"
+                              opacity=".48"
+                            />
+                            <path
+                              d={`M${-c.width / 2 + 2} 5.5H${c.width / 2 - 2}`}
+                              stroke="#241626"
+                              strokeWidth="2"
+                              opacity=".26"
+                            />
+                            <path
+                              d={`M${-c.width / 2 + 5} -3.5V3.5M${c.width / 2 - 5} -3.5V3.5`}
+                              stroke="#281727"
+                              opacity=".16"
+                            />
+                          </>
+                        ) : (
+                          <>
+                            <rect
+                              x={-c.width / 2}
+                              y="-4.5"
+                              width={c.width}
+                              height="9"
+                              rx="1.5"
+                              fill={color}
+                              stroke="#675c4e"
+                              strokeWidth="1.2"
+                            />
+                            <rect
+                              x={-c.width / 2 + 2}
+                              y="-2.5"
+                              width={Math.max(1, c.width - 4)}
+                              height="5"
+                              rx=".5"
+                              fill="none"
+                              stroke="#fff9e1"
+                              strokeWidth=".7"
+                              opacity=".65"
+                            />
+                          </>
+                        )}
+                      </g>
+                    ))}
+                  </g>
+                );
+              })}
+            <g className="ticket-endpoints" pointerEvents="none">
+              {previewPaths.map((p, index) => (
+                <g key={p.ticket.id}>
+                  {[p.ticket.a, p.ticket.b].map((name) => (
+                    <g key={name} transform={`translate(${cities[name]})`}>
                       <circle
-                        r="7"
-                        fill="#fff4d2"
-                        stroke="#49341e"
-                        strokeWidth="1"
+                        r={p.hovered ? 22 : 16 + index * 3}
+                        fill="none"
+                        stroke={p.color}
+                        strokeWidth={p.hovered ? 4 : 2.5}
+                        opacity={p.hovered ? 1 : 0.85}
+                      />
+                      <circle
+                        cx="0"
+                        cy={-23 - index * 3}
+                        r="8"
+                        fill={p.color}
+                        stroke="#fff7dc"
+                        strokeWidth="1.2"
                       />
                       <text
+                        y={-23 - index * 3}
                         textAnchor="middle"
                         dominantBaseline="central"
-                        fontSize="9"
-                        fontWeight="900"
-                        fill="#392719"
+                        fill="#fff"
+                        fontSize="10"
+                        fontWeight="800"
                       >
-                        {owner.color + 1}
+                        {index + 1}
                       </text>
                     </g>
-                  )}
+                  ))}
                 </g>
-              );
-            })}
+              ))}
+            </g>
             <g className="stations" pointerEvents="none">
               {Object.entries(cities).map(([name, [x, y]]) => {
                 const lit = focus.includes(name),
@@ -653,52 +607,43 @@ export default function Board({
               </text>
             </g>
           </g>
-          <rect
-            x="8"
-            y="8"
-            width="1384"
-            height="884"
-            rx="2"
-            fill="none"
-            stroke="#766548"
-            strokeWidth="2"
-            pointerEvents="none"
-          />
-          <rect
-            x="13"
-            y="13"
-            width="1374"
-            height="874"
-            fill="none"
-            stroke="#f5dfad"
-            strokeWidth="1"
-            pointerEvents="none"
-          />
         </g>
       </svg>
       {!demo && (
         <>
-          <div className="map-zoom">
+          <div className="map-controls">
+            <div className="map-zoom">
+              <button
+                aria-label="Zoom out"
+                onClick={() => zoom(1 / 1.3)}
+                disabled={view.z === 1}
+              >
+                <Minus size={16} />
+              </button>
+              <span>{Math.round(view.z * 100)}%</span>
+              <button
+                aria-label="Zoom in"
+                onClick={() => zoom(1.3)}
+                disabled={view.z === 3.5}
+              >
+                <Plus size={16} />
+              </button>
+            </div>
+            {controls}
             <button
-              aria-label="Zoom out"
-              onClick={() => zoom(1 / 1.3)}
-              disabled={view.z === 1}
+              className="icon map-help"
+              aria-label="Map controls help"
+              aria-expanded={help}
+              onClick={() => setHelp(!help)}
             >
-              <Minus size={16} />
+              <Info size={16} />
             </button>
-            <span>{Math.round(view.z * 100)}%</span>
-            <button
-              aria-label="Zoom in"
-              onClick={() => zoom(1.3)}
-              disabled={view.z === 3.5}
-            >
-              <Plus size={16} />
-            </button>
-          </div>
-          <div className="map-legend">
-            <span className="legend-slot" /> Open{" "}
-            <span className="legend-train" /> Claimed{" "}
-            <span className="legend-owner">1</span> Player
+            {help && (
+              <span className="map-help-text">
+                Drag cards to a route · Drag map to pan · Pinch or scroll to
+                zoom
+              </span>
+            )}
           </div>
           {picked && (
             <div className="map-hover">

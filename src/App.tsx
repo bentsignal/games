@@ -57,6 +57,12 @@ import {
   type Game,
   type View,
 } from "./game/engine";
+import TrainCard, { type CardPoint } from "./components/TrainCard";
+import {
+  cardPayment,
+  TICKET_INKS,
+  type TicketPreview,
+} from "./game/interactions";
 import Music from "./components/Music";
 import { TrainArtwork, ConductorPortrait } from "./components/TrainArtwork";
 import { cue } from "./audio";
@@ -182,75 +188,36 @@ function Modal({
     </div>
   );
 }
-function TrainCard({
-  color,
-  count,
-  onClick,
-  disabled,
-  label,
-}: {
-  color: Color | "back";
-  count?: number;
-  onClick?: () => void;
-  disabled?: boolean;
-  label?: string;
-}) {
-  return (
-    <button
-      className={`train-card ${color === "wild" ? "wild" : ""} ${color === "back" ? "back" : ""}`}
-      style={
-        {
-          "--card": color === "back" ? "#2b5148" : PALETTE[color],
-        } as React.CSSProperties
-      }
-      onClick={onClick}
-      disabled={disabled}
-      aria-label={label || `${color} ${count ?? ""}`}
-      title={
-        color === "wild"
-          ? "Locomotive · wild"
-          : color === "back"
-            ? "Draw a hidden train card"
-            : color
-      }
-    >
-      <span className="card-corner">
-        {color === "wild"
-          ? "★"
-          : color === "back"
-            ? "?"
-            : color[0].toUpperCase()}
-      </span>
-      <TrainArtwork color={color} />
-      <span className="card-name">
-        {color === "back" ? "DECK" : color === "wild" ? "LOCO" : color}
-      </span>
-      {count !== undefined && <b className="card-count">{count}</b>}
-    </button>
-  );
-}
 function TicketTile({
   ticket,
   complete,
   selected,
   onClick,
   onHover,
+  ink,
+  number,
 }: {
   ticket: Ticket;
   complete?: boolean;
   selected?: boolean;
   onClick?: () => void;
   onHover?: (cities: string[]) => void;
+  ink?: string;
+  number?: number;
 }) {
   return (
     <button
       className={`ticket-tile ${selected ? "selected" : ""} ${complete ? "complete" : ""}`}
+      style={ink ? ({ "--ticket-ink": ink } as React.CSSProperties) : undefined}
       onClick={onClick}
+      onFocus={() => onHover?.([ticket.a, ticket.b])}
+      onBlur={() => onHover?.([])}
       onMouseEnter={() => onHover?.([ticket.a, ticket.b])}
       onMouseLeave={() => onHover?.([])}
       aria-pressed={selected}
     >
       <div className="ticket-stamp">
+        {number !== undefined && <b className="ticket-number">{number}</b>}
         {complete ? <Check size={18} /> : <TicketIcon size={18} />}
         <span>
           {ticket.set === "1910"
@@ -378,8 +345,15 @@ export default function App() {
     [routesOpen, setRoutesOpen] = useState(false),
     [filter, setFilter] = useState(""),
     [catalog, setCatalog] = useState(false),
-    [resign, setResign] = useState(false),
-    [payment, setPayment] = useState("");
+    [resign, setResign] = useState(false);
+  const [cardColor, setCardColor] = useState<Color | null>(null),
+    [dragPoint, setDragPoint] = useState<CardPoint | null>(null),
+    [dropRoute, setDropRoute] = useState<string>();
+  const dragSession = useRef<{ color: Color; point: CardPoint } | null>(null);
+  const releaseDrag = useRef<(point: CardPoint) => void>(() => {});
+  const [ticketSelection, setTicketSelection] = useState<string[]>([]),
+    [pinnedTickets, setPinnedTickets] = useState<string[]>([]),
+    [hoveredTicket, setHoveredTicket] = useState<string>();
   const create = useMutation(api.rooms.create),
     join = useMutation(api.rooms.join),
     play = useMutation(api.rooms.play),
@@ -394,8 +368,10 @@ export default function App() {
     useQuery(api.rooms.chat, code && game ? { code, token } : "skip") || [];
   const [chatText, setChatText] = useState("");
   const chatEnd = useRef<HTMLDivElement>(null);
+  const messagesBox = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    chatEnd.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    const box = messagesBox.current;
+    if (box) box.scrollTop = box.scrollHeight;
   }, [messages.length, tab]);
   useEffect(() => {
     const pop = () => setCode(roomFromUrl());
@@ -405,9 +381,6 @@ export default function App() {
   useEffect(() => {
     if (code) localStorage.setItem("railbound-last-room", code);
   }, [code]);
-  useEffect(() => {
-    setPayment("");
-  }, [selected?.id, room?.revision]);
   const mine =
     !!me &&
     game?.phase === "playing" &&
@@ -418,14 +391,120 @@ export default function App() {
     if (mine && !wasMine.current) cue("turn");
     wasMine.current = mine;
   }, [mine]);
+  useEffect(() => {
+    setTicketSelection([]);
+    setHoveredTicket(undefined);
+  }, [code, me?.pending.join("|")]);
+  useEffect(() => {
+    if (!mine) {
+      dragSession.current = null;
+      setCardColor(null);
+      setDragPoint(null);
+      setDropRoute(undefined);
+    }
+  }, [mine]);
+  useEffect(() => {
+    const escape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        dragSession.current = null;
+        setCardColor(null);
+        setDragPoint(null);
+        setDropRoute(undefined);
+      }
+    };
+    window.addEventListener("keydown", escape);
+    return () => window.removeEventListener("keydown", escape);
+  }, []);
+  const previewIds = me?.pending.length
+    ? ticketSelection
+    : pinnedTickets.filter((id) => me?.tickets.includes(id));
+  const previews: TicketPreview[] = previewIds.map((id, i) => ({
+    ticket: TICKET_BY_ID[id],
+    color: TICKET_INKS[i % TICKET_INKS.length],
+    hovered: id === hoveredTicket,
+  }));
+  if (hoveredTicket && !previewIds.includes(hoveredTicket))
+    previews.push({
+      ticket: TICKET_BY_ID[hoveredTicket],
+      color: TICKET_INKS[previews.length % TICKET_INKS.length],
+      hovered: true,
+    });
   const host = !!me && game?.players[0]?.id === me.id;
   const canAct = mine && !busy && connectedServer && !me?.pending.length;
   const options =
     selected && game && me
       ? paymentOptions(game as unknown as Game, me, selected)
       : [];
-  const chosen =
-    options.find((o) => `${o.color}:${o.wilds}` === payment) || options[0];
+  const eligible =
+    cardColor && game && canAct && !game.drawn
+      ? ROUTES.filter((r) => cardPayment(game, r, cardColor)).map((r) => r.id)
+      : undefined;
+  function routeAt(point: CardPoint) {
+    return document
+      .elementsFromPoint(point.x, point.y)
+      .map((el) => el.closest("[data-route]")?.getAttribute("data-route"))
+      .find(Boolean);
+  }
+  function dragCard(color: Color, point: CardPoint) {
+    if (!canAct || game?.drawn) return;
+    dragSession.current = { color, point };
+    setCardColor(color);
+    setDragPoint(point);
+    setSelected(null);
+    setDropRoute(routeAt(point) || undefined);
+  }
+  function cancelCard() {
+    dragSession.current = null;
+    setCardColor(null);
+    setDragPoint(null);
+    setDropRoute(undefined);
+  }
+  function dropCard(color: Color, point: CardPoint) {
+    if (dragSession.current?.color !== color) return;
+    const id = routeAt(point);
+    cancelCard();
+    const route = ROUTES.find((r) => r.id === id);
+    if (route) claimWithCard(route, color);
+  }
+  releaseDrag.current = (point) => {
+    const session = dragSession.current;
+    if (session) dropCard(session.color, point);
+  };
+  useEffect(() => {
+    const release = (event: MouseEvent) =>
+      releaseDrag.current({ x: event.clientX, y: event.clientY });
+    const cancel = () => {
+      dragSession.current = null;
+      setCardColor(null);
+      setDragPoint(null);
+      setDropRoute(undefined);
+    };
+    // Release at the window as well as the source card: browsers can transfer
+    // capture during a native drag, zoom gesture, or a rapid pointer movement.
+    window.addEventListener("pointerup", release, true);
+    window.addEventListener("mouseup", release, true);
+    window.addEventListener("blur", cancel);
+    return () => {
+      window.removeEventListener("pointerup", release, true);
+      window.removeEventListener("mouseup", release, true);
+      window.removeEventListener("blur", cancel);
+    };
+  }, []);
+  function claimWithCard(route: Route, color: Color) {
+    if (!game || !canAct || game.drawn) return;
+    const payment = cardPayment(game, route, color);
+    if (!payment) {
+      setError("That route needs more matching cards or is already blocked.");
+      return;
+    }
+    cancelCard();
+    void action({ type: "claim", route: route.id, ...payment });
+  }
+  const dragRoute = ROUTES.find((r) => r.id === dropRoute),
+    dragPayment =
+      game && dragRoute && cardColor
+        ? cardPayment(game, dragRoute, cardColor)
+        : undefined;
   const visit = (roomCode: string) => {
     history.pushState({}, "", roomCode ? "/room/" + roomCode : "/");
     setCode(roomCode);
@@ -475,6 +554,10 @@ export default function App() {
     }
   };
   const select = (r: Route | null) => {
+    if (r && cardColor && canAct) {
+      claimWithCard(r, cardColor);
+      return;
+    }
     setSelected(r);
     if (r) setFocus([r.a, r.b]);
     else setFocus([]);
@@ -767,7 +850,9 @@ export default function App() {
       ) : (
         <main className="table-layout">
           <section className="table-main">
-            <div className="table-heading">
+            <div
+              className={`table-heading ${game.phase === "playing" || game.phase === "setup" ? "compact-heading" : ""}`}
+            >
               <div>
                 <div className="eyebrow">
                   NORTH AMERICA · {MODES[game.mode].name.toUpperCase()}
@@ -846,36 +931,38 @@ export default function App() {
                 focus={focus}
                 reset={reset}
                 top={top}
+                previews={previews}
+                eligible={eligible}
+                dropTarget={dropRoute}
+                controls={
+                  <>
+                    <button
+                      className="icon"
+                      onClick={() => setReset((v) => v + 1)}
+                      aria-label="Reset map"
+                      title="Reset map"
+                    >
+                      <RotateCcw size={17} />
+                    </button>
+                    <button
+                      className={`icon ${top ? "is-active" : ""}`}
+                      onClick={() => setTop(!top)}
+                      aria-label="Toggle close-up view"
+                      title="Close-up view"
+                    >
+                      <Maximize size={17} />
+                    </button>
+                    <button
+                      className="icon"
+                      onClick={() => setRoutesOpen(true)}
+                      aria-label="Open route list"
+                      title="Route list"
+                    >
+                      <List size={17} />
+                    </button>
+                  </>
+                }
               />
-              <div className="board-tools">
-                <button
-                  className="icon"
-                  onClick={() => setReset((v) => v + 1)}
-                  aria-label="Reset map"
-                  title="Reset map"
-                >
-                  <RotateCcw size={17} />
-                </button>
-                <button
-                  className={`icon ${top ? "is-active" : ""}`}
-                  onClick={() => setTop(!top)}
-                  aria-label="Toggle close-up view"
-                  title="Close-up view"
-                >
-                  <Maximize size={17} />
-                </button>
-                <button
-                  className="icon"
-                  onClick={() => setRoutesOpen(true)}
-                  aria-label="Open route list"
-                  title="Route list"
-                >
-                  <List size={17} />
-                </button>
-              </div>
-              <div className="map-instruction">
-                Click a route · Drag to pan · Scroll or pinch to zoom
-              </div>
               {game.finalTurns !== null && game.phase !== "finished" && (
                 <div className="final-round">
                   <Flag size={15} />
@@ -908,41 +995,39 @@ export default function App() {
                       }
                     </p>
                   ) : options.length ? (
-                    <>
-                      <label htmlFor="payment">PAY WITH</label>
-                      <select
-                        id="payment"
-                        value={chosen ? `${chosen.color}:${chosen.wilds}` : ""}
-                        onChange={(e) => setPayment(e.target.value)}
-                      >
-                        {options.map((o) => (
-                          <option
-                            key={`${o.color}:${o.wilds}`}
-                            value={`${o.color}:${o.wilds}`}
+                    <div className="quick-payments">
+                      {options
+                        .filter(
+                          (o, i, all) =>
+                            i === all.findIndex((v) => v.color === o.color),
+                        )
+                        .map((o) => (
+                          <button
+                            key={o.color}
+                            className="payment-card"
+                            style={
+                              {
+                                "--card": PALETTE[o.color],
+                              } as React.CSSProperties
+                            }
+                            disabled={!canAct || !!game.drawn}
+                            aria-label={`Claim route with ${selected.length - o.wilds} ${o.color}${o.wilds ? ` and ${o.wilds} locomotives` : ""}`}
+                            onClick={() =>
+                              action({
+                                type: "claim",
+                                route: selected.id,
+                                ...o,
+                              })
+                            }
                           >
-                            {selected.length - o.wilds} {o.color}{" "}
-                            {o.wilds
-                              ? `+ ${o.wilds} locomotive${o.wilds > 1 ? "s" : ""}`
-                              : ""}
-                          </option>
+                            <TrainArtwork color={o.color} />
+                            <span>
+                              {selected.length - o.wilds} {o.color}
+                              {o.wilds ? ` + ${o.wilds} ★` : ""}
+                            </span>
+                          </button>
                         ))}
-                      </select>
-                      <button
-                        className="primary"
-                        disabled={!canAct || game.drawn > 0}
-                        onClick={() =>
-                          chosen &&
-                          action({
-                            type: "claim",
-                            route: selected.id,
-                            ...chosen,
-                          })
-                        }
-                      >
-                        Claim route <ArrowRight size={16} />
-                      </button>
-                      {!mine && <small>Available on your turn.</small>}
-                    </>
+                    </div>
                   ) : (
                     <p>
                       {game.phase === "finished"
@@ -972,411 +1057,476 @@ export default function App() {
                       color={c}
                       count={me.hand.filter((v) => v === c).length}
                       disabled={!me.hand.includes(c)}
+                      selected={cardColor === c}
                       onClick={() => {
-                        setFilter(c);
-                        setRoutesOpen(true);
+                        if (canAct && !game.drawn) {
+                          setCardColor(cardColor === c ? null : c);
+                          setSelected(null);
+                        }
                       }}
+                      onDrag={canAct && !game.drawn ? dragCard : undefined}
+                      onDrop={dropCard}
+                      onCancel={cancelCard}
                     />
                   ))}
                 </div>
               </section>
             )}
           </section>
-          <aside className="table-sidebar">
-            {game.phase === "lobby" ? (
+          <aside
+            className={`table-sidebar ${me?.pending.length ? "choosing-tickets" : ""}`}
+          >
+            {me?.pending.length && !me.bot ? (
+              <TicketChoice
+                game={game}
+                busy={busy}
+                selected={ticketSelection}
+                onSelection={setTicketSelection}
+                onHover={setHoveredTicket}
+                onKeep={(ids) => action({ type: "keep", tickets: ids })}
+              />
+            ) : (
               <>
-                <div className="sidebar-title">
-                  <div className="eyebrow">THE DEPARTURE LOUNGE</div>
-                  <h2>All aboard.</h2>
-                  <p>
-                    Invite your friends. Choose an adventure. The continent is
-                    yours.
-                  </p>
-                </div>
-                <button className="invite-box" onClick={copy}>
-                  <div>
-                    <small>YOUR PRIVATE ROOM</small>
-                    <strong>{code}</strong>
-                  </div>
-                  {copied ? <Check size={21} /> : <Copy size={21} />}
-                </button>
-                <p className="small muted">
-                  Click to copy the invitation link. Your friends can join
-                  without an account.
-                </p>
-                <label htmlFor="table-mode">YOUR ADVENTURE</label>
-                <select
-                  id="table-mode"
-                  value={game.mode}
-                  disabled={!host || busy}
-                  onChange={(e) =>
-                    setTable("mode", { mode: e.target.value as Mode })
-                  }
-                >
-                  {Object.entries(MODES).map(([k, m]) => (
-                    <option key={k} value={k}>
-                      {m.name}
-                    </option>
-                  ))}
-                </select>
-                <p className="mode-description">
-                  {MODES[game.mode].description}
-                </p>
-                <div className="seat-list">
-                  {game.players.map((p) => (
-                    <div key={p.id}>
-                      <span style={{ color: PLAYER_COLORS[p.color] }}>
-                        {p.bot ? <Bot size={19} /> : <Users size={19} />}
-                      </span>
-                      <strong>{p.name}</strong>
-                      <small>
-                        {p.bot
-                          ? "COMPUTER"
-                          : p.id === game.players[0].id
-                            ? "HOST"
-                            : "PLAYER"}
-                      </small>
-                      {host && p.id !== me?.id && (
+                {game.phase === "lobby" ? (
+                  <>
+                    <div className="sidebar-title">
+                      <div className="eyebrow">THE DEPARTURE LOUNGE</div>
+                      <h2>All aboard.</h2>
+                      <p>
+                        Invite your friends. Choose an adventure. The continent
+                        is yours.
+                      </p>
+                    </div>
+                    <button className="invite-box" onClick={copy}>
+                      <div>
+                        <small>YOUR PRIVATE ROOM</small>
+                        <strong>{code}</strong>
+                      </div>
+                      {copied ? <Check size={21} /> : <Copy size={21} />}
+                    </button>
+                    <p className="small muted">
+                      Click to copy the invitation link. Your friends can join
+                      without an account.
+                    </p>
+                    <label htmlFor="table-mode">YOUR ADVENTURE</label>
+                    <select
+                      id="table-mode"
+                      value={game.mode}
+                      disabled={!host || busy}
+                      onChange={(e) =>
+                        setTable("mode", { mode: e.target.value as Mode })
+                      }
+                    >
+                      {Object.entries(MODES).map(([k, m]) => (
+                        <option key={k} value={k}>
+                          {m.name}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="mode-description">
+                      {MODES[game.mode].description}
+                    </p>
+                    <div className="seat-list">
+                      {game.players.map((p) => (
+                        <div key={p.id}>
+                          <span style={{ color: PLAYER_COLORS[p.color] }}>
+                            {p.bot ? <Bot size={19} /> : <Users size={19} />}
+                          </span>
+                          <strong>{p.name}</strong>
+                          <small>
+                            {p.bot
+                              ? "COMPUTER"
+                              : p.id === game.players[0].id
+                                ? "HOST"
+                                : "PLAYER"}
+                          </small>
+                          {host && p.id !== me?.id && (
+                            <button
+                              className="icon"
+                              aria-label={`Remove ${p.name}`}
+                              onClick={() =>
+                                setTable("remove", { player: p.id })
+                              }
+                            >
+                              <X size={15} />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      {game.players.length < 5 && host && (
                         <button
-                          className="icon"
-                          aria-label={`Remove ${p.name}`}
-                          onClick={() => setTable("remove", { player: p.id })}
+                          className="add-bot"
+                          onClick={() => setTable("bot")}
+                          disabled={busy}
                         >
-                          <X size={15} />
+                          <Plus size={16} />
+                          Add computer opponent
                         </button>
                       )}
                     </div>
-                  ))}
-                  {game.players.length < 5 && host && (
+                    {host ? (
+                      <button
+                        className="primary full"
+                        disabled={
+                          busy || game.players.length < 2 || !connectedServer
+                        }
+                        onClick={() => action({ type: "start" })}
+                      >
+                        Start the journey <ArrowRight size={18} />
+                      </button>
+                    ) : (
+                      <div className="waiting-note">
+                        Waiting for the host to start…
+                      </div>
+                    )}
                     <button
-                      className="add-bot"
-                      onClick={() => setTable("bot")}
+                      className="text-button leave"
+                      onClick={() => setTable("leave")}
                       disabled={busy}
                     >
-                      <Plus size={16} />
-                      Add computer opponent
+                      <LogOut size={14} />
+                      Leave table
                     </button>
-                  )}
-                </div>
-                {host ? (
-                  <button
-                    className="primary full"
-                    disabled={
-                      busy || game.players.length < 2 || !connectedServer
-                    }
-                    onClick={() => action({ type: "start" })}
-                  >
-                    Start the journey <ArrowRight size={18} />
-                  </button>
-                ) : (
-                  <div className="waiting-note">
-                    Waiting for the host to start…
+                  </>
+                ) : game.phase === "finished" ? (
+                  <div className="results-side">
+                    <div className="eyebrow">JOURNEY COMPLETE</div>
+                    <Trophy size={38} className="trophy" />
+                    <h2>
+                      {game.results
+                        .filter((r) => r.winner)
+                        .map(
+                          (r) => game.players.find((p) => p.id === r.id)?.name,
+                        )
+                        .join(" & ")}{" "}
+                      {game.results.filter((r) => r.winner).length === 1
+                        ? "wins!"
+                        : "win!"}
+                    </h2>
+                    <p>Every journey has a story. Here’s how this one ended.</p>
+                    {[...game.results]
+                      .sort((a, b) => b.total - a.total)
+                      .map((r) => (
+                        <div
+                          className={`result-row ${r.winner ? "winner" : ""}`}
+                          key={r.id}
+                        >
+                          <strong>
+                            {game.players.find((p) => p.id === r.id)?.name}
+                            <b>{r.total}</b>
+                          </strong>
+                          <dl>
+                            <div>
+                              <dt>Routes</dt>
+                              <dd>{r.routePoints}</dd>
+                            </div>
+                            <div>
+                              <dt>Tickets ({r.completed} complete)</dt>
+                              <dd>
+                                {r.ticketPoints > 0 ? "+" : ""}
+                                {r.ticketPoints}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt>Longest trail ({r.longest})</dt>
+                              <dd>+{r.longestBonus}</dd>
+                            </div>
+                            <div>
+                              <dt>Globetrotter</dt>
+                              <dd>+{r.globeBonus}</dd>
+                            </div>
+                          </dl>
+                          <details>
+                            <summary>Reveal destination tickets</summary>
+                            {game.revealed[r.id]?.map((id) => (
+                              <p key={id} className="revealed-ticket">
+                                {connected(
+                                  game,
+                                  r.id,
+                                  TICKET_BY_ID[id].a,
+                                  TICKET_BY_ID[id].b,
+                                )
+                                  ? "✓"
+                                  : "×"}{" "}
+                                {TICKET_BY_ID[id].a} → {TICKET_BY_ID[id].b}{" "}
+                                <b>{TICKET_BY_ID[id].points}</b>
+                              </p>
+                            ))}
+                          </details>
+                        </div>
+                      ))}
+                    {host && (
+                      <button
+                        className="primary full"
+                        disabled={busy}
+                        onClick={() => setTable("rematch")}
+                      >
+                        <RotateCcw size={17} />
+                        Play again
+                      </button>
+                    )}
                   </div>
+                ) : (
+                  <>
+                    <div className={`turn-banner ${mine ? "your-turn" : ""}`}>
+                      <span className="turn-light" />
+                      <div>
+                        <strong>
+                          {game.phase === "setup"
+                            ? "Plan your journey"
+                            : mine
+                              ? "Your turn, conductor."
+                              : `${game.players[game.turn]?.name}’s turn`}
+                        </strong>
+                        <small>
+                          {game.phase === "setup"
+                            ? "Everyone is choosing starting tickets."
+                            : mine
+                              ? game.drawn
+                                ? "Choose one more train card."
+                                : "Draw cards, claim a route, or take tickets."
+                              : "Plan ahead while the railway grows."}
+                        </small>
+                      </div>
+                    </div>
+                    <div className="market-heading">
+                      <h3>The rail yard</h3>
+                      <span>{game.deckCount + game.discardCount} in deck</span>
+                    </div>
+                    <div className="market-cards">
+                      {game.market.map((c, i) => (
+                        <TrainCard
+                          key={i}
+                          color={c}
+                          label={`Draw ${c} market card ${i + 1}`}
+                          onClick={() =>
+                            action({ type: "draw", source: i, expected: c })
+                          }
+                          disabled={!canAct || (!!game.drawn && c === "wild")}
+                        />
+                      ))}
+                    </div>
+                    <div className="draw-piles">
+                      <div className="face-down-pile">
+                        <TrainCard
+                          color="back"
+                          onClick={() => action({ type: "draw", source: -1 })}
+                          disabled={
+                            !canAct || game.deckCount + game.discardCount === 0
+                          }
+                          label="Draw from hidden deck"
+                        />
+                        <span>Draw a random card</span>
+                      </div>
+                      <button
+                        className="destination-draw"
+                        disabled={
+                          !canAct || game.drawn > 0 || !game.ticketCount
+                        }
+                        onClick={() => action({ type: "tickets" })}
+                      >
+                        <TicketIcon size={21} />
+                        <span>
+                          <strong>Draw destination tickets</strong>
+                          <small>
+                            Draw {MODES[game.mode].draw} · keep at least 1
+                          </small>
+                        </span>
+                        <span className="deck-badge">{game.ticketCount}</span>
+                      </button>
+                    </div>
+                    {canAct &&
+                      game.deckCount +
+                        game.discardCount +
+                        game.market.length +
+                        game.ticketCount ===
+                        0 &&
+                      !ROUTES.some(
+                        (r) =>
+                          paymentOptions(game as unknown as Game, me!, r)
+                            .length,
+                      ) && (
+                        <button
+                          className="secondary full"
+                          onClick={() => action({ type: "pass" })}
+                        >
+                          Pass · no legal moves
+                        </button>
+                      )}
+                  </>
                 )}
-                <button
-                  className="text-button leave"
-                  onClick={() => setTable("leave")}
-                  disabled={busy}
+                <div className="sidebar-tabs" role="tablist">
+                  <button
+                    role="tab"
+                    aria-selected={tab === "tickets"}
+                    onClick={() => setTab("tickets")}
+                  >
+                    Tickets <span>{me?.tickets.length || 0}</span>
+                  </button>
+                  <button
+                    role="tab"
+                    aria-selected={tab === "chat"}
+                    onClick={() => setTab("chat")}
+                  >
+                    Chat <span>{messages.length}</span>
+                  </button>
+                  <button
+                    role="tab"
+                    aria-selected={tab === "log"}
+                    onClick={() => setTab("log")}
+                  >
+                    Activity
+                  </button>
+                </div>
+                <div
+                  className={`sidebar-content ${tab === "chat" ? "chat-content" : ""}`}
                 >
-                  <LogOut size={14} />
-                  Leave table
-                </button>
-              </>
-            ) : game.phase === "finished" ? (
-              <div className="results-side">
-                <div className="eyebrow">JOURNEY COMPLETE</div>
-                <Trophy size={38} className="trophy" />
-                <h2>
-                  {game.results
-                    .filter((r) => r.winner)
-                    .map((r) => game.players.find((p) => p.id === r.id)?.name)
-                    .join(" & ")}{" "}
-                  {game.results.filter((r) => r.winner).length === 1
-                    ? "wins!"
-                    : "win!"}
-                </h2>
-                <p>Every journey has a story. Here’s how this one ended.</p>
-                {[...game.results]
-                  .sort((a, b) => b.total - a.total)
-                  .map((r) => (
-                    <div
-                      className={`result-row ${r.winner ? "winner" : ""}`}
-                      key={r.id}
-                    >
-                      <strong>
-                        {game.players.find((p) => p.id === r.id)?.name}
-                        <b>{r.total}</b>
-                      </strong>
-                      <dl>
-                        <div>
-                          <dt>Routes</dt>
-                          <dd>{r.routePoints}</dd>
-                        </div>
-                        <div>
-                          <dt>Tickets ({r.completed} complete)</dt>
-                          <dd>
-                            {r.ticketPoints > 0 ? "+" : ""}
-                            {r.ticketPoints}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt>Longest trail ({r.longest})</dt>
-                          <dd>+{r.longestBonus}</dd>
-                        </div>
-                        <div>
-                          <dt>Globetrotter</dt>
-                          <dd>+{r.globeBonus}</dd>
-                        </div>
-                      </dl>
-                      <details>
-                        <summary>Reveal destination tickets</summary>
-                        {game.revealed[r.id]?.map((id) => (
-                          <p key={id} className="revealed-ticket">
-                            {connected(
+                  {tab === "tickets" ? (
+                    <>
+                      {me?.tickets.length ? (
+                        me.tickets.map((id) => (
+                          <TicketTile
+                            key={id}
+                            ticket={TICKET_BY_ID[id]}
+                            complete={connected(
                               game,
-                              r.id,
+                              me.id,
                               TICKET_BY_ID[id].a,
                               TICKET_BY_ID[id].b,
-                            )
-                              ? "✓"
-                              : "×"}{" "}
-                            {TICKET_BY_ID[id].a} → {TICKET_BY_ID[id].b}{" "}
-                            <b>{TICKET_BY_ID[id].points}</b>
+                            )}
+                            selected={pinnedTickets.includes(id)}
+                            ink={
+                              TICKET_INKS[
+                                Math.max(0, pinnedTickets.indexOf(id)) %
+                                  TICKET_INKS.length
+                              ]
+                            }
+                            onHover={(cities) =>
+                              setHoveredTicket(cities.length ? id : undefined)
+                            }
+                            onClick={() =>
+                              setPinnedTickets((ids) =>
+                                ids.includes(id)
+                                  ? ids.filter((t) => t !== id)
+                                  : [...ids, id],
+                              )
+                            }
+                          />
+                        ))
+                      ) : (
+                        <div className="empty-note">
+                          <TicketIcon size={27} />
+                          <p>
+                            Your secret destinations will appear here when the
+                            journey begins.
                           </p>
-                        ))}
-                      </details>
+                        </div>
+                      )}
+                    </>
+                  ) : tab === "chat" ? (
+                    <div className="chat-box">
+                      <div className="messages" ref={messagesBox}>
+                        {messages.length ? (
+                          messages.map((m) => (
+                            <div
+                              className={`message ${m.sender === me?.id ? "own" : ""}`}
+                              key={m._id}
+                            >
+                              <div>
+                                <strong>{m.name}</strong>
+                                <time>
+                                  {new Date(m.time).toLocaleTimeString([], {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })}
+                                </time>
+                              </div>
+                              <p>{m.text}</p>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="empty-note">
+                            <Send size={25} />
+                            <p>Say hello to the table.</p>
+                          </div>
+                        )}
+                        <div ref={chatEnd} />
+                      </div>
+                      <form onSubmit={chatSubmit}>
+                        <input
+                          aria-label="Chat message"
+                          maxLength={500}
+                          placeholder="Message the table…"
+                          value={chatText}
+                          onChange={(e) => setChatText(e.target.value)}
+                        />
+                        <button
+                          className="icon"
+                          aria-label="Send message"
+                          disabled={busy || !chatText.trim()}
+                        >
+                          <Send size={18} />
+                        </button>
+                      </form>
                     </div>
-                  ))}
-                {host && (
-                  <button
-                    className="primary full"
-                    disabled={busy}
-                    onClick={() => setTable("rematch")}
-                  >
-                    <RotateCcw size={17} />
-                    Play again
-                  </button>
-                )}
-              </div>
-            ) : (
-              <>
-                <div className={`turn-banner ${mine ? "your-turn" : ""}`}>
-                  <span className="turn-light" />
-                  <div>
-                    <strong>
-                      {game.phase === "setup"
-                        ? "Plan your journey"
-                        : mine
-                          ? "Your turn, conductor."
-                          : `${game.players[game.turn]?.name}’s turn`}
-                    </strong>
-                    <small>
-                      {game.phase === "setup"
-                        ? "Everyone is choosing starting tickets."
-                        : mine
-                          ? game.drawn
-                            ? "Choose one more train card."
-                            : "Draw cards, claim a route, or take tickets."
-                          : "Plan ahead while the railway grows."}
-                    </small>
-                  </div>
+                  ) : (
+                    <ol className="activity">
+                      {game.log.length ? (
+                        [...game.log]
+                          .reverse()
+                          .map((l, i) => <li key={i}>{l}</li>)
+                      ) : (
+                        <li>
+                          The table is open. Invite your friends to begin.
+                        </li>
+                      )}
+                    </ol>
+                  )}
                 </div>
-                <div className="market-heading">
-                  <h3>The rail yard</h3>
-                  <span>{game.deckCount + game.discardCount} in deck</span>
-                </div>
-                <div className="market-cards">
-                  {game.market.map((c, i) => (
-                    <TrainCard
-                      key={i}
-                      color={c}
-                      label={`Draw ${c} market card ${i + 1}`}
-                      onClick={() =>
-                        action({ type: "draw", source: i, expected: c })
-                      }
-                      disabled={!canAct || (!!game.drawn && c === "wild")}
-                    />
-                  ))}
-                  <TrainCard
-                    color="back"
-                    onClick={() => action({ type: "draw", source: -1 })}
-                    disabled={
-                      !canAct || game.deckCount + game.discardCount === 0
-                    }
-                    label="Draw from hidden deck"
-                  />
-                </div>
-                <p className="market-help">
-                  A face-up locomotive uses both draws.
-                </p>
-                <button
-                  className="destination-draw"
-                  disabled={!canAct || game.drawn > 0 || !game.ticketCount}
-                  onClick={() => action({ type: "tickets" })}
-                >
-                  <TicketIcon size={21} />
-                  <span>
-                    <strong>Draw destination tickets</strong>
-                    <small>
-                      Draw {MODES[game.mode].draw} · keep at least 1
-                    </small>
-                  </span>
-                  <span className="deck-badge">{game.ticketCount}</span>
-                </button>
-                {canAct &&
-                  game.deckCount +
-                    game.discardCount +
-                    game.market.length +
-                    game.ticketCount ===
-                    0 &&
-                  !ROUTES.some(
-                    (r) =>
-                      paymentOptions(game as unknown as Game, me!, r).length,
-                  ) && (
+                {(game.phase === "playing" || game.phase === "setup") &&
+                  !me?.bot && (
                     <button
-                      className="secondary full"
-                      onClick={() => action({ type: "pass" })}
+                      className="text-button resign"
+                      onClick={() => setResign(true)}
                     >
-                      Pass · no legal moves
+                      <LogOut size={12} />
+                      Let a computer finish my game
                     </button>
                   )}
               </>
             )}
-            <div className="sidebar-tabs" role="tablist">
-              <button
-                role="tab"
-                aria-selected={tab === "tickets"}
-                onClick={() => setTab("tickets")}
-              >
-                Tickets <span>{me?.tickets.length || 0}</span>
-              </button>
-              <button
-                role="tab"
-                aria-selected={tab === "chat"}
-                onClick={() => setTab("chat")}
-              >
-                Chat <span>{messages.length}</span>
-              </button>
-              <button
-                role="tab"
-                aria-selected={tab === "log"}
-                onClick={() => setTab("log")}
-              >
-                Activity
-              </button>
-            </div>
-            <div className="sidebar-content">
-              {tab === "tickets" ? (
-                <>
-                  {me?.tickets.length ? (
-                    me.tickets.map((id) => (
-                      <TicketTile
-                        key={id}
-                        ticket={TICKET_BY_ID[id]}
-                        complete={connected(
-                          game,
-                          me.id,
-                          TICKET_BY_ID[id].a,
-                          TICKET_BY_ID[id].b,
-                        )}
-                        onHover={setFocus}
-                        onClick={() =>
-                          setFocus([TICKET_BY_ID[id].a, TICKET_BY_ID[id].b])
-                        }
-                      />
-                    ))
-                  ) : (
-                    <div className="empty-note">
-                      <TicketIcon size={27} />
-                      <p>
-                        Your secret destinations will appear here when the
-                        journey begins.
-                      </p>
-                    </div>
-                  )}
-                </>
-              ) : tab === "chat" ? (
-                <div className="chat-box">
-                  <div className="messages">
-                    {messages.length ? (
-                      messages.map((m) => (
-                        <div
-                          className={`message ${m.sender === me?.id ? "own" : ""}`}
-                          key={m._id}
-                        >
-                          <div>
-                            <strong>{m.name}</strong>
-                            <time>
-                              {new Date(m.time).toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                            </time>
-                          </div>
-                          <p>{m.text}</p>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="empty-note">
-                        <Send size={25} />
-                        <p>
-                          A little conversation goes a long way.
-                          <br />
-                          Say hello to your fellow travelers.
-                        </p>
-                      </div>
-                    )}
-                    <div ref={chatEnd} />
-                  </div>
-                  <form onSubmit={chatSubmit}>
-                    <input
-                      aria-label="Chat message"
-                      maxLength={500}
-                      placeholder="Message the table…"
-                      value={chatText}
-                      onChange={(e) => setChatText(e.target.value)}
-                    />
-                    <button
-                      className="icon"
-                      aria-label="Send message"
-                      disabled={busy || !chatText.trim()}
-                    >
-                      <Send size={18} />
-                    </button>
-                  </form>
-                </div>
-              ) : (
-                <ol className="activity">
-                  {game.log.length ? (
-                    [...game.log].reverse().map((l, i) => <li key={i}>{l}</li>)
-                  ) : (
-                    <li>The table is open. Invite your friends to begin.</li>
-                  )}
-                </ol>
-              )}
-            </div>
-            {(game.phase === "playing" || game.phase === "setup") &&
-              !me?.bot && (
-                <button
-                  className="text-button resign"
-                  onClick={() => setResign(true)}
-                >
-                  <LogOut size={12} />
-                  Let a computer finish my game
-                </button>
-              )}
           </aside>
         </main>
       )}
-      {rules && <Rules onClose={() => setRules(false)} />}
-      {game && me && me.pending.length > 0 && !me.bot && (
-        <TicketChoice
-          key={me.pending.join(",")}
-          game={game}
-          busy={busy}
-          onKeep={(ids) => action({ type: "keep", tickets: ids })}
-        />
+      {dragPoint && cardColor && (
+        <div
+          className="card-drag-ghost"
+          style={
+            {
+              left: dragPoint.x,
+              top: dragPoint.y,
+              "--card": PALETTE[cardColor],
+            } as React.CSSProperties
+          }
+          aria-hidden="true"
+        >
+          <TrainArtwork color={cardColor} />
+          <b>
+            {dragPayment && dragRoute
+              ? `${dragRoute.length - dragPayment.wilds} ${dragPayment.color}${dragPayment.wilds ? ` + ${dragPayment.wilds} ★` : ""}`
+              : cardColor}
+          </b>
+        </div>
       )}
+      {cardColor && !dragPoint && (
+        <div className="card-held-note">
+          Choose a highlighted route{" "}
+          <button onClick={cancelCard} aria-label="Put cards back">
+            <X size={14} />
+          </button>
+        </div>
+      )}
+      {rules && <Rules onClose={() => setRules(false)} />}
       {resign && (
         <Modal label="Hand over your seat" onClose={() => setResign(false)}>
           <Bot size={34} />
@@ -1478,51 +1628,70 @@ export default function App() {
 function TicketChoice({
   game,
   busy,
+  selected,
+  onSelection,
+  onHover,
   onKeep,
 }: {
   game: View;
   busy: boolean;
+  selected: string[];
+  onSelection: (ids: string[]) => void;
+  onHover: (id?: string) => void;
   onKeep: (ids: string[]) => void;
 }) {
-  const [selected, setSelected] = useState<string[]>([]);
   const me = game.me!;
-  const min = game.phase === "setup" ? MODES[game.mode].keep : 1;
+  const min = Math.min(
+    game.phase === "setup" ? MODES[game.mode].keep : 1,
+    me.pending.length,
+  );
   return (
-    <Modal label="Choose destination tickets" wide>
-      <div className="eyebrow">YOUR SECRET ITINERARY</div>
-      <h2>Where will the rails take you?</h2>
-      <p>
-        Keep at least <strong>{Math.min(min, me.pending.length)}</strong>{" "}
-        destination tickets. Complete a journey to earn its points; leave it
-        unfinished and lose those points.
-      </p>
+    <section
+      role="dialog"
+      aria-label="Choose destination tickets"
+      aria-modal="false"
+      className="ticket-picker"
+    >
+      <div className="picker-heading">
+        <TicketIcon size={23} />
+        <h2>Choose your tickets</h2>
+      </div>
+      <p>Keep at least {min}. Hover to preview; select to compare.</p>
       <div className="ticket-choices">
         {me.pending.map((id) => (
           <TicketTile
             key={id}
             ticket={TICKET_BY_ID[id]}
             selected={selected.includes(id)}
+            number={
+              selected.includes(id) ? selected.indexOf(id) + 1 : undefined
+            }
+            ink={
+              TICKET_INKS[
+                Math.max(0, selected.indexOf(id)) % TICKET_INKS.length
+              ]
+            }
+            onHover={(cities) => onHover(cities.length ? id : undefined)}
             onClick={() =>
-              setSelected((s) =>
-                s.includes(id) ? s.filter((t) => t !== id) : [...s, id],
+              onSelection(
+                selected.includes(id)
+                  ? selected.filter((t) => t !== id)
+                  : [...selected, id],
               )
             }
           />
         ))}
       </div>
       <div className="choice-footer">
-        <span>
-          {selected.length} selected · keep {Math.min(min, me.pending.length)}{" "}
-          or more
-        </span>
+        <span>{selected.length} selected · paths are suggestions</span>
         <button
           className="primary"
-          disabled={busy || selected.length < Math.min(min, me.pending.length)}
+          disabled={busy || selected.length < min}
           onClick={() => onKeep(selected)}
         >
           Keep {selected.length} tickets <ArrowRight size={17} />
         </button>
       </div>
-    </Modal>
+    </section>
   );
 }

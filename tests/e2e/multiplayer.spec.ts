@@ -24,8 +24,12 @@ test("two independent friends join, choose tickets, chat, draw, and reconnect", 
   await b.getByRole("button", { name: "Take your seat" }).click();
   await expect(a.getByText("Bob QA", { exact: true }).first()).toBeVisible();
   await a.getByRole("tab", { name: /Chat/ }).click();
+  const composerY = (await a.getByLabel("Chat message").boundingBox())!.y;
   await a.getByLabel("Chat message").fill("All aboard, Bob!");
   await a.getByRole("button", { name: "Send message" }).click();
+  await expect
+    .poll(async () => (await a.getByLabel("Chat message").boundingBox())!.y)
+    .toBeCloseTo(composerY, 0);
   await b.getByRole("tab", { name: /Chat/ }).click();
   await expect(b.getByText("All aboard, Bob!", { exact: true })).toBeVisible();
   await a.getByRole("button", { name: "Start the journey" }).click();
@@ -34,8 +38,17 @@ test("two independent friends join, choose tickets, chat, draw, and reconnect", 
       name: "Choose destination tickets",
     });
     await expect(dialog).toBeVisible();
+    await dialog.locator(".ticket-tile").first().hover();
+    await expect(page.locator("[data-ticket-preview]")).toHaveCount(1);
     for (let i = 0; i < 3; i++)
       await dialog.locator(".ticket-tile").nth(i).click();
+    await page.mouse.move(100, 100);
+    await expect(page.locator("[data-ticket-preview]")).toHaveCount(3);
+    await dialog.locator(".ticket-tile").nth(3).hover();
+    await expect(page.locator("[data-ticket-preview]")).toHaveCount(4);
+    await expect(
+      page.getByRole("group", { name: "USA railway map" }),
+    ).toBeVisible();
     await dialog.getByRole("button", { name: "Keep 3 tickets" }).click();
     await expect(dialog).toBeHidden();
   }
@@ -75,7 +88,36 @@ test("two independent friends join, choose tickets, chat, draw, and reconnect", 
     .getByRole("button", { name: /Vancouver → Seattle/ })
     .first()
     .click();
-  await a.getByRole("button", { name: "Claim route", exact: true }).click();
+  await expect(a.locator("#payment")).toHaveCount(0);
+  const card = a.locator(".hand-cards .train-card:not(:disabled)").first();
+  const hand = await card.boundingBox(),
+    target = await a.locator('[data-route="r1"] rect').first().boundingBox();
+  await a.mouse.move(hand!.x + hand!.width / 2, hand!.y + hand!.height / 2);
+  await a.mouse.down();
+  await a.mouse.move(
+    target!.x + target!.width / 2,
+    target!.y + target!.height / 2,
+    { steps: 18 },
+  );
+  await expect(a.locator(".card-drag-ghost")).toBeVisible();
+  await expect(a.locator('[data-route="r1"]')).toHaveAttribute(
+    "data-droppable",
+    "true",
+  );
+  await a.keyboard.press("Escape");
+  await a.mouse.up();
+  await expect(a.locator('[data-route="r1"]')).not.toHaveAttribute(
+    "data-owner",
+    /./,
+  );
+  await a.mouse.move(hand!.x + hand!.width / 2, hand!.y + hand!.height / 2);
+  await a.mouse.down();
+  await a.mouse.move(
+    target!.x + target!.width / 2,
+    target!.y + target!.height / 2,
+    { steps: 18 },
+  );
+  await a.mouse.up();
   await expect(
     b.getByText("Your turn, conductor.", { exact: true }),
   ).toBeVisible();
@@ -105,23 +147,6 @@ test("the 2D atlas supports keyboard route selection, pan, zoom, and optional so
   page,
 }) => {
   await page.goto("/");
-  await expect(page.locator("iframe")).toHaveCount(0);
-  await page
-    .getByRole("button", { name: "Music and sound", exact: true })
-    .click();
-  const player = page.getByTitle(
-    "Ticket to Ride America soundtrack on YouTube",
-  );
-  await expect(player).toHaveAttribute(
-    "src",
-    /youtube-nocookie.com\/embed\/jBZochITFMs/,
-  );
-  await page.getByRole("button", { name: "Effects on" }).click();
-  await expect(
-    page.getByRole("button", { name: "Effects off" }),
-  ).toHaveAttribute("aria-pressed", "false");
-  await page.getByRole("button", { name: "Close music player" }).click();
-  await expect(player).toHaveCount(0);
   await page.getByLabel("YOUR CONDUCTOR NAME").fill("Atlas QA");
   await page.getByRole("button", { name: "Create a private table" }).click();
   const map = page.getByRole("group", { name: "USA railway map" });
@@ -269,9 +294,102 @@ test("mobile landing, catalog, and room remain usable", async ({ page }) => {
   await expect(page.locator(".map-zoom")).toContainText("200%");
   await page.getByRole("button", { name: "Reset map", exact: true }).click();
   await expect(page.locator(".map-zoom")).toContainText("100%");
+  const hand = (await page
+    .locator(".hand-cards .train-card:not(:disabled)")
+    .first()
+    .boundingBox())!;
+  const target = (await page
+    .locator('[data-route="r1"] rect')
+    .first()
+    .boundingBox())!;
+  const from = {
+    x: hand.x + hand.width / 2,
+    y: hand.y + hand.height / 2,
+    id: 1,
+  };
+  const to = {
+    x: target.x + target.width / 2,
+    y: target.y + target.height / 2,
+    id: 1,
+  };
+  await touch.send("Input.dispatchTouchEvent", {
+    type: "touchStart",
+    touchPoints: [from],
+  });
+  for (let i = 1; i <= 12; i++)
+    await touch.send("Input.dispatchTouchEvent", {
+      type: "touchMove",
+      touchPoints: [
+        {
+          x: from.x + ((to.x - from.x) * i) / 12,
+          y: from.y + ((to.y - from.y) * i) / 12,
+          id: 1,
+        },
+      ],
+    });
+  await expect(page.locator(".card-drag-ghost")).toBeVisible();
+  await touch.send("Input.dispatchTouchEvent", {
+    type: "touchEnd",
+    touchPoints: [],
+  });
+  await expect(page.locator('[data-route="r1"]')).toHaveAttribute(
+    "aria-label",
+    /claimed by Mobile QA/,
+  );
   await touch.detach();
   await page.screenshot({
     path: "test-results/multiplayer-mobile.png",
     fullPage: true,
   });
+});
+
+// Mock only the external YouTube service; verify our real lifecycle and controls.
+test("music starts once, survives closing settings, and pauses without recreating the player", async ({
+  page,
+}) => {
+  await page.route("https://www.youtube.com/iframe_api", (route) =>
+    route.fulfill({
+      contentType: "application/javascript",
+      body: `
+    window.musicTest={plays:0,pauses:0,created:0,volume:0};
+    window.YT={Player:class {
+      constructor(el,o){this.o=o;this.iframe=document.createElement('iframe');this.iframe.src='about:blank';el.replaceWith(this.iframe);window.musicTest.created++;setTimeout(()=>o.events.onReady({target:this}),0);}
+      getIframe(){return this.iframe;}
+      setVolume(v){window.musicTest.volume=v;}
+      playVideo(){window.musicTest.plays++;this.o.events.onStateChange({target:this,data:1});}
+      pauseVideo(){window.musicTest.pauses++;this.o.events.onStateChange({target:this,data:2});}
+      destroy(){this.iframe.remove();}
+    }};window.onYouTubeIframeAPIReady();
+  `,
+    }),
+  );
+  await page.goto("/");
+  const pause = page.getByRole("button", { name: "Pause music", exact: true });
+  await expect(pause).toBeVisible();
+  await page
+    .getByRole("button", { name: "Music and sound", exact: true })
+    .click();
+  const player = page.getByTitle(
+    "Ticket to Ride America soundtrack on YouTube",
+  );
+  await expect(player).toBeVisible();
+  await page.getByRole("button", { name: "Effects on" }).click();
+  await page.getByRole("button", { name: "Close music settings" }).click();
+  await expect(player).toHaveCount(1);
+  await expect(pause).toBeVisible();
+  expect(await page.evaluate(() => (window as any).musicTest.pauses)).toBe(0);
+  await pause.click();
+  await expect(
+    page.getByRole("button", { name: "Play music", exact: true }),
+  ).toBeVisible();
+  expect(await page.evaluate(() => (window as any).musicTest.pauses)).toBe(1);
+  await page.getByRole("button", { name: "Play music", exact: true }).click();
+  await expect(pause).toBeVisible();
+  expect(await page.evaluate(() => (window as any).musicTest.created)).toBe(1);
+  await page
+    .getByRole("button", { name: "Music and sound", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Effects off" }),
+  ).toHaveAttribute("aria-pressed", "false");
 });
