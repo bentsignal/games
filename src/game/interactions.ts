@@ -1,5 +1,12 @@
-import { CITIES, ROUTES, type Color, type Route, type Ticket } from "./data";
-import { paymentOptions, type Game, type View } from "./engine";
+import {
+  CITIES,
+  ROUTES,
+  TICKET_BY_ID,
+  type Color,
+  type Route,
+  type Ticket,
+} from "./data";
+import { connected, paymentOptions, type Game, type View } from "./engine";
 
 // Dropping a card pays with that color and the fewest necessary locomotives.
 // A locomotive drop contributes at least one wild; the preview shows the payment.
@@ -158,4 +165,18 @@ export function parallelBlockReason(
   if (game.claimed[sibling.id] === game.me?.id)
     return "Closed to you: a player cannot claim both sides of a double route.";
   return undefined;
+}
+
+export function destinationCityStatus(game: View | null | undefined) {
+  const states: Record<string, "incomplete" | "complete"> = {};
+  if (!game?.me) return states;
+  for (const id of game.me.tickets) {
+    const ticket = TICKET_BY_ID[id];
+    const done = connected(game, game.me.id, ticket.a, ticket.b);
+    for (const city of [ticket.a, ticket.b]) {
+      if (!done) states[city] = "incomplete";
+      else if (!states[city]) states[city] = "complete";
+    }
+  }
+  return states;
 }

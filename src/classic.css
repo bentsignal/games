@@ -2771,3 +2771,41 @@ label {
     min-height: 250px;
   }
 }
+
+.turn-banner {
+  height: 82px;
+  min-height: 82px;
+  flex: 0 0 82px;
+  box-sizing: border-box;
+}
+.turn-banner > div {
+  min-width: 0;
+}
+.turn-banner strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.turn-banner small {
+  display: block;
+  min-height: 27px;
+}
+.card-draw-flight {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 160;
+  width: 92px;
+  height: 128px;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+.card-draw-flight .train-card {
+  width: 100%;
+  height: 100%;
+  opacity: 1;
+  filter: none;
+  margin: 0;
+  box-shadow: 0 10px 24px #23182955;
+}

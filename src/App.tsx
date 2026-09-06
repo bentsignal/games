@@ -1,3 +1,4 @@
+import CardDrawFlight, { type DrawFlight } from "./components/CardDrawFlight";
 import { routeAtMapPoint } from "./game/map-layout";
 import {
   Component,
@@ -5,6 +6,7 @@ import {
   lazy,
   useEffect,
   useMemo,
+  useCallback,
   useRef,
   useState,
   type ReactNode,
@@ -218,7 +220,12 @@ function TicketTile({
     <button
       className={`ticket-tile ${selected ? "selected" : ""} ${complete ? "complete" : ""}`}
       style={ink ? ({ "--ticket-ink": ink } as React.CSSProperties) : undefined}
-      onClick={onClick}
+      onClick={() => {
+        if (onClick) {
+          cue("card");
+          onClick();
+        }
+      }}
       onFocus={() => onHover?.([ticket.a, ticket.b])}
       onBlur={() => onHover?.([])}
       onMouseEnter={() => onHover?.([ticket.a, ticket.b])}
@@ -358,6 +365,18 @@ export default function App() {
   const [cardColor, setCardColor] = useState<Color | null>(null),
     [dragPoint, setDragPoint] = useState<CardPoint | null>(null),
     [dropRoute, setDropRoute] = useState<string>();
+  const pendingDraw = useRef<{
+    code: string;
+    hand: Color[];
+    from: DrawFlight["from"];
+  } | null>(null);
+  const [drawFlights, setDrawFlights] = useState<DrawFlight[]>([]);
+  const flightSequence = useRef(0);
+  const finishFlight = useCallback(
+    (id: number) =>
+      setDrawFlights((flights) => flights.filter((f) => f.id !== id)),
+    [],
+  );
   const dragSession = useRef<{ color: Color; point: CardPoint } | null>(null);
   const dragGhost = useRef<HTMLDivElement>(null);
   const dragFrame = useRef<number | null>(null);
@@ -471,6 +490,36 @@ export default function App() {
       color: TICKET_INKS[previews.length % TICKET_INKS.length],
       hovered: true,
     });
+  useEffect(() => {
+    const pending = pendingDraw.current;
+    if (
+      !pending ||
+      pending.code !== code ||
+      !me ||
+      me.hand.length !== pending.hand.length + 1
+    )
+      return;
+    const remaining = [...me.hand];
+    for (const color of pending.hand) {
+      const index = remaining.indexOf(color);
+      if (index >= 0) remaining.splice(index, 1);
+    }
+    if (remaining.length === 1) {
+      pendingDraw.current = null;
+      setDrawFlights((flights) => [
+        ...flights,
+        {
+          id: ++flightSequence.current,
+          color: remaining[0],
+          from: pending.from,
+        },
+      ]);
+    }
+  }, [me?.hand, code]);
+  useEffect(() => {
+    pendingDraw.current = null;
+    setDrawFlights([]);
+  }, [code]);
   const host = !!me && game?.players[0]?.id === me.id;
   const canAct = mine && !busy && connectedServer && !me?.pending.length;
   const options =
@@ -621,7 +670,29 @@ export default function App() {
         if (!latest?.game) return;
         revision = latest.revision;
       }
-      await play({ code, token, revision, action: a });
+      if (a.type === "draw" && me) {
+        const source =
+          a.source < 0
+            ? document.querySelector(".face-down-pile .train-card")
+            : document.querySelectorAll(".market-cards .train-card")[a.source];
+        const rect = source?.getBoundingClientRect();
+        if (rect)
+          pendingDraw.current = {
+            code,
+            hand: [...me.hand],
+            from: {
+              x: rect.x + rect.width / 2,
+              y: rect.y + rect.height / 2,
+              width: rect.width,
+            },
+          };
+      }
+      try {
+        await play({ code, token, revision, action: a });
+      } catch (error) {
+        if (a.type === "draw") pendingDraw.current = null;
+        throw error;
+      }
       if (a.type === "claim") {
         setSelected(null);
         setFocus([]);
@@ -1596,6 +1667,13 @@ export default function App() {
           </aside>
         </main>
       )}
+      {drawFlights.map((flight) => (
+        <CardDrawFlight
+          key={flight.id}
+          flight={flight}
+          onFinish={finishFlight}
+        />
+      ))}
       {dragPoint && cardColor && (
         <div
           className="card-drag-ghost"

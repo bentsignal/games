@@ -1,3 +1,4 @@
+import { cue } from "../audio";
 import { useRef, type CSSProperties } from "react";
 import { PALETTE, type Color } from "../game/data";
 import { TrainArtwork } from "./TrainArtwork";
@@ -39,6 +40,7 @@ export default function TrainCard({
         } as CSSProperties
       }
       disabled={disabled}
+      data-card-color={color}
       draggable={false}
       onDragStart={(e) => e.preventDefault()}
       aria-label={label || `${color} ${count ?? ""}`}
@@ -55,6 +57,7 @@ export default function TrainCard({
           suppress.current = false;
           return;
         }
+        cue("card");
         onClick?.();
       }}
       onPointerDown={(e) => {
@@ -73,6 +76,7 @@ export default function TrainCard({
         const p = pointer.current;
         if (!p || p.id !== e.pointerId || color === "back") return;
         if (p.active || Math.hypot(e.clientX - p.x, e.clientY - p.y) > 6) {
+          if (!p.active) cue("card");
           p.active = true;
           suppress.current = true;
           onDrag?.(color, { x: e.clientX, y: e.clientY });

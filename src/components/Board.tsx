@@ -13,6 +13,7 @@ import { routeAvailable, type Game, type View } from "../game/engine";
 import geography from "../game/geography.json";
 import {
   parallelBlockReason,
+  destinationCityStatus,
   ticketPath,
   type TicketPreview,
 } from "../game/interactions";
@@ -79,6 +80,10 @@ export default function Board({
   const previewPaths = useMemo(
     () => previews.map((p) => ({ ...p, routes: ticketPath(game, p.ticket) })),
     [previews, game],
+  );
+  const destinationStatus = useMemo(
+    () => destinationCityStatus(game),
+    [game?.me?.tickets, game?.claimed, game?.me?.id],
   );
   const demo = !game;
   const picked = ROUTES.find((r) => r.id === (dropTarget ?? hover));
@@ -446,9 +451,30 @@ export default function Board({
             <g className="stations" pointerEvents="none">
               {Object.entries(cities).map(([name, [x, y]]) => {
                 const lit = focus.includes(name),
+                  status = destinationStatus[name],
                   [dx, dy, anchor] = labels[name] || [0, -17, "middle"];
                 return (
-                  <g key={name} transform={`translate(${x} ${y})`}>
+                  <g
+                    key={name}
+                    transform={`translate(${x} ${y})`}
+                    data-city={name}
+                    data-destination-status={status}
+                  >
+                    <title>
+                      {status
+                        ? `${name}: ${status === "incomplete" ? "unfinished destination ticket" : "all destination tickets complete"}`
+                        : name}
+                    </title>
+                    {status && (
+                      <circle
+                        r="15"
+                        fill={
+                          status === "incomplete" ? "#298cff38" : "#42c63738"
+                        }
+                        stroke={status === "incomplete" ? "#238eff" : "#51bb32"}
+                        strokeWidth="1.2"
+                      />
+                    )}
                     {lit && (
                       <circle
                         className="station-pulse"
@@ -459,12 +485,39 @@ export default function Board({
                       />
                     )}
                     <circle
-                      r="7.5"
-                      fill="#64432b"
+                      r={status ? 9 : 7.5}
+                      fill={
+                        status === "incomplete"
+                          ? "#0962d1"
+                          : status === "complete"
+                            ? "#239522"
+                            : "#64432b"
+                      }
                       stroke="#fff8dc"
                       strokeWidth="2"
                     />
-                    <circle r="3.5" fill={lit ? "#ffd960" : "#f9dfa5"} />
+                    <circle
+                      r={status ? 5 : 3.5}
+                      fill={
+                        status === "incomplete"
+                          ? "#69cbff"
+                          : status === "complete"
+                            ? "#9bed4c"
+                            : lit
+                              ? "#ffd960"
+                              : "#f9dfa5"
+                      }
+                    />
+                    {status && (
+                      <path
+                        d="M-4-4Q0-7 4-4"
+                        fill="none"
+                        stroke="#fff"
+                        opacity=".85"
+                        strokeWidth="1.7"
+                        strokeLinecap="round"
+                      />
+                    )}
                     <text
                       x={dx}
                       y={dy}

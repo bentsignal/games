@@ -43,7 +43,7 @@ npm test                       # game rules + complete simulated matches
 npm run build                  # TypeScript + production build
 npx playwright install chromium
 npm run test:e2e                # isolated multiplayer sessions and mobile UI
-npm run test:map                # coastal train footprints on land
+npm run test:map                # approved track layout and natural basemap
 npm run test:live               # full game against configured live backend
 ```
 
@@ -55,7 +55,7 @@ Run the frontend before the browser tests. `PLAYWRIGHT_BASE_URL` targets a deplo
 - `src/game/engine.ts`: authoritative pure game transitions, legal payments, ticket connectivity, longest edge-simple trail, scoring, private views, computer decisions.
 - `convex/rooms.ts`: transactional room actions, session authorization, revision checks, chat, and scheduled computer turns.
 - `src/components/Board.tsx`: accessible SVG board, curved and separated routes, vibrant player trains, ticket previews, city labels, mouse/touch pan and zoom.
-- `src/game/geography.json`: generated Natural Earth coastlines, state borders, lakes, and aligned city coordinates. `node scripts/generate-map.mjs` regenerates these public-domain layers.
+- `src/game/geography.json`: generated Natural Earth coastlines, state borders, lakes, and board city coordinates. `npx tsx scripts/generate-map.mjs` regenerates these public-domain layers.
 - `src/components/TrainArtwork.tsx`: original train-car engravings and conductor portraits.
 - `src/components/Music.tsx` and `src/audio.ts`: persistent YouTube soundtrack player and original synthesized game cues.
 - `assets/locomotive.blend`: original editable Blender source. `scripts/create_locomotive.py` recreates it inside Blender. The earlier 3D prototype and its GLB are retained as source assets; the current game uses the 2D board.
@@ -90,3 +90,5 @@ Lobby controls have independent pending states, and game mode changes update opt
 All route spaces use the same 36-unit width, with aligned parallel pieces. `src/game/atlas-layout.json` holds the Classic-board station arrangement and fitted curves; no route stretches or shrinks its pieces. Closed parallel lanes display a cross and explain the standard 2–3 player restriction. Four- and five-player tables still allow different players to claim opposite sides.
 
 Card dragging moves the floating card through an animation-frame transform and uses geometric map hit testing. It does not update React with every pointer coordinate; the browser regression checks 120 movements without a React commit or map DOM mutation. Static train artwork is memoized.
+
+The basemap uses a single Albers geographic projection with uniform scale and rotation. It is independent of the board’s station positions and fixed route layout; coastal rails may cross water. Destination cities glow blue while any of your tickets involving that city remain unfinished, and green when all are complete. Confirmed card draws animate into your hand, with reduced-motion support. Paper-card sounds and a short turn whistle follow the existing Effects toggle.

@@ -12,6 +12,7 @@ import {
   parallelBlockReason,
   cardPayment,
   ticketPath,
+  destinationCityStatus,
 } from "../src/game/interactions";
 import { newGame, newPlayer, playerView } from "../src/game/engine";
 import { collisions } from "./helpers/map-collisions";
@@ -103,6 +104,49 @@ describe("card payments and journey previews", () => {
     expect(detour).not.toContain("r1");
     expect(detour).not.toContain("r2");
     expect(detour).toContain("r0");
+  });
+});
+describe("destination city markers", () => {
+  it("keeps shared endpoints blue until every owned ticket is complete", () => {
+    const g = game();
+    g.players[0].tickets = ["t62", "t59"];
+    const status = () => destinationCityStatus(playerView(g, "a"));
+    expect(status()).toEqual({
+      Vancouver: "incomplete",
+      Portland: "incomplete",
+      Denver: "incomplete",
+    });
+    g.claimed.r1 = "a";
+    g.claimed.r5 = "a";
+    expect(status()).toEqual({
+      Vancouver: "incomplete",
+      Portland: "complete",
+      Denver: "incomplete",
+    });
+    g.players[0].tickets.reverse();
+    expect(status().Vancouver).toBe("incomplete");
+    g.claimed.r4 = "a";
+    g.claimed.r21 = "a";
+    expect(status()).toEqual({
+      Vancouver: "complete",
+      Portland: "complete",
+      Denver: "complete",
+    });
+  });
+  it("uses only kept tickets and the player's own claimed network", () => {
+    const g = game();
+    g.players[0].tickets = ["t62"];
+    g.players[0].pending = ["t59"];
+    g.players[1].tickets = ["t54"];
+    g.claimed.r1 = "b";
+    g.claimed.r5 = "b";
+    expect(destinationCityStatus(playerView(g, "a"))).toEqual({
+      Vancouver: "incomplete",
+      Portland: "incomplete",
+    });
+    g.players[0].tickets = [];
+    expect(destinationCityStatus(playerView(g, "a"))).toEqual({});
+    expect(destinationCityStatus(null)).toEqual({});
   });
 });
 describe("parallel route geometry", () => {
