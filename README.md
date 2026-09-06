@@ -2,6 +2,11 @@
 
 A browser multiplayer railway game built with React, React Three Fiber, and Convex. The USA board is a 3D miniature with a custom Blender locomotive. Create a private room, share its link, and play a complete game with 2–5 people or computer opponents.
 
+**Play:** https://railbound-1910.vercel.app  
+**Repository:** https://github.com/bentsignal/railbound-1910
+
+Production backend: `https://proficient-porpoise-581.convex.cloud`, in the Personal Convex team. Its Free plan was confirmed in the billing dashboard on September 6, 2026. Vercel uses the existing BSX workspace. No paid subscription was added.
+
 ## Play
 
 1. Enter a conductor name and choose Classic, USA 1910, Big Cities, or Mega.

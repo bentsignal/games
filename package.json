@@ -1,8 +1,7 @@
 {
   "name": "railbound-1910",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "A private multiplayer 3D railway game for the USA and USA 1910 ticket collection",
   "scripts": {
     "test": "vitest run",
     "dev": "vite",
@@ -10,7 +9,8 @@
     "preview": "vite preview",
     "backend": "convex dev",
     "test:e2e": "playwright test",
-    "test:live": "tsx scripts/live-smoke.ts"
+    "test:live": "tsx scripts/live-smoke.ts",
+    "format": "prettier --write src convex tests scripts/*.ts *.ts *.json *.md docs"
   },
   "keywords": [],
   "author": "",
@@ -35,10 +35,14 @@
     "@types/react-dom": "^19.2.7",
     "@types/three": "^0.185.4",
     "@vitejs/plugin-react": "^6.1.1",
+    "prettier": "^3.9.6",
     "tsx": "^4.23.13",
     "typescript": "^7.0.2",
     "vite": "^8.2.2",
     "vitest": "^5.0.0"
   },
-  "private": "true"
+  "private": true,
+  "engines": {
+    "node": ">=22.12.0"
+  }
 }

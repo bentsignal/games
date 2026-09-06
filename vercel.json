@@ -1,1 +1,20 @@
-{"buildCommand":"npm run build","outputDirectory":"dist","rewrites":[{"source":"/((?!assets/|models/|favicon.svg).*)","destination":"/index.html"}],"headers":[{"source":"/(.*)","headers":[{"key":"X-Content-Type-Options","value":"nosniff"},{"key":"Referrer-Policy","value":"same-origin"},{"key":"X-Frame-Options","value":"DENY"}]}]}
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "rewrites": [
+    {
+      "source": "/((?!assets/|models/|favicon.svg).*)",
+      "destination": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "same-origin" },
+        { "key": "X-Frame-Options", "value": "DENY" }
+      ]
+    }
+  ]
+}

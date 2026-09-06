@@ -1,32 +1,305 @@
-import { describe,it,expect } from 'vitest';
-import { applyAction, botAction, connected, longestTrail, newGame, newPlayer, paymentOptions, playerView, refillMarket, scoreGame, type Game } from '../src/game/engine';
-import { COLORS, MODES, ROUTES, TICKETS, ticketDeck, type Mode } from '../src/game/data';
-function started(n=2,mode:Mode='mega'):Game{let g=newGame(mode,newPlayer('p0','Alice',0));for(let i=1;i<n;i++)g.players.push(newPlayer('p'+i,'Player '+i,i));g=applyAction(g,'p0',{type:'start'});for(let i=0;i<n;i++)g=applyAction(g,'p'+i,{type:'keep',tickets:g.players[i].pending.slice(0,MODES[mode].keep)});return g}
-describe('USA dataset',()=>{
- it('uses the four Mystery Train tickets and revised Classic values',()=>{expect(TICKETS.filter(t=>t.set==='mystery').map(t=>`${t.a}-${t.b}`)).toEqual(['Boston-Washington','Montreal-Chicago','Vancouver-Portland','Winnipeg-Omaha']);expect(TICKETS.find(t=>t.a==='Calgary'&&t.b==='Salt Lake City')?.set).toBe('classic');expect(TICKETS.find(t=>t.a==='Los Angeles'&&t.b==='New York')?.points).toBe(20);expect(TICKETS.find(t=>t.a==='Seattle'&&t.b==='New York')?.points).toBe(20)})
- it('contains the complete 100-route network and 69-ticket expansion',()=>{expect(ROUTES).toHaveLength(100);expect(new Set(ROUTES.map(r=>r.a).concat(ROUTES.map(r=>r.b))).size).toBe(36);expect(TICKETS).toHaveLength(69);expect(ticketDeck('classic')).toHaveLength(30);expect(ticketDeck('1910')).toHaveLength(35);expect(ticketDeck('big')).toHaveLength(35);expect(ticketDeck('mega')).toHaveLength(69);expect(TICKETS.filter(t=>t.set==='mystery')).toHaveLength(4)})
+import { describe, it, expect } from "vitest";
+import {
+  applyAction,
+  botAction,
+  connected,
+  longestTrail,
+  newGame,
+  newPlayer,
+  paymentOptions,
+  playerView,
+  refillMarket,
+  scoreGame,
+  type Game,
+} from "../src/game/engine";
+import {
+  COLORS,
+  MODES,
+  ROUTES,
+  TICKETS,
+  ticketDeck,
+  type Mode,
+} from "../src/game/data";
+function started(n = 2, mode: Mode = "mega"): Game {
+  let g = newGame(mode, newPlayer("p0", "Alice", 0));
+  for (let i = 1; i < n; i++)
+    g.players.push(newPlayer("p" + i, "Player " + i, i));
+  g = applyAction(g, "p0", { type: "start" });
+  for (let i = 0; i < n; i++)
+    g = applyAction(g, "p" + i, {
+      type: "keep",
+      tickets: g.players[i].pending.slice(0, MODES[mode].keep),
+    });
+  return g;
+}
+describe("USA dataset", () => {
+  it("uses the four Mystery Train tickets and revised Classic values", () => {
+    expect(
+      TICKETS.filter((t) => t.set === "mystery").map((t) => `${t.a}-${t.b}`),
+    ).toEqual([
+      "Boston-Washington",
+      "Montreal-Chicago",
+      "Vancouver-Portland",
+      "Winnipeg-Omaha",
+    ]);
+    expect(
+      TICKETS.find((t) => t.a === "Calgary" && t.b === "Salt Lake City")?.set,
+    ).toBe("classic");
+    expect(
+      TICKETS.find((t) => t.a === "Los Angeles" && t.b === "New York")?.points,
+    ).toBe(20);
+    expect(
+      TICKETS.find((t) => t.a === "Seattle" && t.b === "New York")?.points,
+    ).toBe(20);
+  });
+  it("contains the complete 100-route network and 69-ticket expansion", () => {
+    expect(ROUTES).toHaveLength(100);
+    expect(
+      new Set(ROUTES.map((r) => r.a).concat(ROUTES.map((r) => r.b))).size,
+    ).toBe(36);
+    expect(TICKETS).toHaveLength(69);
+    expect(ticketDeck("classic")).toHaveLength(30);
+    expect(ticketDeck("1910")).toHaveLength(35);
+    expect(ticketDeck("big")).toHaveLength(35);
+    expect(ticketDeck("mega")).toHaveLength(69);
+    expect(TICKETS.filter((t) => t.set === "mystery")).toHaveLength(4);
+  });
 });
-describe('turn rules',()=>{
- it('deals 4 trains, 45 pieces, and variant-specific tickets',()=>{for(const mode of Object.keys(MODES) as Mode[]){const g=started(5,mode);expect(g.phase).toBe('playing');expect(g.players.every(p=>p.hand.length===4&&p.trains===45&&p.tickets.length===MODES[mode].keep)).toBe(true);expect(g.market.length).toBe(5);expect(g.deck.length+g.discard.length+g.market.length+20).toBe(110)}});
- it('rejects out-of-turn play and never mutates the source',()=>{const g=started();const copy=structuredClone(g);expect(()=>applyAction(g,'p1',{type:'draw',source:-1})).toThrow('not your turn');expect(g).toEqual(copy)})
- it('requires minimum initial tickets and forbids fabricated/duplicate tickets',()=>{let g=newGame('mega',newPlayer('p0','Alice',0));g.players.push(newPlayer('p1','Bob',1));g=applyAction(g,'p0',{type:'start'});expect(()=>applyAction(g,'p0',{type:'keep',tickets:g.players[0].pending.slice(0,2)})).toThrow();expect(()=>applyAction(g,'p0',{type:'keep',tickets:['fake','fake','fake']})).toThrow()})
- it('face-up locomotives use a whole turn; hidden locomotives do not',()=>{let g=started();g.market=['wild','red','blue','green','black'];g=applyAction(g,'p0',{type:'draw',source:0,expected:'wild'});expect(g.turn).toBe(1);g=started();g.deck=['red','wild'];g.market=['red','blue','green','black','pink'];g=applyAction(g,'p0',{type:'draw',source:-1});expect(g.turn).toBe(0);expect(g.drawn).toBe(1);g.market[0]='wild';expect(()=>applyAction(g,'p0',{type:'draw',source:0})).toThrow('whole turn');expect(()=>applyAction(g,'p0',{type:'tickets'})).toThrow('second train card')})
- it('keeps selected destination tickets and returns rejected ones to the bottom',()=>{let g=started();const before=g.ticketDeck.slice();g=applyAction(g,'p0',{type:'tickets'});const offered=g.players[0].pending.slice();expect(offered).toEqual(before.slice(0,4));g=applyAction(g,'p0',{type:'keep',tickets:[offered[0]]});expect(g.ticketDeck.slice(-3)).toEqual(offered.slice(1));expect(g.turn).toBe(1)})
- it('enforces payments and allows choosing to spend additional wilds',()=>{let g=started();const r=ROUTES.find(r=>r.a==='Vancouver'&&r.b==='Calgary')!;g.players[0].hand=['red','red','red','wild'];expect(paymentOptions(g,g.players[0],r)).toContainEqual({color:'red',wilds:1});g=applyAction(g,'p0',{type:'claim',route:r.id,color:'red',wilds:1});expect(g.players[0].hand).toEqual(['red']);expect(g.players[0].trains).toBe(42);expect(g.players[0].score).toBe(4);expect(g.claimed[r.id]).toBe('p0')})
- it('enforces the 2–3 player parallel rule and different owners at 4–5',()=>{for(const n of [2,3,4,5]){const g=started(n);const pair=ROUTES.filter(r=>r.a==='Vancouver'&&r.b==='Seattle');g.claimed[pair[0].id]='p0';g.players[0].hand=['red'];g.players[1].hand=['red'];expect(paymentOptions(g,g.players[0],pair[1])).toHaveLength(0);expect(paymentOptions(g,g.players[1],pair[1]).length>0).toBe(n>=4)}})
- it('reshuffles discards and clears three locomotives without infinite loops',()=>{const g=started();g.deck=[];g.discard=['red','blue','green','yellow','pink'];g.market=['wild','wild','wild','red','black'];refillMarket(g);expect(g.market).toHaveLength(5);expect(g.market.filter(c=>c==='wild').length).toBeLessThan(3);g.deck=[];g.discard=['wild'];g.market=['wild','wild','wild','red','black'];refillMarket(g);expect(g.market).toHaveLength(0);expect(g.discard).toHaveLength(6)})
- it('gives every player, including the triggering player, exactly one final turn',()=>{let g=started(3);const r=ROUTES.find(r=>r.length===1)!;g.players[0].trains=3;g.players[0].hand=['red'];g=applyAction(g,'p0',{type:'claim',route:r.id,color:'red',wilds:0});expect(g.finalTurns).toBe(3);for(const id of ['p1','p2','p0']){g.deck=['red','blue','red','blue','red','blue'];g=applyAction(g,id,{type:'draw',source:-1});g=applyAction(g,id,{type:'draw',source:-1})}expect(g.phase).toBe('finished');expect(g.finalTurns).toBe(0)})
- it('does not leak other hands, pending tickets, or draw order',()=>{const g=started();const view=playerView(g,'p0');expect(view.players[1]).not.toHaveProperty('hand');expect(view.players[1]).not.toHaveProperty('tickets');expect(view.players[1]).not.toHaveProperty('pending');expect(view).not.toHaveProperty('deck');expect(view).not.toHaveProperty('ticketDeck');expect(view.me?.id).toBe('p0');expect(view.revealed).toEqual({})})
+describe("turn rules", () => {
+  it("deals 4 trains, 45 pieces, and variant-specific tickets", () => {
+    for (const mode of Object.keys(MODES) as Mode[]) {
+      const g = started(5, mode);
+      expect(g.phase).toBe("playing");
+      expect(
+        g.players.every(
+          (p) =>
+            p.hand.length === 4 &&
+            p.trains === 45 &&
+            p.tickets.length === MODES[mode].keep,
+        ),
+      ).toBe(true);
+      expect(g.market.length).toBe(5);
+      expect(g.deck.length + g.discard.length + g.market.length + 20).toBe(110);
+    }
+  });
+  it("rejects out-of-turn play and never mutates the source", () => {
+    const g = started();
+    const copy = structuredClone(g);
+    expect(() => applyAction(g, "p1", { type: "draw", source: -1 })).toThrow(
+      "not your turn",
+    );
+    expect(g).toEqual(copy);
+  });
+  it("requires minimum initial tickets and forbids fabricated/duplicate tickets", () => {
+    let g = newGame("mega", newPlayer("p0", "Alice", 0));
+    g.players.push(newPlayer("p1", "Bob", 1));
+    g = applyAction(g, "p0", { type: "start" });
+    expect(() =>
+      applyAction(g, "p0", {
+        type: "keep",
+        tickets: g.players[0].pending.slice(0, 2),
+      }),
+    ).toThrow();
+    expect(() =>
+      applyAction(g, "p0", { type: "keep", tickets: ["fake", "fake", "fake"] }),
+    ).toThrow();
+  });
+  it("face-up locomotives use a whole turn; hidden locomotives do not", () => {
+    let g = started();
+    g.market = ["wild", "red", "blue", "green", "black"];
+    g = applyAction(g, "p0", { type: "draw", source: 0, expected: "wild" });
+    expect(g.turn).toBe(1);
+    g = started();
+    g.deck = ["red", "wild"];
+    g.market = ["red", "blue", "green", "black", "pink"];
+    g = applyAction(g, "p0", { type: "draw", source: -1 });
+    expect(g.turn).toBe(0);
+    expect(g.drawn).toBe(1);
+    g.market[0] = "wild";
+    expect(() => applyAction(g, "p0", { type: "draw", source: 0 })).toThrow(
+      "whole turn",
+    );
+    expect(() => applyAction(g, "p0", { type: "tickets" })).toThrow(
+      "second train card",
+    );
+  });
+  it("keeps selected destination tickets and returns rejected ones to the bottom", () => {
+    let g = started();
+    const before = g.ticketDeck.slice();
+    g = applyAction(g, "p0", { type: "tickets" });
+    const offered = g.players[0].pending.slice();
+    expect(offered).toEqual(before.slice(0, 4));
+    g = applyAction(g, "p0", { type: "keep", tickets: [offered[0]] });
+    expect(g.ticketDeck.slice(-3)).toEqual(offered.slice(1));
+    expect(g.turn).toBe(1);
+  });
+  it("enforces payments and allows choosing to spend additional wilds", () => {
+    let g = started();
+    const r = ROUTES.find((r) => r.a === "Vancouver" && r.b === "Calgary")!;
+    g.players[0].hand = ["red", "red", "red", "wild"];
+    expect(paymentOptions(g, g.players[0], r)).toContainEqual({
+      color: "red",
+      wilds: 1,
+    });
+    g = applyAction(g, "p0", {
+      type: "claim",
+      route: r.id,
+      color: "red",
+      wilds: 1,
+    });
+    expect(g.players[0].hand).toEqual(["red"]);
+    expect(g.players[0].trains).toBe(42);
+    expect(g.players[0].score).toBe(4);
+    expect(g.claimed[r.id]).toBe("p0");
+  });
+  it("enforces the 2–3 player parallel rule and different owners at 4–5", () => {
+    for (const n of [2, 3, 4, 5]) {
+      const g = started(n);
+      const pair = ROUTES.filter(
+        (r) => r.a === "Vancouver" && r.b === "Seattle",
+      );
+      g.claimed[pair[0].id] = "p0";
+      g.players[0].hand = ["red"];
+      g.players[1].hand = ["red"];
+      expect(paymentOptions(g, g.players[0], pair[1])).toHaveLength(0);
+      expect(paymentOptions(g, g.players[1], pair[1]).length > 0).toBe(n >= 4);
+    }
+  });
+  it("reshuffles discards and clears three locomotives without infinite loops", () => {
+    const g = started();
+    g.deck = [];
+    g.discard = ["red", "blue", "green", "yellow", "pink"];
+    g.market = ["wild", "wild", "wild", "red", "black"];
+    refillMarket(g);
+    expect(g.market).toHaveLength(5);
+    expect(g.market.filter((c) => c === "wild").length).toBeLessThan(3);
+    g.deck = [];
+    g.discard = ["wild"];
+    g.market = ["wild", "wild", "wild", "red", "black"];
+    refillMarket(g);
+    expect(g.market).toHaveLength(0);
+    expect(g.discard).toHaveLength(6);
+  });
+  it("gives every player, including the triggering player, exactly one final turn", () => {
+    let g = started(3);
+    const r = ROUTES.find((r) => r.length === 1)!;
+    g.players[0].trains = 3;
+    g.players[0].hand = ["red"];
+    g = applyAction(g, "p0", {
+      type: "claim",
+      route: r.id,
+      color: "red",
+      wilds: 0,
+    });
+    expect(g.finalTurns).toBe(3);
+    for (const id of ["p1", "p2", "p0"]) {
+      g.deck = ["red", "blue", "red", "blue", "red", "blue"];
+      g = applyAction(g, id, { type: "draw", source: -1 });
+      g = applyAction(g, id, { type: "draw", source: -1 });
+    }
+    expect(g.phase).toBe("finished");
+    expect(g.finalTurns).toBe(0);
+  });
+  it("does not leak other hands, pending tickets, or draw order", () => {
+    const g = started();
+    const view = playerView(g, "p0");
+    expect(view.players[1]).not.toHaveProperty("hand");
+    expect(view.players[1]).not.toHaveProperty("tickets");
+    expect(view.players[1]).not.toHaveProperty("pending");
+    expect(view).not.toHaveProperty("deck");
+    expect(view).not.toHaveProperty("ticketDeck");
+    expect(view.me?.id).toBe("p0");
+    expect(view.revealed).toEqual({});
+  });
 });
-describe('scoring',()=>{
- it('finds connectivity and longest trails that revisit cities without reusing routes',()=>{const g=started(4);for(const r of ROUTES.filter(r=>(r.a==='Vancouver'&&r.b==='Seattle')||(r.a==='Seattle'&&r.b==='Calgary')||(r.a==='Vancouver'&&r.b==='Calgary')))g.claimed[r.id]='p0';expect(connected(g,'p0','Vancouver','Calgary')).toBe(true);expect(connected(g,'p1','Vancouver','Calgary')).toBe(false);expect(longestTrail(g,'p0')).toBe(9)})
- it('scores unfinished tickets negatively, shared bonuses, and tie breakers',()=>{const g=started();g.players.forEach(p=>{p.tickets=[];p.score=10});let scores=scoreGame(g);expect(scores.every(s=>s.winner&&s.longestBonus===10&&s.globeBonus===15)).toBe(true);g.players[0].tickets=['t27'];scores=scoreGame(g);expect(scores[0].ticketPoints).toBe(-20);expect(scores[1].winner).toBe(true)})
+describe("scoring", () => {
+  it("only the longest-route bonus holder breaks an otherwise tied score", () => {
+    const g = started(3, "classic");
+    g.players.forEach((p, i) => {
+      p.tickets = [];
+      p.score = i === 2 ? -50 : 10;
+    });
+    g.claimed[ROUTES.find((r) => r.length === 3)!.id] = "p0";
+    g.claimed[ROUTES.find((r) => r.length === 1)!.id] = "p1";
+    g.claimed[ROUTES.find((r) => r.length === 6)!.id] = "p2";
+    const scores = scoreGame(g);
+    expect(scores.filter((r) => r.winner).map((r) => r.id)).toEqual([
+      "p0",
+      "p1",
+    ]);
+  });
+  it("finds connectivity and longest trails that revisit cities without reusing routes", () => {
+    const g = started(4);
+    for (const r of ROUTES.filter(
+      (r) =>
+        (r.a === "Vancouver" && r.b === "Seattle") ||
+        (r.a === "Seattle" && r.b === "Calgary") ||
+        (r.a === "Vancouver" && r.b === "Calgary"),
+    ))
+      g.claimed[r.id] = "p0";
+    expect(connected(g, "p0", "Vancouver", "Calgary")).toBe(true);
+    expect(connected(g, "p1", "Vancouver", "Calgary")).toBe(false);
+    expect(longestTrail(g, "p0")).toBe(9);
+  });
+  it("scores unfinished tickets negatively, shared bonuses, and tie breakers", () => {
+    const g = started();
+    g.players.forEach((p) => {
+      p.tickets = [];
+      p.score = 10;
+    });
+    let scores = scoreGame(g);
+    expect(
+      scores.every(
+        (s) => s.winner && s.longestBonus === 10 && s.globeBonus === 15,
+      ),
+    ).toBe(true);
+    g.players[0].tickets = ["t27"];
+    scores = scoreGame(g);
+    expect(scores[0].ticketPoints).toBe(-20);
+    expect(scores[1].winner).toBe(true);
+  });
 });
-describe('complete games',()=>{
- it.each(['classic','1910','big','mega'] as Mode[])('finishes %s games at all player counts with conserved cards and valid scores',(mode)=>{
-  for(let n=2;n<=5;n++){let g=started(n,mode);let turns=0;
-   while(g.phase!=='finished'&&turns++<1800){const p=g.players[g.turn];g=applyAction(g,p.id,botAction(g,p));const cards=[...g.deck,...g.discard,...g.market,...g.players.flatMap(p=>p.hand)];expect(cards).toHaveLength(110);for(const c of COLORS)expect(cards.filter(v=>v===c).length).toBe(c==='wild'?14:12);expect(g.players.every(p=>p.trains>=0)).toBe(true);const tickets=[...g.ticketDeck,...g.players.flatMap(p=>[...p.tickets,...p.pending])];expect(new Set(tickets).size).toBe(ticketDeck(mode).length)}
-   expect(g.phase,`${mode}, ${n} players, ${turns} actions`).toBe('finished');expect(g.results.some(r=>r.winner)).toBe(true);expect(g.results.every(r=>r.total===r.routePoints+r.ticketPoints+r.longestBonus+r.globeBonus)).toBe(true);
-  }
- },30000)
+describe("complete games", () => {
+  it.each(["classic", "1910", "big", "mega"] as Mode[])(
+    "finishes %s games at all player counts with conserved cards and valid scores",
+    (mode) => {
+      for (let n = 2; n <= 5; n++) {
+        let g = started(n, mode);
+        let turns = 0;
+        while (g.phase !== "finished" && turns++ < 1800) {
+          const p = g.players[g.turn];
+          g = applyAction(g, p.id, botAction(g, p));
+          const cards = [
+            ...g.deck,
+            ...g.discard,
+            ...g.market,
+            ...g.players.flatMap((p) => p.hand),
+          ];
+          expect(cards).toHaveLength(110);
+          for (const c of COLORS)
+            expect(cards.filter((v) => v === c).length).toBe(
+              c === "wild" ? 14 : 12,
+            );
+          expect(g.players.every((p) => p.trains >= 0)).toBe(true);
+          const tickets = [
+            ...g.ticketDeck,
+            ...g.players.flatMap((p) => [...p.tickets, ...p.pending]),
+          ];
+          expect(new Set(tickets).size).toBe(ticketDeck(mode).length);
+        }
+        expect(g.phase, `${mode}, ${n} players, ${turns} actions`).toBe(
+          "finished",
+        );
+        expect(g.results.some((r) => r.winner)).toBe(true);
+        expect(
+          g.results.every(
+            (r) =>
+              r.total ===
+              r.routePoints + r.ticketPoints + r.longestBonus + r.globeBonus,
+          ),
+        ).toBe(true);
+      }
+    },
+    30000,
+  );
 });
