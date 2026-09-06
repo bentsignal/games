@@ -40,6 +40,7 @@ export default function Board({
   controls,
   colorSeed = "",
   completedTickets = [],
+  scoreRoutes = [],
 }: {
   game?: View | null;
   selected?: string;
@@ -53,6 +54,7 @@ export default function Board({
   controls?: ReactNode;
   colorSeed?: string;
   completedTickets?: string[];
+  scoreRoutes?: string[];
 }) {
   const id = useId().replace(/:/g, "");
   const svg = useRef<SVGSVGElement>(null);
@@ -364,6 +366,7 @@ export default function Board({
                     ? PLAYER_COLORS[Math.floor(demoIndex / 4) % 5]
                     : PALETTE[r.color];
                 const highlighted =
+                  scoreRoutes.includes(r.id) ||
                   selected === r.id ||
                   hoverIds.includes(r.id) ||
                   dropTarget === r.id;

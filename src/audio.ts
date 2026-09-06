@@ -58,14 +58,47 @@ function noise(
   };
 }
 export function cue(
-  kind: "card" | "draw" | "claim" | "turn" | "tickets" | "complete",
+  kind:
+    | "card"
+    | "draw"
+    | "claim"
+    | "turn"
+    | "tickets"
+    | "complete"
+    | "score-step"
+    | "score-tick"
+    | "finale",
 ) {
   if (!enabled) return;
   void unlockAudio().then(() => {
     if (!enabled || !context || context.state !== "running") return;
     const ctx = context,
       now = ctx.currentTime;
-    if (kind === "card") {
+    if (kind === "score-tick") {
+      noise(ctx, now, 0.026, 0.075, 850);
+    } else if (kind === "score-step") {
+      noise(ctx, now, 0.13, 0.12, 1500);
+      noise(ctx, now + 0.09, 0.035, 0.18, 650);
+    } else if (kind === "finale") {
+      cue("turn");
+      for (const [i, frequency] of [523.25, 659.25, 783.99, 1046.5].entries()) {
+        const osc = ctx.createOscillator(),
+          gain = ctx.createGain(),
+          start = now + i * 0.18;
+        osc.type = "triangle";
+        osc.frequency.value = frequency;
+        gain.gain.setValueAtTime(0, start);
+        gain.gain.linearRampToValueAtTime(0.05, start + 0.015);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.7);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(start);
+        osc.stop(start + 0.75);
+        osc.onended = () => {
+          osc.disconnect();
+          gain.disconnect();
+        };
+      }
+    } else if (kind === "card") {
       noise(ctx, now, 0.055, 0.17, 2500);
       noise(ctx, now + 0.045, 0.035, 0.08, 1400);
     } else if (kind === "draw") {

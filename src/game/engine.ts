@@ -34,6 +34,7 @@ export interface Result {
   winner: boolean;
 }
 export interface Game {
+  roundId?: number;
   mode: Mode;
   phase: "lobby" | "setup" | "playing" | "finished";
   players: Player[];
@@ -87,6 +88,7 @@ export function newPlayer(
 }
 export function newGame(mode: Mode, host: Player): Game {
   return {
+    roundId: Date.now(),
     mode,
     phase: "lobby",
     players: [host],

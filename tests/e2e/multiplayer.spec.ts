@@ -272,9 +272,10 @@ test("computer takeover finishes the game, reveals scores, and rematches", async
   await expect(page).toHaveURL(/\/$/);
   await page.goto(gameUrl);
   await expect(
-    page.getByRole("heading", { name: "Game over", exact: true }),
+    page.getByRole("tab", { name: "Scoreboard", exact: true }),
   ).toBeVisible({ timeout: 210000 });
   await expect(page.locator(".result-row")).toHaveCount(2);
+  await page.getByRole("button", { name: "Skip to final scores" }).click();
   await expect(page.getByText("Map unavailable")).toHaveCount(0);
   await page
     .getByText("Reveal destination tickets", { exact: true })

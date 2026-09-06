@@ -38,7 +38,6 @@ import {
   BookOpen,
   ChevronDown,
   Flag,
-  Trophy,
   MapPin,
   LogOut,
   List,
@@ -78,6 +77,10 @@ import {
   type TicketPreview,
 } from "./game/interactions";
 import Music from "./components/Music";
+import Scoreboard, {
+  ScoreRevealCard,
+  useScoreReveal,
+} from "./components/Scoreboard";
 import { TrainArtwork, ConductorPortrait } from "./components/TrainArtwork";
 import { cue } from "./audio";
 const Board = lazy(() => import("./components/Board"));
@@ -360,7 +363,9 @@ export default function App() {
     [focus, setFocus] = useState<string[]>([]),
     [reset, setReset] = useState(0),
     [top, setTop] = useState(false),
-    [tab, setTab] = useState<"tickets" | "chat" | "log">("tickets"),
+    [tab, setTab] = useState<"tickets" | "chat" | "log" | "scoreboard">(
+      "tickets",
+    ),
     [routesOpen, setRoutesOpen] = useState(false),
     [filter, setFilter] = useState(""),
     [catalog, setCatalog] = useState(false),
@@ -415,6 +420,13 @@ export default function App() {
     [game?.players, me?.id, code],
   );
   const completion = useDestinationFeedback(game, code);
+  const scoreReveal = useScoreReveal(game, code);
+  useEffect(() => {
+    if (game?.phase === "finished") {
+      setTab("scoreboard");
+      setSelected(null);
+    } else if (game?.phase === "lobby") setTab("tickets");
+  }, [game?.phase, code]);
   const connection = useConvexConnectionState();
   const connectedServer = connection.isWebSocketConnected;
   const messages =
@@ -840,7 +852,43 @@ export default function App() {
           </button>
         </div>
       )}
-      {!code ? (
+      {!code && location.pathname === "/ending-preview" ? (
+        <main className="ending-preview-page">
+          <h1>Test the ending</h1>
+          <p>
+            This game has one turn left. Draw two cards to start the score
+            reveal.
+          </p>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              saveName();
+              void run(async () =>
+                visit(
+                  await create({
+                    token,
+                    name,
+                    mode: "mega",
+                    endingPreview: true,
+                  }),
+                ),
+              );
+            }}
+          >
+            <label htmlFor="preview-name">Name</label>
+            <input
+              id="preview-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              maxLength={24}
+              required
+            />
+            <button className="primary full" disabled={busy || !name.trim()}>
+              Create ending preview <ArrowRight size={18} />
+            </button>
+          </form>
+        </main>
+      ) : !code ? (
         <main className="home-page">
           <section className="hero-copy">
             <h1>Ticket to Ride</h1>
@@ -1004,13 +1052,11 @@ export default function App() {
         </main>
       ) : (
         <main
-          className={`table-layout ${game.phase === "lobby" ? "lobby-layout" : ""}`}
+          className={`table-layout ${game.phase === "lobby" ? "lobby-layout" : ""} ${game.phase === "finished" ? "finished-layout" : ""}`}
         >
           <section className="table-main">
-            <div
-              className={`table-heading ${game.phase !== "finished" ? "compact-heading" : ""}`}
-            >
-              <div>{game.phase === "finished" && <h1>Game over</h1>}</div>
+            <div className="table-heading compact-heading">
+              <div />
               <div className="table-meta">
                 <span className="live-dot" />
                 {game.phase === "lobby"
@@ -1018,7 +1064,7 @@ export default function App() {
                   : game.phase === "setup"
                     ? "CHOOSING TICKETS"
                     : game.phase === "finished"
-                      ? "GAME OVER"
+                      ? ""
                       : `TURN ${game.turnNumber}`}
               </div>
             </div>
@@ -1061,12 +1107,11 @@ export default function App() {
                             : `${p.trains} trains · ${p.handCount} cards · ${p.ticketCount} tickets`}
                       </small>
                     </div>
-                    {game.phase !== "lobby" && (
+                    {game.phase === "finished" && (
                       <b className="player-score">
-                        {game.phase === "finished"
-                          ? (game.results.find((r) => r.id === p.id)?.total ??
-                            p.score)
-                          : p.score}
+                        {scoreReveal.done
+                          ? game.results.find((r) => r.id === p.id)?.total
+                          : (scoreReveal.totals[p.id] ?? 0)}
                         <small>PTS</small>
                       </b>
                     )}
@@ -1081,10 +1126,20 @@ export default function App() {
                 game={game}
                 selected={selected?.id}
                 onSelect={select}
-                focus={focus}
+                focus={
+                  scoreReveal.step?.ticket
+                    ? [
+                        TICKET_BY_ID[scoreReveal.step.ticket].a,
+                        TICKET_BY_ID[scoreReveal.step.ticket].b,
+                      ]
+                    : focus
+                }
+                scoreRoutes={scoreReveal.step?.routes}
                 reset={reset}
                 top={top}
-                previews={previews}
+                previews={
+                  game.phase === "finished" && !scoreReveal.done ? [] : previews
+                }
                 eligible={eligible}
                 dropTarget={dropRoute}
                 controls={
@@ -1116,7 +1171,14 @@ export default function App() {
                   </>
                 }
               />
-              {completion && (
+              {game.phase === "finished" && !scoreReveal.done && (
+                <ScoreRevealCard
+                  game={game}
+                  reveal={scoreReveal}
+                  colors={playerColors}
+                />
+              )}
+              {completion && game.phase !== "finished" && (
                 <DestinationFeedback
                   key={completion.id}
                   tickets={completion.tickets}
@@ -1239,6 +1301,15 @@ export default function App() {
             className={`table-sidebar ${me?.pending.length ? "choosing-tickets" : ""}`}
           >
             <div className="table-actions">
+              {game.phase === "finished" && host && (
+                <button
+                  className="primary full"
+                  disabled={pendingTable.includes("rematch")}
+                  onClick={() => setTable("rematch")}
+                >
+                  <RotateCcw size={17} /> Play again
+                </button>
+              )}
               {game.phase === "lobby" &&
                 (host ? (
                   <button
@@ -1378,85 +1449,7 @@ export default function App() {
                       )}
                     </div>
                   </>
-                ) : game.phase === "finished" ? (
-                  <div className="results-side">
-                    <div className="eyebrow">GAME OVER</div>
-                    <Trophy size={38} className="trophy" />
-                    <h2>
-                      {game.results
-                        .filter((r) => r.winner)
-                        .map(
-                          (r) => game.players.find((p) => p.id === r.id)?.name,
-                        )
-                        .join(" & ")}{" "}
-                      {game.results.filter((r) => r.winner).length === 1
-                        ? "wins!"
-                        : "win!"}
-                    </h2>
-
-                    {[...game.results]
-                      .sort((a, b) => b.total - a.total)
-                      .map((r) => (
-                        <div
-                          className={`result-row ${r.winner ? "winner" : ""}`}
-                          key={r.id}
-                        >
-                          <strong>
-                            {game.players.find((p) => p.id === r.id)?.name}
-                            <b>{r.total}</b>
-                          </strong>
-                          <dl>
-                            <div>
-                              <dt>Routes</dt>
-                              <dd>{r.routePoints}</dd>
-                            </div>
-                            <div>
-                              <dt>Tickets ({r.completed} complete)</dt>
-                              <dd>
-                                {r.ticketPoints > 0 ? "+" : ""}
-                                {r.ticketPoints}
-                              </dd>
-                            </div>
-                            <div>
-                              <dt>Longest trail ({r.longest})</dt>
-                              <dd>+{r.longestBonus}</dd>
-                            </div>
-                            <div>
-                              <dt>Globetrotter</dt>
-                              <dd>+{r.globeBonus}</dd>
-                            </div>
-                          </dl>
-                          <details>
-                            <summary>Reveal destination tickets</summary>
-                            {game.revealed[r.id]?.map((id) => (
-                              <p key={id} className="revealed-ticket">
-                                {connected(
-                                  game,
-                                  r.id,
-                                  TICKET_BY_ID[id].a,
-                                  TICKET_BY_ID[id].b,
-                                )
-                                  ? "✓"
-                                  : "×"}{" "}
-                                {TICKET_BY_ID[id].a} → {TICKET_BY_ID[id].b}{" "}
-                                <b>{TICKET_BY_ID[id].points}</b>
-                              </p>
-                            ))}
-                          </details>
-                        </div>
-                      ))}
-                    {host && (
-                      <button
-                        className="primary full"
-                        disabled={pendingTable.includes("rematch")}
-                        onClick={() => setTable("rematch")}
-                      >
-                        <RotateCcw size={17} />
-                        Play again
-                      </button>
-                    )}
-                  </div>
-                ) : (
+                ) : game.phase === "finished" ? null : (
                   <>
                     <div className={`turn-banner ${mine ? "your-turn" : ""}`}>
                       <span className="turn-light" />
@@ -1560,6 +1553,15 @@ export default function App() {
                   </>
                 )}
                 <div className="sidebar-tabs" role="tablist">
+                  {game.phase === "finished" && (
+                    <button
+                      role="tab"
+                      aria-selected={activeTab === "scoreboard"}
+                      onClick={() => setTab("scoreboard")}
+                    >
+                      Scoreboard
+                    </button>
+                  )}
                   {game.phase !== "lobby" && (
                     <button
                       role="tab"
@@ -1589,7 +1591,13 @@ export default function App() {
                 <div
                   className={`sidebar-content ${activeTab === "chat" ? "chat-content" : ""}`}
                 >
-                  {activeTab === "tickets" ? (
+                  {activeTab === "scoreboard" && game.phase === "finished" ? (
+                    <Scoreboard
+                      game={game}
+                      reveal={scoreReveal}
+                      colors={playerColors}
+                    />
+                  ) : activeTab === "tickets" ? (
                     <>
                       {me?.tickets.length ? (
                         me.tickets.map((id) => (

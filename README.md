@@ -95,3 +95,9 @@ Card dragging moves the floating card through an animation-frame transform and u
 The basemap uses a single Albers geographic projection with uniform scale and rotation. It is independent of the board’s station positions and fixed route layout; coastal rails may cross water. Destination cities glow blue while any of your tickets involving that city remain unfinished, and green when all are complete. Confirmed card draws animate into your hand, with reduced-motion support. Paper-card sounds and a short turn whistle follow the existing Effects toggle.
 
 Your own trains and player badge are always gold in your view; opponents use distinct room-seeded colors. Completed destinations briefly pulse and show a local completion notice with a railway bell, without replaying on reconnect. Face-up cards refill in their existing physical slots; empty positions stay empty when the deck is exhausted. Three visible locomotives still reset the full market under standard rules.
+
+## End-game reveal
+
+Scores are hidden during play. At the end, the local reveal counts route points, each completed or missed destination, Longest trail, and Globetrotter before showing ranked results. Scoreboard, Tickets, Chat, and Activity remain available under the top Play again / Leave table controls. Pause, skip, and replay affect only your own presentation; authoritative scores and other players are unchanged. Completed reveal steps are remembered in the current browser tab, including across reloads. Sound effects follow the existing Effects toggle.
+
+[Create an ending preview](https://ticket.bentsignal.com/ending-preview) to get a separate four-player Mega game with one final turn remaining. Draw two hidden cards to finish it, then use Replay on the scoreboard to repeat the reveal. The preview is a fixed legal game snapshot; it cannot alter existing rooms. It uses the normal session and room-creation rate limit. Play again starts a regular new game with those seats.

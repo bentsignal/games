@@ -3,6 +3,7 @@ import { internal } from "./_generated/api";
 import { v, ConvexError } from "convex/values";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
+import { endingPreview } from "../src/game/ending-preview";
 import {
   applyAction,
   botAction,
@@ -61,7 +62,12 @@ function nameOf(name: string) {
   return n;
 }
 export const create = mutation({
-  args: { token: v.string(), name: v.string(), mode },
+  args: {
+    token: v.string(),
+    name: v.string(),
+    mode,
+    endingPreview: v.optional(v.boolean()),
+  },
   handler: async (ctx, args) => {
     const id = identity(args.token),
       name = nameOf(args.name);
@@ -96,7 +102,9 @@ export const create = mutation({
         "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.floor(Math.random() * 32)];
     await ctx.db.insert("rooms", {
       code,
-      game: newGame(args.mode, newPlayer(id, name, 0)),
+      game: args.endingPreview
+        ? endingPreview(id, name, code)
+        : newGame(args.mode, newPlayer(id, name, 0)),
       revision: 0,
       createdAt: Date.now(),
       updatedAt: Date.now(),
