@@ -1,246 +1,29 @@
 import { ROUTES, type Route } from "./data";
-import geography from "./geography.json";
+import layout from "./atlas-layout.json";
 export type Point = [number, number];
-// Station marker sits just inland, leaving space for the three Florida approaches.
-export const cities = {
-  ...geography.cities,
-  Miami: [1188, 734],
-} as unknown as Record<string, Point>;
-const bends: Record<string, number> = {
-  r0: -25,
-  r1: -7,
-  r3: 7,
-  r4: 12,
-  r7: -23,
-  r8: 14,
-  r9: 14,
-  r10: -12,
-  r11: -12,
-  r12: -10,
-  r13: 8,
-  r14: -12,
-  r15: -5,
-  r16: 45,
-  r17: -45,
-  r19: -8,
-  r20: 8,
-  r22: -12,
-  r23: 15,
-  r26: -12,
-  r27: -47,
-  r28: -7,
-  r29: -5,
-  r30: -45,
-  r31: -10,
-  r32: -12,
-  r33: -5,
-  r34: 15,
-  r37: 4,
-  r51: 43,
-  r52: 12,
-  r53: -4,
-  r55: -8,
-  r56: -20,
-  r58: 6,
-  r59: 6,
-  r60: -20,
-  r61: 65,
-  r62: -13,
-  r63: -13,
-  r64: -7,
-  r65: 10,
-  r68: -5,
-  r73: -17,
-  r74: -38,
-  r75: -15,
-  r76: -7,
-  r77: 6,
-  r80: 12,
-  r81: 12,
-  r82: 2,
-  r84: 8,
-  r85: -14,
-  r89: -4,
-  r90: -5,
-  r93: -16,
-  r94: 6,
-  r97: -30,
-  r98: 8,
-};
-// Hand-shaped approaches give crowded stations separate entry angles.
-const guides: Record<string, [Point, Point]> = {
-  r62: [
-    [940, 561],
-    [952, 592],
-  ],
-  r61: [
-    [1067, 552],
-    [1010, 571],
-  ],
-  r89: [
-    [1070, 588],
-    [1228, 657],
-  ],
-  r95: [
-    [1190, 245],
-    [1214, 220],
-  ],
-  r16: [
-    [323, 690],
-    [435, 734],
-  ],
-  r26: [
-    [350, 535],
-    [394, 503],
-  ],
-  r27: [
-    [416, 563],
-    [479, 531],
-  ],
-  r23: [
-    [577, 348],
-    [650, 360],
-  ],
-  r60: [
-    [607, 397],
-    [680, 439],
-  ],
-  r33: [
-    [868, 283],
-    [994, 277],
-  ],
-  r73: [
-    [925, 290],
-    [1058, 305],
-  ],
-  r34: [
-    [822, 322],
-    [870, 334],
-  ],
-  r37: [
-    [798, 408],
-    [865, 387],
-  ],
-  r51: [
-    [625, 759],
-    [745, 774],
-  ],
-  r52: [
-    [611, 703],
-    [694, 699],
-  ],
-  r53: [
-    [600, 660],
-    [690, 615],
-  ],
-  r55: [
-    [610, 577],
-    [682, 563],
-  ],
-  r56: [
-    [680, 517],
-    [634, 548],
-  ],
-  r58: [
-    [625, 480],
-    [700, 464],
-  ],
-  r68: [
-    [938, 463],
-    [1060, 417],
-  ],
-  r84: [
-    [1040, 475],
-    [1070, 419],
-  ],
-  r81: [
-    [1127, 390],
-    [1113, 433],
-  ],
-  r82: [
-    [1040, 513],
-    [1083, 496],
-  ],
-  r87: [
-    [1093, 539],
-    [1119, 533],
-  ],
-  r86: [
-    [1175, 597],
-    [1128, 609],
-  ],
-  r85: [
-    [1113.238780242727, 623.7657364192208],
-    [1143.0734461281438, 623.2660933201481],
-  ],
-  r93: [
-    [1165.5118305411863, 343.84518028969165],
-    [1208.2891631583739, 298.0990265561631],
-  ],
-  r78: [
-    [1070.1776359375, 324.7174802489019],
-    [1178.7479466796876, 340.7174802489019],
-  ],
-  r80: [
-    [1184.360307569321, 411.06000452912707],
-    [1164.153285694321, 394.5777541630948],
-  ],
-};
-const stationMargins: Record<string, [number, number]> = {
-  r61: [52, 57],
-  r85: [56, 50],
-  r89: [58, 20],
-  r93: [20, 55],
-  r95: [43, 20],
-  r16: [50, 34],
-  r10: [30, 42],
-  r23: [34, 48],
-  r27: [32, 49],
-  r32: [44, 34],
-  r33: [38, 44],
-  r34: [34, 45],
-  r37: [34, 48],
-  r55: [34, 43],
-  r56: [42, 47],
-  r58: [46, 34],
-  r60: [46, 45],
-  r68: [45, 65],
-  r81: [45, 35],
-  r82: [34, 47],
-  r84: [34, 48],
-  r62: [41, 51],
-  r78: [46, 30],
-  r80: [20, 42],
-  r86: [42, 43],
-};
+// Station positions and approaches follow the Classic USA board reference.
+// Pieces have one fixed physical size; route curves and spacing fit around them.
+export const cities = layout.cities as unknown as Record<string, Point>;
+const guides = layout.guides as unknown as Record<string, [Point, Point]>;
+const stationMargins = layout.margins as unknown as Record<
+  string,
+  [number, number]
+>;
+export const TRAIN_WIDTH = 36;
 export const LANE_SPACING = 22;
 export const TRAIN_HEIGHT = 17;
 export function routeGeometry(route: Route) {
   const a = cities[route.a],
     b = cities[route.b];
-  const dx = b[0] - a[0],
-    dy = b[1] - a[1],
-    len = Math.hypot(dx, dy);
   const siblings = ROUTES.filter((r) => r.a === route.a && r.b === route.b);
   const lane =
     (siblings.findIndex((r) => r.id === route.id) - (siblings.length - 1) / 2) *
     LANE_SPACING;
-  const bend = bends[siblings[0].id] || 0;
-  const control: Point = [
-    (a[0] + b[0]) / 2 - (dy / len) * bend * 2,
-    (a[1] + b[1]) / 2 + (dx / len) * bend * 2,
-  ];
   const [c1, c2] = guides[siblings[0].id] ?? [
-    [
-      a[0] + ((control[0] - a[0]) * 2) / 3,
-      a[1] + ((control[1] - a[1]) * 2) / 3,
-    ],
-    [
-      b[0] + ((control[0] - b[0]) * 2) / 3,
-      b[1] + ((control[1] - b[1]) * 2) / 3,
-    ],
+    [a[0] + (b[0] - a[0]) / 3, a[1] + (b[1] - a[1]) / 3],
+    [a[0] + ((b[0] - a[0]) * 2) / 3, a[1] + ((b[1] - a[1]) * 2) / 3],
   ];
-  const at = (t: number): Point => {
+  const at = (t: number, lateral = lane): Point => {
     const u = 1 - t;
     const vx =
       3 * u * u * (c1[0] - a[0]) +
@@ -256,33 +39,34 @@ export function routeGeometry(route: Route) {
         3 * u * u * t * c1[0] +
         3 * u * t * t * c2[0] +
         t * t * t * b[0] -
-        (vy / length) * lane,
+        (vy / length) * lateral,
       u * u * u * a[1] +
         3 * u * u * t * c1[1] +
         3 * u * t * t * c2[1] +
         t * t * t * b[1] +
-        (vx / length) * lane,
+        (vx / length) * lateral,
     ];
   };
   const samples = Array.from({ length: 201 }, (_, i) => at(i / 200));
+  const centerSamples = Array.from({ length: 201 }, (_, i) => at(i / 200, 0));
   const distances = [0];
   for (let i = 1; i < samples.length; i++)
     distances.push(
       distances[i - 1] +
         Math.hypot(
-          samples[i][0] - samples[i - 1][0],
-          samples[i][1] - samples[i - 1][1],
+          centerSamples[i][0] - centerSamples[i - 1][0],
+          centerSamples[i][1] - centerSamples[i - 1][1],
         ),
     );
   const total = distances[200],
-    margin = Math.min(34, total * 0.24);
+    margin = 14;
   const [startMargin, endMargin] = stationMargins[siblings[0].id] ?? [
     margin,
     margin,
   ];
   const usable = total - startMargin - endMargin;
   const cell = usable / route.length,
-    slot = Math.min(42, cell - 10);
+    slot = TRAIN_WIDTH;
   function pointAt(distance: number) {
     let i = 1;
     while (i < 200 && distances[i] < distance) i++;
@@ -319,3 +103,41 @@ export const tracks = ROUTES.map((route) => ({
   route,
   ...routeGeometry(route),
 }));
+
+// Geometric hit testing avoids asking the browser to hit-test the full detailed
+// coastline and hundreds of SVG train elements on every pointer movement.
+const hitTracks = tracks.map((t) => {
+  const points = t.samples.filter((_, i) => i % 4 === 0);
+  return {
+    id: t.route.id,
+    points,
+    minX: Math.min(...points.map((p) => p[0])) - 16,
+    maxX: Math.max(...points.map((p) => p[0])) + 16,
+    minY: Math.min(...points.map((p) => p[1])) - 16,
+    maxY: Math.max(...points.map((p) => p[1])) + 16,
+  };
+});
+export function routeAtMapPoint(x: number, y: number) {
+  let best = 16 * 16,
+    id: string | undefined;
+  for (const route of hitTracks) {
+    if (x < route.minX || x > route.maxX || y < route.minY || y > route.maxY)
+      continue;
+    for (let i = 1; i < route.points.length; i++) {
+      const a = route.points[i - 1],
+        b = route.points[i],
+        dx = b[0] - a[0],
+        dy = b[1] - a[1];
+      const t = Math.max(
+        0,
+        Math.min(1, ((x - a[0]) * dx + (y - a[1]) * dy) / (dx * dx + dy * dy)),
+      );
+      const distance = (x - a[0] - t * dx) ** 2 + (y - a[1] - t * dy) ** 2;
+      if (distance < best) {
+        best = distance;
+        id = route.id;
+      }
+    }
+  }
+  return id;
+}

@@ -86,3 +86,7 @@ React Compiler runs in both development and production through the Vite React co
 For an all-routes-occupied visual proof, run `npx tsx scripts/map-proof.tsx` and open `/tmp/railbound-map-proof.html`. The interaction suite checks every pair of occupied train footprints, including stroke, wheels and shadow.
 
 Lobby controls have independent pending states, and game mode changes update optimistically. Five fixed player slots keep chat stationary. Chat errors appear as local Server messages and are never broadcast. The custom production domain is `ticket.bentsignal.com`; the original Vercel project alias remains available.
+
+All route spaces use the same 36-unit width, with aligned parallel pieces. `src/game/atlas-layout.json` holds the Classic-board station arrangement and fitted curves; no route stretches or shrinks its pieces. Closed parallel lanes display a cross and explain the standard 2–3 player restriction. Four- and five-player tables still allow different players to claim opposite sides.
+
+Card dragging moves the floating card through an animation-frame transform and uses geometric map hit testing. It does not update React with every pointer coordinate; the browser regression checks 120 movements without a React commit or map DOM mutation. Static train artwork is memoized.

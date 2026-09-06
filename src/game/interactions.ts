@@ -138,3 +138,24 @@ export function ticketPath(
   }
   return path;
 }
+
+// A visibly empty lane can still be closed under the standard double-route rule.
+export function parallelBlockReason(
+  game: View | null | undefined,
+  route: Route,
+) {
+  if (!game || game.claimed[route.id]) return undefined;
+  const sibling = ROUTES.find(
+    (r) =>
+      r.id !== route.id &&
+      r.a === route.a &&
+      r.b === route.b &&
+      game.claimed[r.id],
+  );
+  if (!sibling) return undefined;
+  if (game.players.length < 4)
+    return "Closed: in 2–3 player games, only one side of a double route can be used.";
+  if (game.claimed[sibling.id] === game.me?.id)
+    return "Closed to you: a player cannot claim both sides of a double route.";
+  return undefined;
+}

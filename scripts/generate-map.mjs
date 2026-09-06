@@ -2,7 +2,9 @@
 // A thin-plate spline gently adapts geographic coordinates to the spacious
 // printed-board city layout. All layers share the same transformation.
 import fs from "node:fs/promises";
-const board = JSON.parse(await fs.readFile("src/game/board.json", "utf8"));
+const layout = JSON.parse(
+  await fs.readFile("src/game/atlas-layout.json", "utf8"),
+);
 const geo = {
   Atlanta: [-84.39, 33.75],
   Boston: [-71.06, 42.36],
@@ -41,14 +43,53 @@ const geo = {
   Washington: [-77.04, 38.91],
   Winnipeg: [-97.14, 49.9],
 };
+// Additional shoreline anchors retain the reference board’s broad Florida
+// peninsula and California coast without changing the route network.
+const coastline = {
+  Pensacola: { geo: [-87.22, 30.42], point: [1030, 785] },
+  Tallahassee: { geo: [-84.28, 30.44], point: [1090, 758] },
+  CedarKey: { geo: [-83.03, 29.14], point: [1135, 802] },
+  Tampa: { geo: [-82.46, 27.95], point: [1170, 813] },
+  Jacksonville: { geo: [-81.66, 30.33], point: [1290, 670] },
+  Canaveral: { geo: [-80.6, 28.4], point: [1300, 745] },
+  BigSur: { geo: [-121.8, 36.25], point: [62, 620] },
+  SantaBarbara: { geo: [-119.7, 34.42], point: [132, 680] },
+};
+Object.assign(
+  geo,
+  Object.fromEntries(
+    Object.entries(coastline).map(([name, p]) => [name, p.geo]),
+  ),
+);
 const entries = Object.entries(geo),
   n = entries.length;
 const anchors = entries.map(([, [lon, lat]]) => [lon * 0.76, lat]);
-const cities = Object.fromEntries(
-  Object.entries(board.cities).map(([name, [x, y]]) => [
+const cities = layout.cities;
+// Coastal city markers sit inland from their geographic shoreline anchors,
+// as on the printed board. Apply the same projection to every land layer.
+const shoreOffsets = {
+  Vancouver: [-18, 0],
+  Seattle: [-18, 0],
+  "San Francisco": [-22, 0],
+  "Los Angeles": [-10, 18],
+  "New Orleans": [0, 20],
+  Charleston: [25, 0],
+  Washington: [25, 0],
+  "New York": [35, 0],
+  Boston: [35, 0],
+  Miami: [30, 20],
+};
+const targets = Object.fromEntries(
+  Object.entries(cities).map(([name, p]) => [
     name,
-    [70 + x * 1260, 30 + (1 - y) * 830],
+    p.map((v, i) => v + (shoreOffsets[name]?.[i] ?? 0)),
   ]),
+);
+Object.assign(
+  targets,
+  Object.fromEntries(
+    Object.entries(coastline).map(([name, p]) => [name, p.point]),
+  ),
 );
 const kernel = (a, b) => {
   const r = (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2;
@@ -79,35 +120,16 @@ function solve(rhs) {
   return m.map((r) => r[n + 3]);
 }
 const weights = [0, 1].map((axis) =>
-  solve(entries.map(([name]) => cities[name][axis])),
+  solve(entries.map(([name]) => targets[name][axis])),
 );
-// A restrained cartographic widening preserves the peninsula's outline while
-// giving the three Florida routes room for readable train pieces on land.
-function widenFlorida([x, y]) {
-  const t = Math.max(0, Math.min(1, (y - 550) / 280));
-  const center = 1100 + (y - 600) * 0.5;
-  const dx = x - center;
-  const edge = Math.max(0, Math.min(1, (x - 1050) / 60));
-  return [
-    x +
-      dx *
-        0.7 *
-        edge *
-        Math.sin(Math.PI * t) ** 2 *
-        Math.exp(-((dx / 150) ** 2)),
-    y,
-  ];
-}
 function project([lon, lat]) {
   const p = [lon * 0.76, lat];
-  return widenFlorida(
-    weights.map(
-      (w) =>
-        w[n] +
-        w[n + 1] * p[0] +
-        w[n + 2] * p[1] +
-        anchors.reduce((s, a, i) => s + w[i] * kernel(p, a), 0),
-    ),
+  return weights.map(
+    (w) =>
+      w[n] +
+      w[n + 1] * p[0] +
+      w[n + 2] * p[1] +
+      anchors.reduce((sum, a, i) => sum + w[i] * kernel(p, a), 0),
   );
 }
 function line(points, close = false) {

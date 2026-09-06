@@ -159,6 +159,30 @@ test("two independent friends join, choose tickets, chat, draw, and reconnect", 
     "data-owner",
     (await a.locator('[data-route="r1"]').getAttribute("data-owner")) as string,
   );
+  // The untouched parallel lane is visibly closed under the two-player rule.
+  const closed = b.locator('[data-route="r2"]');
+  await expect(closed).toHaveClass(/closed/);
+  await closed.focus();
+  await expect(b.locator(".map-hover")).toContainText("2–3 player games");
+  const held = (await b
+    .locator(".hand-cards .train-card:not(:disabled)")
+    .first()
+    .boundingBox())!;
+  const closedSlot = (await closed.locator("rect").first().boundingBox())!;
+  await b.mouse.move(held.x + held.width / 2, held.y + held.height / 2);
+  await b.mouse.down();
+  await b.mouse.move(
+    closedSlot.x + closedSlot.width / 2,
+    closedSlot.y + closedSlot.height / 2,
+    { steps: 12 },
+  );
+  await expect(b.locator(".map-hover")).toContainText("2–3 player games");
+  await b.mouse.up();
+  await expect(b.locator(".route-popover")).toContainText(
+    "only one side of a double route",
+  );
+  await expect(closed).not.toHaveAttribute("data-owner", /./);
+  await expect(b.getByText("Your turn", { exact: true })).toBeVisible();
   await a.screenshot({
     path: "test-results/multiplayer-desktop.png",
     fullPage: true,

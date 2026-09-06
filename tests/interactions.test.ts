@@ -1,7 +1,15 @@
 import { describe, it, expect } from "vitest";
-import { tracks, LANE_SPACING, TRAIN_HEIGHT } from "../src/game/map-layout";
+import {
+  tracks,
+  cities,
+  LANE_SPACING,
+  TRAIN_HEIGHT,
+  TRAIN_WIDTH,
+  routeAtMapPoint,
+} from "../src/game/map-layout";
 import {
   automaticRoute,
+  parallelBlockReason,
   cardPayment,
   ticketPath,
 } from "../src/game/interactions";
@@ -58,6 +66,32 @@ describe("card payments and journey previews", () => {
     // A yellow card dropped over the red Boston lane still claims yellow.
     expect(automaticRoute(view(), ROUTE_BY_ID.r96, "yellow")?.id).toBe("r95");
   });
+  it("explains the standard small-game closure and keeps the other side playable with four players", () => {
+    const g = game();
+    g.players[0].hand = ["yellow"];
+    g.claimed.r1 = "a";
+    g.claimed.r5 = "b";
+    expect(parallelBlockReason(playerView(g, "a"), ROUTE_BY_ID.r6)).toContain(
+      "2–3 player",
+    );
+    expect(
+      automaticRoute(playerView(g, "a"), ROUTE_BY_ID.r5, "yellow"),
+    ).toBeUndefined();
+    g.players.push(newPlayer("c", "Carol", 2), newPlayer("d", "Dave", 3));
+    expect(
+      parallelBlockReason(playerView(g, "a"), ROUTE_BY_ID.r6),
+    ).toBeUndefined();
+    expect(
+      automaticRoute(playerView(g, "a"), ROUTE_BY_ID.r5, "yellow")?.id,
+    ).toBe("r6");
+    g.claimed.r5 = "a";
+    expect(parallelBlockReason(playerView(g, "a"), ROUTE_BY_ID.r6)).toContain(
+      "cannot claim both",
+    );
+    expect(
+      automaticRoute(playerView(g, "a"), ROUTE_BY_ID.r6, "yellow"),
+    ).toBeUndefined();
+  });
   it("previews reuse owned routes and avoid an opponent’s routes", () => {
     const g = game();
     const ticket = { a: "Vancouver", b: "Portland" } as Ticket;
@@ -92,17 +126,27 @@ describe("parallel route geometry", () => {
         ).toBeCloseTo(LANE_SPACING, 6);
     }
   });
+  it("hit-tests physical slots consistently without DOM hit testing", () => {
+    for (const t of tracks)
+      for (const car of t.cars) {
+        const hit = ROUTE_BY_ID[routeAtMapPoint(car.x, car.y)!];
+        expect([hit.a, hit.b]).toEqual([t.route.a, t.route.b]);
+      }
+    expect(routeAtMapPoint(-100, -100)).toBeUndefined();
+  });
   it("has no overlapping trains anywhere, even with all 100 routes filled", () => {
     expect(collisions()).toEqual([]);
   });
   it("keeps Los Angeles–El Paso above Baja rather than looping through it", () => {
     const route = tracks.find((t) => t.route.id === "r16")!;
-    expect(Math.max(...route.cars.map((c) => c.y))).toBeLessThan(740);
+    expect(Math.max(...route.cars.map((c) => c.y))).toBeLessThan(
+      cities["El Paso"][1] + 40,
+    );
   });
-  it("draws every physical train slot with a positive width", () => {
+  it("uses exactly the same physical piece size for every route", () => {
     for (const t of tracks) {
       expect(t.cars).toHaveLength(t.route.length);
-      for (const car of t.cars) expect(car.width).toBeGreaterThan(10);
+      for (const car of t.cars) expect(car.width).toBe(TRAIN_WIDTH);
     }
   });
 });

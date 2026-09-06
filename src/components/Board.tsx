@@ -1,4 +1,5 @@
 import {
+  memo,
   useEffect,
   useId,
   useRef,
@@ -10,7 +11,11 @@ import { Minus, Plus, Info } from "lucide-react";
 import { PALETTE, PLAYER_COLORS, ROUTES, type Route } from "../game/data";
 import { routeAvailable, type Game, type View } from "../game/engine";
 import geography from "../game/geography.json";
-import { ticketPath, type TicketPreview } from "../game/interactions";
+import {
+  parallelBlockReason,
+  ticketPath,
+  type TicketPreview,
+} from "../game/interactions";
 
 import { cities, tracks, type Point } from "../game/map-layout";
 const demoRoutes = [
@@ -76,7 +81,7 @@ export default function Board({
     [previews, game],
   );
   const demo = !game;
-  const picked = ROUTES.find((r) => r.id === hover);
+  const picked = ROUTES.find((r) => r.id === (dropTarget ?? hover));
   const hoveredRoutes = picked
     ? ROUTES.filter(
         (r) =>
@@ -206,6 +211,7 @@ export default function Board({
             fill={`url(#${id}ocean)`}
           />
           <g
+            data-map-world="true"
             transform={`translate(${700 + view.x} ${450 + view.y}) scale(${view.z}) translate(-700 -450)`}
           >
             <rect
@@ -282,22 +288,22 @@ export default function Board({
                 M É X I C O
               </text>
               <text
-                x="58"
-                y="530"
-                transform="rotate(-74 58 530)"
+                x="22"
+                y="440"
+                transform="rotate(-87 22 440)"
                 className="ocean-name"
               >
                 PACIFIC OCEAN
               </text>
               <text
-                x="1330"
-                y="465"
-                transform="rotate(-63 1330 465)"
+                x="1360"
+                y="510"
+                transform="rotate(-78 1360 510)"
                 className="ocean-name"
               >
                 ATLANTIC OCEAN
               </text>
-              <text x="920" y="820" className="ocean-name gulf">
+              <text x="990" y="865" className="ocean-name gulf">
                 Gulf of America
               </text>
             </g>
@@ -344,16 +350,17 @@ export default function Board({
                   hoverIds.includes(r.id) ||
                   dropTarget === r.id;
                 const droppable = eligible?.includes(r.id);
+                const blocked = parallelBlockReason(game, r);
                 return (
                   <g
                     key={r.id}
-                    className={`map-route ${occupied ? "claimed" : ""} ${highlighted ? "highlighted" : ""} ${eligible ? (droppable ? "drop-eligible" : "drop-unavailable") : ""} ${dropTarget === r.id ? "drop-target" : ""}`}
+                    className={`map-route ${blocked ? "closed" : ""} ${occupied ? "claimed" : ""} ${highlighted ? "highlighted" : ""} ${eligible ? (droppable ? "drop-eligible" : "drop-unavailable") : ""} ${dropTarget === r.id ? "drop-target" : ""}`}
                     data-route={r.id}
                     data-owner={owner?.id}
                     data-droppable={droppable || undefined}
                     role={demo ? undefined : "button"}
                     tabIndex={demo ? undefined : 0}
-                    aria-label={`${r.a} to ${r.b}, ${r.length} ${r.color}${owner ? `, claimed by ${owner.name}` : ""}`}
+                    aria-label={`${r.a} to ${r.b}, ${r.length} ${r.color}${owner ? `, claimed by ${owner.name}` : blocked ? `, ${blocked}` : ""}`}
                     aria-pressed={demo ? undefined : selected === r.id}
                     onMouseEnter={() => setHover(r.id)}
                     onMouseLeave={() => setHover(undefined)}
@@ -371,7 +378,7 @@ export default function Board({
                     }}
                   >
                     <title>
-                      {`${r.a} → ${r.b} · ${r.length} ${r.color}${owner ? ` · ${owner.name}` : ""}`}
+                      {`${r.a} → ${r.b} · ${r.length} ${r.color}${owner ? ` · ${owner.name}` : blocked ? ` · ${blocked}` : ""}`}
                     </title>
                     <path
                       d={path}
@@ -392,84 +399,12 @@ export default function Board({
                         }
                       />
                     )}
-                    {cars.map((c, i) => (
-                      <g
-                        key={i}
-                        transform={`translate(${c.x} ${c.y}) rotate(${c.angle})`}
-                        pointerEvents="none"
-                      >
-                        {occupied ? (
-                          <>
-                            <rect
-                              x={-c.width / 2}
-                              y="-8.5"
-                              width={c.width}
-                              height="17"
-                              rx="3"
-                              fill="#2b2429"
-                              opacity=".35"
-                              transform="translate(1 1)"
-                            />
-                            <path
-                              d={`M${-c.width / 2 + 4} 6v4m${c.width - 8} -4v4`}
-                              stroke="#30262a"
-                              strokeWidth="3"
-                            />
-                            <rect
-                              x={-c.width / 2}
-                              y="-8.5"
-                              width={c.width}
-                              height="17"
-                              rx="3"
-                              fill={color}
-                              stroke="#32232a"
-                              strokeWidth="1.7"
-                            />
-                            <path
-                              d={`M${-c.width / 2 + 2} -5.5H${c.width / 2 - 2}`}
-                              stroke="#fff"
-                              strokeWidth="1.6"
-                              opacity=".48"
-                            />
-                            <path
-                              d={`M${-c.width / 2 + 2} 5.5H${c.width / 2 - 2}`}
-                              stroke="#241626"
-                              strokeWidth="2"
-                              opacity=".26"
-                            />
-                            <path
-                              d={`M${-c.width / 2 + 5} -3.5V3.5M${c.width / 2 - 5} -3.5V3.5`}
-                              stroke="#281727"
-                              opacity=".16"
-                            />
-                          </>
-                        ) : (
-                          <>
-                            <rect
-                              x={-c.width / 2}
-                              y="-4.5"
-                              width={c.width}
-                              height="9"
-                              rx="1.5"
-                              fill={color}
-                              stroke="#675c4e"
-                              strokeWidth="1.2"
-                            />
-                            <rect
-                              x={-c.width / 2 + 2}
-                              y="-2.5"
-                              width={Math.max(1, c.width - 4)}
-                              height="5"
-                              rx=".5"
-                              fill="none"
-                              stroke="#fff9e1"
-                              strokeWidth=".7"
-                              opacity=".65"
-                            />
-                          </>
-                        )}
-                      </g>
-                    ))}
+                    <TrainPieces
+                      cars={cars}
+                      occupied={occupied}
+                      color={color}
+                      blocked={!!blocked}
+                    />
                   </g>
                 );
               })}
@@ -514,14 +449,6 @@ export default function Board({
                   [dx, dy, anchor] = labels[name] || [0, -17, "middle"];
                 return (
                   <g key={name} transform={`translate(${x} ${y})`}>
-                    {(name === "Chicago" || name === "Oklahoma City") && (
-                      <path
-                        d={name === "Chicago" ? "M3 10L7 24" : "M10 -4L33 -16"}
-                        fill="none"
-                        stroke="#806b4a"
-                        strokeWidth="1"
-                      />
-                    )}
                     {lit && (
                       <circle
                         className="station-pulse"
@@ -616,7 +543,10 @@ export default function Board({
           </div>
           {picked && (
             <div className="map-hover">
-              {picked.a} ↔ {picked.b} <b>{picked.length} trains</b>
+              {picked.a} ↔ {picked.b}{" "}
+              <b>
+                {parallelBlockReason(game, picked) || `${picked.length} trains`}
+              </b>
             </div>
           )}
         </>
@@ -624,3 +554,106 @@ export default function Board({
     </div>
   );
 }
+
+const TrainPieces = memo(function TrainPieces({
+  cars,
+  occupied,
+  color,
+  blocked,
+}: {
+  cars: (typeof tracks)[number]["cars"];
+  occupied: boolean;
+  color: string;
+  blocked: boolean;
+}) {
+  return (
+    <g>
+      {cars.map((c, i) => (
+        <g
+          key={i}
+          transform={`translate(${c.x} ${c.y}) rotate(${c.angle})`}
+          pointerEvents="none"
+        >
+          {occupied ? (
+            <>
+              <rect
+                x={-c.width / 2}
+                y="-8.5"
+                width={c.width}
+                height="17"
+                rx="3"
+                fill="#2b2429"
+                opacity=".35"
+                transform="translate(1 1)"
+              />
+              <path
+                d={`M${-c.width / 2 + 4} 6v4m${c.width - 8} -4v4`}
+                stroke="#30262a"
+                strokeWidth="3"
+              />
+              <rect
+                x={-c.width / 2}
+                y="-8.5"
+                width={c.width}
+                height="17"
+                rx="3"
+                fill={color}
+                stroke="#32232a"
+                strokeWidth="1.7"
+              />
+              <path
+                d={`M${-c.width / 2 + 2} -5.5H${c.width / 2 - 2}`}
+                stroke="#fff"
+                strokeWidth="1.6"
+                opacity=".48"
+              />
+              <path
+                d={`M${-c.width / 2 + 2} 5.5H${c.width / 2 - 2}`}
+                stroke="#241626"
+                strokeWidth="2"
+                opacity=".26"
+              />
+              <path
+                d={`M${-c.width / 2 + 5} -3.5V3.5M${c.width / 2 - 5} -3.5V3.5`}
+                stroke="#281727"
+                opacity=".16"
+              />
+            </>
+          ) : (
+            <>
+              <rect
+                x={-c.width / 2}
+                y="-4.5"
+                width={c.width}
+                height="9"
+                rx="1.5"
+                fill={blocked ? "#b7aa96" : color}
+                stroke="#675c4e"
+                strokeWidth="1.2"
+              />
+              <rect
+                x={-c.width / 2 + 2}
+                y="-2.5"
+                width={Math.max(1, c.width - 4)}
+                height="5"
+                rx=".5"
+                fill="none"
+                stroke="#fff9e1"
+                strokeWidth=".7"
+                opacity=".65"
+              />
+              {blocked && (
+                <path
+                  className="closed-mark"
+                  d="M-3-3 3 3M-3 3 3-3"
+                  fill="none"
+                  strokeWidth="1.5"
+                />
+              )}
+            </>
+          )}
+        </g>
+      ))}
+    </g>
+  );
+});

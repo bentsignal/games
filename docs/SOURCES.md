@@ -24,4 +24,4 @@ Infrastructure references: [Convex pricing](https://www.convex.dev/pricing), [Co
 
 The user requested the decorative Gulf label to read “Gulf of America.” The atlas labels are presentation text, independent of routing data.
 
-The Florida coastline, lakes, and boundaries are widened together in the map projection to fit its three train approaches. Miami’s station is inset from the shoreline. Coastal train footprints are checked against the rendered land polygons by `npm run test:map`.
+The current station arrangement and route approaches follow the Classic USA board reference supplied by the user. Every train piece has the same dimensions. Geographic coastlines, lakes and boundaries share a thin-plate-spline projection, including shoreline anchors around Florida and California. Coastal stations sit inland from those anchors. Coastal train footprints are checked against the rendered land polygons by `npm run test:map`.

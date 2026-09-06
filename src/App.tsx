@@ -1,8 +1,10 @@
+import { routeAtMapPoint } from "./game/map-layout";
 import {
   Component,
   Suspense,
   lazy,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -66,6 +68,7 @@ import TrainCard, { type CardPoint } from "./components/TrainCard";
 import {
   cardPayment,
   automaticRoute,
+  parallelBlockReason,
   TICKET_INKS,
   type TicketPreview,
 } from "./game/interactions";
@@ -356,6 +359,8 @@ export default function App() {
     [dragPoint, setDragPoint] = useState<CardPoint | null>(null),
     [dropRoute, setDropRoute] = useState<string>();
   const dragSession = useRef<{ color: Color; point: CardPoint } | null>(null);
+  const dragGhost = useRef<HTMLDivElement>(null);
+  const dragFrame = useRef<number | null>(null);
   const releaseDrag = useRef<(point: CardPoint) => void>(() => {});
   const [ticketSelection, setTicketSelection] = useState<string[]>([]),
     [pinnedTickets, setPinnedTickets] = useState<string[]>([]),
@@ -472,26 +477,57 @@ export default function App() {
     selected && game && me
       ? paymentOptions(game as unknown as Game, me, selected)
       : [];
-  const eligible =
-    cardColor && game && canAct && !game.drawn
-      ? ROUTES.filter((r) => cardPayment(game, r, cardColor)).map((r) => r.id)
-      : undefined;
+  const eligible = useMemo(
+    () =>
+      cardColor && game && canAct && !game.drawn
+        ? ROUTES.filter((r) => cardPayment(game, r, cardColor)).map((r) => r.id)
+        : undefined,
+    [cardColor, game, canAct],
+  );
   function routeAt(point: CardPoint) {
-    return document
-      .elementsFromPoint(point.x, point.y)
-      .map((el) => el.closest("[data-route]")?.getAttribute("data-route"))
-      .find(Boolean);
+    const world = document.querySelector<SVGGElement>("[data-map-world]");
+    const map = world?.ownerSVGElement;
+    if (!map) return undefined;
+    const rect = map.getBoundingClientRect();
+    if (
+      point.x < rect.left ||
+      point.x > rect.right ||
+      point.y < rect.top ||
+      point.y > rect.bottom
+    )
+      return undefined;
+    const matrix = world.getScreenCTM();
+    if (!matrix) return undefined;
+    const local = new DOMPoint(point.x, point.y).matrixTransform(
+      matrix.inverse(),
+    );
+    return routeAtMapPoint(local.x, local.y);
   }
   function dragCard(color: Color, point: CardPoint) {
     if (!canAct || game?.drawn) return;
+    const starting = !dragSession.current;
     dragSession.current = { color, point };
-    setCardColor(color);
-    setDragPoint(point);
-    setSelected(null);
-    const hit = ROUTES.find((r) => r.id === routeAt(point));
-    setDropRoute(
-      hit && game ? automaticRoute(game, hit, color)?.id : undefined,
-    );
+    if (starting) {
+      setCardColor(color);
+      setDragPoint(point);
+      setSelected(null);
+    }
+    // Pointer coordinates belong to the compositor, not React state. Resolve
+    // at most one hit per animation frame and render only when the route changes.
+    if (dragFrame.current !== null) return;
+    dragFrame.current = requestAnimationFrame(() => {
+      dragFrame.current = null;
+      const session = dragSession.current;
+      if (!session) return;
+      if (dragGhost.current)
+        dragGhost.current.style.translate = `${session.point.x}px ${session.point.y}px`;
+      const hit = ROUTES.find((r) => r.id === routeAt(session.point));
+      setDropRoute(
+        hit && game
+          ? (automaticRoute(game, hit, session.color)?.id ?? hit.id)
+          : undefined,
+      );
+    });
   }
   function cancelCard() {
     dragSession.current = null;
@@ -535,6 +571,10 @@ export default function App() {
     route = automaticRoute(game, route, color) ?? route;
     const payment = cardPayment(game, route, color);
     if (!payment) {
+      if (parallelBlockReason(game, route)) {
+        setSelected(route);
+        return;
+      }
       setError("That route needs more matching cards or is already blocked.");
       return;
     }
@@ -684,9 +724,6 @@ export default function App() {
           onClick={() => visit("")}
           aria-label="Ticket to Ride home"
         >
-          <span className="brand-icon">
-            <TrainFront size={23} />
-          </span>
           <span>Ticket to Ride</span>
         </button>
         <nav>
@@ -1064,7 +1101,8 @@ export default function App() {
                     <p>
                       {game.phase === "finished"
                         ? "Unclaimed."
-                        : "Not enough matching cards, trains, or the parallel route is blocked."}
+                        : parallelBlockReason(game, selected) ||
+                          "Not enough matching cards or trains."}
                     </p>
                   )}
                 </div>
@@ -1561,10 +1599,12 @@ export default function App() {
       {dragPoint && cardColor && (
         <div
           className="card-drag-ghost"
+          ref={dragGhost}
           style={
             {
-              left: dragPoint.x,
-              top: dragPoint.y,
+              left: 0,
+              top: 0,
+              translate: `${dragPoint.x}px ${dragPoint.y}px`,
               "--card": PALETTE[cardColor],
             } as React.CSSProperties
           }
