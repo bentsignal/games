@@ -17,7 +17,7 @@ Production backend: `https://proficient-porpoise-581.convex.cloud`, in the Perso
 
 Your seat is saved in the browser. Reloading, navigating away, and reopening the room recover it. Clearing browser storage or switching devices creates a new identity. Rooms wait for disconnected humans; a player can explicitly hand their seat to a computer. Room chat and the recent activity log persist.
 
-Use the map’s + / − buttons, scroll wheel, or pinch to zoom. Drag to pan; Reset map restores the whole board. Keyboard users can focus the map and use + / −, arrow keys, or 0 to reset, or use the route list. Claimed routes use larger, saturated train pieces. Parallel routes maintain their full separation throughout each bend.
+Use the map’s + / − buttons, scroll wheel, or pinch to zoom. Drag to pan; Reset map restores the whole board. Keyboard users can focus the map and use + / −, arrow keys, or 0 to reset, or use the route list. Claimed routes use larger, saturated train pieces. Parallel routes use compact, constant spacing, hand-shaped station approaches, and collision-checked train footprints. Dropping on either lane automatically chooses an available matching lane and continues the side of your existing track where possible.
 
 Music attempts to start automatically and loops the classic America track. Browser autoplay restrictions may require the first interaction or a click on Play music. The header button pauses/resumes playback; the adjacent settings button opens the YouTube player, volume slider, and sound-effects toggle. Closing settings preserves the player and its playback position. YouTube availability and ads are controlled by YouTube. No soundtrack is downloaded or redistributed. Sound effects can be switched off in the same panel; this preference is saved locally.
 
@@ -78,3 +78,7 @@ The existing project is linked locally through `.vercel/` (not committed). Verce
 Classic uses the 30 original tickets with the four USA 1910 point revisions. Mega contains all 69 tickets, including four Mystery Train tickets. Big Cities uses the Anniversary rulebook's explicit no-bonus variant. This choice is shown in the in-game handbook. For an impossible market with fewer than three non-locomotive cards available, the market is returned to the draw supply so play can continue without a reshuffle loop.
 
 See [docs/SOURCES.md](docs/SOURCES.md) for factual data verification and asset provenance. This is an unofficial independent implementation, with original interface and railway artwork. Ticket to Ride is a trademark of Days of Wonder; the original game was designed by Alan R. Moon. No official board or card artwork is bundled.
+
+React Compiler runs in both development and production through the Vite React compiler preset. Chat has an independent sending state, so messages do not disable or dim game controls.
+
+For an all-routes-occupied visual proof, run `npx tsx scripts/map-proof.tsx` and open `/tmp/railbound-map-proof.html`. The interaction suite checks every pair of occupied train footprints, including stroke, wheels and shadow.

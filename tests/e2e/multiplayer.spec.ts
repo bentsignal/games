@@ -32,7 +32,7 @@ test("two independent friends join, choose tickets, chat, draw, and reconnect", 
     .toBeCloseTo(composerY, 0);
   await b.getByRole("tab", { name: /Chat/ }).click();
   await expect(b.getByText("All aboard, Bob!", { exact: true })).toBeVisible();
-  await a.getByRole("button", { name: "Start the journey" }).click();
+  await a.getByRole("button", { name: "Start game" }).click();
   for (const page of [a, b]) {
     const dialog = page.getByRole("dialog", {
       name: "Choose destination tickets",
@@ -55,6 +55,42 @@ test("two independent friends join, choose tickets, chat, draw, and reconnect", 
   await expect(
     a.getByText("Your turn, conductor.", { exact: true }),
   ).toBeVisible();
+  // Chat must not briefly disable, replace, or animate any draw controls.
+  await a.getByRole("tab", { name: /Chat/ }).click();
+  await a.evaluate(() => {
+    const root =
+      document.querySelector(".sidebar") ?? document.querySelector("aside")!;
+    const controls = [
+      ...document.querySelectorAll(".market-cards button,.draw-piles button"),
+    ];
+    (window as any).__chatControls = controls;
+    (window as any).__chatMutations = [];
+    const observer = new MutationObserver((records) => {
+      for (const r of records)
+        if (controls.includes(r.target as Element))
+          (window as any).__chatMutations.push(r.attributeName);
+    });
+    observer.observe(root, {
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["disabled", "class", "style"],
+    });
+    (window as any).__chatObserver = observer;
+  });
+  await a.getByLabel("Chat message").fill("Cards should stay steady.");
+  await a.getByRole("button", { name: "Send message" }).click();
+  await expect(a.getByLabel("Chat message")).toHaveValue("");
+  expect(
+    await a.evaluate(() => {
+      (window as any).__chatObserver.disconnect();
+      return {
+        changes: (window as any).__chatMutations,
+        same: (window as any).__chatControls.every(
+          (el: Element) => el.isConnected,
+        ),
+      };
+    }),
+  ).toEqual({ changes: [], same: true });
   await expect(
     b.getByRole("button", { name: "Draw from hidden deck" }),
   ).toBeDisabled();
@@ -91,7 +127,7 @@ test("two independent friends join, choose tickets, chat, draw, and reconnect", 
   await expect(a.locator("#payment")).toHaveCount(0);
   const card = a.locator(".hand-cards .train-card:not(:disabled)").first();
   const hand = await card.boundingBox(),
-    target = await a.locator('[data-route="r1"] rect').first().boundingBox();
+    target = await a.locator('[data-route="r2"] rect').first().boundingBox();
   await a.mouse.move(hand!.x + hand!.width / 2, hand!.y + hand!.height / 2);
   await a.mouse.down();
   await a.mouse.move(
@@ -194,7 +230,7 @@ test("computer takeover finishes the game, reveals scores, and rematches", async
   await page.getByLabel("YOUR CONDUCTOR NAME").fill("Conductor QA");
   await page.getByRole("button", { name: "Create a private table" }).click();
   await page.getByRole("button", { name: "Add computer opponent" }).click();
-  await page.getByRole("button", { name: "Start the journey" }).click();
+  await page.getByRole("button", { name: "Start game" }).click();
   const tickets = page.getByRole("dialog", {
     name: "Choose destination tickets",
   });
@@ -222,11 +258,9 @@ test("computer takeover finishes the game, reveals scores, and rematches", async
     fullPage: true,
   });
   await page.getByRole("button", { name: "Play again", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Game setup" })).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "A new adventure awaits." }),
-  ).toBeVisible();
-  await expect(
-    page.getByText("Conductor QA (you)", { exact: true }),
+    page.locator(".seat-list").getByText("Conductor QA", { exact: true }),
   ).toBeVisible();
   await page.getByRole("button", { name: /Remove / }).click();
   await page.getByRole("button", { name: "Leave table", exact: true }).click();
@@ -252,7 +286,7 @@ test("mobile landing, catalog, and room remain usable", async ({ page }) => {
   await page.getByRole("button", { name: "Dismiss error" }).click();
   await page.getByRole("button", { name: "Create a private table" }).click();
   await page.getByRole("button", { name: "Add computer opponent" }).click();
-  await page.getByRole("button", { name: "Start the journey" }).click();
+  await page.getByRole("button", { name: "Start game" }).click();
   const dialog = page.getByRole("dialog", {
     name: "Choose destination tickets",
   });
@@ -392,4 +426,31 @@ test("music starts once, survives closing settings, and pauses without recreatin
   await expect(
     page.getByRole("button", { name: "Effects off" }),
   ).toHaveAttribute("aria-pressed", "false");
+});
+
+test("lobby controls stay put as opponents join, and only chat is shown", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByLabel("YOUR CONDUCTOR NAME").fill("Lobby QA");
+  await page.getByRole("button", { name: "Create a private table" }).click();
+  const add = page.getByRole("button", { name: "Add computer opponent" });
+  await expect(add).toBeVisible();
+  const initial = (await add.boundingBox())!;
+  await expect(page.getByRole("tab", { name: /Tickets/ })).toHaveCount(0);
+  await expect(page.getByRole("tab", { name: "Activity" })).toHaveCount(0);
+  await expect(page.getByLabel("Chat message")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Leave table", exact: true }),
+  ).toBeVisible();
+  for (let i = 0; i < 4; i++) {
+    await add.click();
+    await expect(page.locator(".seat-list > div")).toHaveCount(i + 2);
+    expect((await add.boundingBox())!.y).toBeCloseTo(initial.y, 0);
+  }
+  await expect(add).toBeDisabled();
+  await page.screenshot({
+    path: "test-results/lobby-desktop.png",
+    fullPage: true,
+  });
 });

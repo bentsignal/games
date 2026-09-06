@@ -2627,3 +2627,40 @@ label {
   user-select: none;
   -webkit-user-drag: none;
 }
+
+/* Setup has only room, players, mode, and chat. Controls never chase new seats. */
+.lobby-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.lobby-heading h2 {
+  margin: 0;
+  font-size: 24px;
+}
+.lobby-heading .secondary {
+  padding: 8px 10px;
+  font-size: 12px;
+}
+.lobby-layout .add-bot {
+  width: 100%;
+  margin: 0 0 8px;
+  flex-shrink: 0;
+}
+.lobby-layout .seat-list {
+  margin: 0 0 12px;
+}
+.lobby-layout .player-strip {
+  display: none;
+}
+.lobby-layout .sidebar-tabs {
+  margin-top: 18px;
+}
+.lobby-layout .sidebar-tabs button {
+  flex: 1;
+}
+.lobby-layout .sidebar-content.chat-content {
+  min-height: 180px;
+}

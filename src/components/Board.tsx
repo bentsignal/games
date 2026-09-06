@@ -18,45 +18,7 @@ const demoRoutes = [
   38, 40, 42, 45, 48, 50, 52, 55, 58, 60, 62, 66, 69, 71, 75, 78, 83, 85, 86,
   91, 95, 98,
 ];
-// Label offsets keep station names off their outgoing rails.
-const labels: Record<string, [number, number, "start" | "middle" | "end"]> = {
-  Vancouver: [-13, -13, "end"],
-  Seattle: [-17, 4, "end"],
-  Portland: [-16, 5, "end"],
-  "San Francisco": [-15, -15, "middle"],
-  "Los Angeles": [-24, 20, "middle"],
-  Calgary: [0, -18, "middle"],
-  Winnipeg: [0, -20, "middle"],
-  Helena: [0, -17, "middle"],
-  "Salt Lake City": [-15, -17, "end"],
-  "Las Vegas": [-10, -18, "end"],
-  Phoenix: [0, 24, "middle"],
-  "El Paso": [0, 28, "middle"],
-  "Santa Fe": [-13, 4, "end"],
-  Denver: [0, -20, "middle"],
-  Duluth: [-10, -15, "end"],
-  Omaha: [-14, 2, "end"],
-  "Kansas City": [0, 25, "middle"],
-  "Oklahoma City": [-16, -12, "end"],
-  Dallas: [-18, 4, "end"],
-  Houston: [-6, 28, "middle"],
-  "Little Rock": [6, 27, "middle"],
-  "New Orleans": [0, 28, "middle"],
-  Chicago: [-10, -16, "end"],
-  "Saint Louis": [0, 27, "middle"],
-  "Sault St. Marie": [0, -19, "middle"],
-  Toronto: [-20, -9, "end"],
-  Montreal: [0, -20, "middle"],
-  Boston: [18, -8, "start"],
-  "New York": [17, 4, "start"],
-  Pittsburgh: [0, -19, "middle"],
-  Washington: [18, 6, "start"],
-  Raleigh: [18, -6, "start"],
-  Nashville: [-18, 0, "end"],
-  Atlanta: [-14, 24, "end"],
-  Charleston: [18, 7, "start"],
-  Miami: [20, 8, "start"],
-};
+import { labels } from "../game/map-labels";
 export default function Board({
   game,
   selected,
@@ -217,12 +179,15 @@ export default function Board({
               <path key={l.name} d={l.path} />
             ))}
           </clipPath>
-          <clipPath id={`${id}bounds`}>
-            <rect width="1400" height="900" rx="4" />
-          </clipPath>
         </defs>
-        <g clipPath={`url(#${id}bounds)`}>
-          <rect width="1400" height="900" fill={`url(#${id}ocean)`} />
+        <g>
+          <rect
+            x="-4000"
+            y="-4000"
+            width="9000"
+            height="9000"
+            fill={`url(#${id}ocean)`}
+          />
           <g
             transform={`translate(${700 + view.x} ${450 + view.y}) scale(${view.z}) translate(-700 -450)`}
           >
@@ -315,7 +280,7 @@ export default function Board({
               >
                 ATLANTIC OCEAN
               </text>
-              <text x="920" y="785" className="ocean-name gulf">
+              <text x="920" y="820" className="ocean-name gulf">
                 Gulf of America
               </text>
             </g>
@@ -387,8 +352,7 @@ export default function Board({
                     }}
                   >
                     <title>
-                      {r.a} → {r.b} · {r.length} {r.color}
-                      {owner ? ` · ${owner.name}` : ""}
+                      {`${r.a} → ${r.b} · ${r.length} ${r.color}${owner ? ` · ${owner.name}` : ""}`}
                     </title>
                     <path
                       d={path}
@@ -419,13 +383,13 @@ export default function Board({
                           <>
                             <rect
                               x={-c.width / 2}
-                              y="-6"
+                              y="-8.5"
                               width={c.width}
                               height="17"
                               rx="3"
                               fill="#2b2429"
                               opacity=".35"
-                              transform="translate(1.8 1.8)"
+                              transform="translate(1 1)"
                             />
                             <path
                               d={`M${-c.width / 2 + 4} 6v4m${c.width - 8} -4v4`}
@@ -531,6 +495,14 @@ export default function Board({
                   [dx, dy, anchor] = labels[name] || [0, -17, "middle"];
                 return (
                   <g key={name} transform={`translate(${x} ${y})`}>
+                    {(name === "Chicago" || name === "Oklahoma City") && (
+                      <path
+                        d={name === "Chicago" ? "M3 10L7 24" : "M10 -4L33 -16"}
+                        fill="none"
+                        stroke="#806b4a"
+                        strokeWidth="1"
+                      />
+                    )}
                     {lit && (
                       <circle
                         className="station-pulse"

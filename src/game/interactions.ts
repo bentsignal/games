@@ -1,4 +1,4 @@
-import { ROUTES, type Color, type Route, type Ticket } from "./data";
+import { CITIES, ROUTES, type Color, type Route, type Ticket } from "./data";
 import { paymentOptions, type Game, type View } from "./engine";
 
 // Dropping a card pays with that color and the fewest necessary locomotives.
@@ -13,6 +13,66 @@ export function cardPayment(game: View, route: Route, color: Color) {
         : o.color === color && o.wilds < route.length,
     )
     .sort((a, b) => a.wilds - b.wilds)[0];
+}
+
+// A double connection is one drop target. Prefer the first printed lane,
+// independent of the side the pointer hits. Continue the side of an existing
+// parallel line where the two links meet without a sharp turn.
+export function automaticRoute(game: View, hit: Route, color?: Color) {
+  const siblings = ROUTES.filter((r) => r.a === hit.a && r.b === hit.b);
+  const available = siblings.filter((r) =>
+    color
+      ? !!cardPayment(game, r, color)
+      : !!game.me &&
+        paymentOptions(game as unknown as Game, game.me, r).length > 0,
+  );
+  function direction(r: Route) {
+    const a = CITIES[r.a],
+      b = CITIES[r.b];
+    const dx = (b[0] - a[0]) * 1260,
+      dy = (a[1] - b[1]) * 830;
+    const length = Math.hypot(dx, dy);
+    return [dx / length, dy / length];
+  }
+  function side(r: Route) {
+    const pair = ROUTES.filter((s) => s.a === r.a && s.b === r.b);
+    if (pair.length !== 2) return undefined;
+    const sign = pair[0].id === r.id ? -1 : 1;
+    const [dx, dy] = direction(r);
+    return [-dy * sign, dx * sign];
+  }
+  function continuity(r: Route) {
+    const lane = side(r);
+    if (!lane) return 0;
+    let penalty = 0;
+    for (const previous of ROUTES) {
+      if (game.claimed[previous.id] !== game.me?.id) continue;
+      const city = [r.a, r.b].find((c) => c === previous.a || c === previous.b);
+      const previousLane = side(previous);
+      if (!city || !previousLane) continue;
+      const currentDirection = direction(r),
+        previousDirection = direction(previous);
+      const orientation =
+        (r.a === city ? 1 : -1) * (previous.a === city ? 1 : -1);
+      const dot =
+        orientation *
+        (currentDirection[0] * previousDirection[0] +
+          currentDirection[1] * previousDirection[1]);
+      if (dot < -0.5)
+        penalty +=
+          (lane[0] - previousLane[0]) ** 2 + (lane[1] - previousLane[1]) ** 2;
+    }
+    return penalty;
+  }
+  available.sort((a, b) => continuity(a) - continuity(b));
+  if (color) {
+    // Preserve the card-color choice on colored pairs, spending fewer wilds.
+    return available.sort(
+      (a, b) =>
+        cardPayment(game, a, color)!.wilds - cardPayment(game, b, color)!.wilds,
+    )[0];
+  }
+  return available.find((r) => r.color === hit.color) ?? available[0];
 }
 export const TICKET_INKS = [
   "#087f8c",

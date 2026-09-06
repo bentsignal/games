@@ -60,6 +60,7 @@ import {
 import TrainCard, { type CardPoint } from "./components/TrainCard";
 import {
   cardPayment,
+  automaticRoute,
   TICKET_INKS,
   type TicketPreview,
 } from "./game/interactions";
@@ -367,12 +368,14 @@ export default function App() {
   const messages =
     useQuery(api.rooms.chat, code && game ? { code, token } : "skip") || [];
   const [chatText, setChatText] = useState("");
+  const [sendingChat, setSendingChat] = useState(false);
+  const activeTab = game?.phase === "lobby" ? "chat" : tab;
   const chatEnd = useRef<HTMLDivElement>(null);
   const messagesBox = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const box = messagesBox.current;
     if (box) box.scrollTop = box.scrollHeight;
-  }, [messages.length, tab]);
+  }, [messages.length, activeTab]);
   useEffect(() => {
     const pop = () => setCode(roomFromUrl());
     window.addEventListener("popstate", pop);
@@ -451,7 +454,10 @@ export default function App() {
     setCardColor(color);
     setDragPoint(point);
     setSelected(null);
-    setDropRoute(routeAt(point) || undefined);
+    const hit = ROUTES.find((r) => r.id === routeAt(point));
+    setDropRoute(
+      hit && game ? automaticRoute(game, hit, color)?.id : undefined,
+    );
   }
   function cancelCard() {
     dragSession.current = null;
@@ -492,6 +498,7 @@ export default function App() {
   }, []);
   function claimWithCard(route: Route, color: Color) {
     if (!game || !canAct || game.drawn) return;
+    route = automaticRoute(game, route, color) ?? route;
     const payment = cardPayment(game, route, color);
     if (!payment) {
       setError("That route needs more matching cards or is already blocked.");
@@ -558,17 +565,24 @@ export default function App() {
       claimWithCard(r, cardColor);
       return;
     }
+    if (r && game) r = automaticRoute(game, r) ?? r;
     setSelected(r);
     if (r) setFocus([r.a, r.b]);
     else setFocus([]);
   };
-  const chatSubmit = (e: FormEvent) => {
+  const chatSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (chatText.trim())
-      void run(async () => {
-        await send({ code, token, text: chatText });
-        setChatText("");
-      });
+    const text = chatText.trim();
+    if (!text || sendingChat) return;
+    setSendingChat(true);
+    try {
+      await send({ code, token, text });
+      setChatText((current) => (current.trim() === text ? "" : current));
+    } catch {
+      setError("Message could not be sent. Please try again.");
+    } finally {
+      setSendingChat(false);
+    }
   };
   const setTable = (
     operation: "bot" | "remove" | "mode" | "rematch" | "leave" | "resign",
@@ -675,7 +689,7 @@ export default function App() {
                 onChange={(e) => setName(e.target.value)}
               />
               <div className="mode-label">
-                <label htmlFor="mode">CHOOSE YOUR ADVENTURE</label>
+                <label htmlFor="mode">GAME MODE</label>
                 <button
                   type="button"
                   className="text-button"
@@ -848,10 +862,12 @@ export default function App() {
           </button>
         </main>
       ) : (
-        <main className="table-layout">
+        <main
+          className={`table-layout ${game.phase === "lobby" ? "lobby-layout" : ""}`}
+        >
           <section className="table-main">
             <div
-              className={`table-heading ${game.phase === "playing" || game.phase === "setup" ? "compact-heading" : ""}`}
+              className={`table-heading ${game.phase !== "finished" ? "compact-heading" : ""}`}
             >
               <div>
                 <div className="eyebrow">
@@ -876,53 +892,55 @@ export default function App() {
                       : `TURN ${game.turnNumber}`}
               </div>
             </div>
-            <div className="player-strip">
-              {game.players.map((p, i) => (
-                <div
-                  className={`player-pill ${game.phase === "playing" && game.turn === i ? "active" : ""}`}
-                  key={p.id}
-                  style={
-                    {
-                      "--player": PLAYER_COLORS[p.color],
-                    } as React.CSSProperties
-                  }
-                >
-                  <span
-                    className="avatar"
-                    style={{ background: PLAYER_COLORS[p.color] }}
+            {game.phase !== "lobby" && (
+              <div className="player-strip">
+                {game.players.map((p, i) => (
+                  <div
+                    className={`player-pill ${game.phase === "playing" && game.turn === i ? "active" : ""}`}
+                    key={p.id}
+                    style={
+                      {
+                        "--player": PLAYER_COLORS[p.color],
+                      } as React.CSSProperties
+                    }
                   >
-                    <ConductorPortrait index={p.color} />
-                    <b className="player-number">{p.color + 1}</b>
-                  </span>
-                  <div>
-                    <strong>
-                      {p.name}
-                      {p.id === me?.id ? " (you)" : ""}
-                    </strong>
-                    <small>
-                      {game.phase === "lobby"
-                        ? i === 0
-                          ? "Host · ready to roll"
-                          : "Ready to roll"
-                        : game.phase === "setup"
-                          ? p.ready
-                            ? "Tickets chosen"
-                            : "Choosing tickets"
-                          : `${p.trains} trains · ${p.handCount} cards · ${p.ticketCount} tickets`}
-                    </small>
+                    <span
+                      className="avatar"
+                      style={{ background: PLAYER_COLORS[p.color] }}
+                    >
+                      <ConductorPortrait index={p.color} />
+                      <b className="player-number">{p.color + 1}</b>
+                    </span>
+                    <div>
+                      <strong>
+                        {p.name}
+                        {p.id === me?.id ? " (you)" : ""}
+                      </strong>
+                      <small>
+                        {game.phase === "lobby"
+                          ? i === 0
+                            ? "Host · ready to roll"
+                            : "Ready to roll"
+                          : game.phase === "setup"
+                            ? p.ready
+                              ? "Tickets chosen"
+                              : "Choosing tickets"
+                            : `${p.trains} trains · ${p.handCount} cards · ${p.ticketCount} tickets`}
+                      </small>
+                    </div>
+                    {game.phase !== "lobby" && (
+                      <b className="player-score">
+                        {game.phase === "finished"
+                          ? (game.results.find((r) => r.id === p.id)?.total ??
+                            p.score)
+                          : p.score}
+                        <small>PTS</small>
+                      </b>
+                    )}
                   </div>
-                  {game.phase !== "lobby" && (
-                    <b className="player-score">
-                      {game.phase === "finished"
-                        ? (game.results.find((r) => r.id === p.id)?.total ??
-                          p.score)
-                        : p.score}
-                      <small>PTS</small>
-                    </b>
-                  )}
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
             <div className="board-shell">
               <BoardView
                 game={game}
@@ -1015,7 +1033,9 @@ export default function App() {
                             onClick={() =>
                               action({
                                 type: "claim",
-                                route: selected.id,
+                                route:
+                                  automaticRoute(game, selected, o.color)?.id ??
+                                  selected.id,
                                 ...o,
                               })
                             }
@@ -1089,13 +1109,15 @@ export default function App() {
               <>
                 {game.phase === "lobby" ? (
                   <>
-                    <div className="sidebar-title">
-                      <div className="eyebrow">THE DEPARTURE LOUNGE</div>
-                      <h2>All aboard.</h2>
-                      <p>
-                        Invite your friends. Choose an adventure. The continent
-                        is yours.
-                      </p>
+                    <div className="lobby-heading">
+                      <h2>Game setup</h2>
+                      <button
+                        className="secondary"
+                        onClick={() => setTable("leave")}
+                        disabled={busy}
+                      >
+                        <LogOut size={16} /> Leave table
+                      </button>
                     </div>
                     <button className="invite-box" onClick={copy}>
                       <div>
@@ -1108,7 +1130,7 @@ export default function App() {
                       Click to copy the invitation link. Your friends can join
                       without an account.
                     </p>
-                    <label htmlFor="table-mode">YOUR ADVENTURE</label>
+                    <label htmlFor="table-mode">GAME MODE</label>
                     <select
                       id="table-mode"
                       value={game.mode}
@@ -1126,6 +1148,16 @@ export default function App() {
                     <p className="mode-description">
                       {MODES[game.mode].description}
                     </p>
+                    {host && (
+                      <button
+                        className="add-bot"
+                        onClick={() => setTable("bot")}
+                        disabled={busy || game.players.length >= 5}
+                      >
+                        <Plus size={16} />
+                        Add computer opponent
+                      </button>
+                    )}
                     <div className="seat-list">
                       {game.players.map((p) => (
                         <div key={p.id}>
@@ -1153,16 +1185,6 @@ export default function App() {
                           )}
                         </div>
                       ))}
-                      {game.players.length < 5 && host && (
-                        <button
-                          className="add-bot"
-                          onClick={() => setTable("bot")}
-                          disabled={busy}
-                        >
-                          <Plus size={16} />
-                          Add computer opponent
-                        </button>
-                      )}
                     </div>
                     {host ? (
                       <button
@@ -1172,21 +1194,13 @@ export default function App() {
                         }
                         onClick={() => action({ type: "start" })}
                       >
-                        Start the journey <ArrowRight size={18} />
+                        Start game <ArrowRight size={18} />
                       </button>
                     ) : (
                       <div className="waiting-note">
                         Waiting for the host to start…
                       </div>
                     )}
-                    <button
-                      className="text-button leave"
-                      onClick={() => setTable("leave")}
-                      disabled={busy}
-                    >
-                      <LogOut size={14} />
-                      Leave table
-                    </button>
                   </>
                 ) : game.phase === "finished" ? (
                   <div className="results-side">
@@ -1356,32 +1370,36 @@ export default function App() {
                   </>
                 )}
                 <div className="sidebar-tabs" role="tablist">
+                  {game.phase !== "lobby" && (
+                    <button
+                      role="tab"
+                      aria-selected={activeTab === "tickets"}
+                      onClick={() => setTab("tickets")}
+                    >
+                      Tickets <span>{me?.tickets.length || 0}</span>
+                    </button>
+                  )}
                   <button
                     role="tab"
-                    aria-selected={tab === "tickets"}
-                    onClick={() => setTab("tickets")}
-                  >
-                    Tickets <span>{me?.tickets.length || 0}</span>
-                  </button>
-                  <button
-                    role="tab"
-                    aria-selected={tab === "chat"}
+                    aria-selected={activeTab === "chat"}
                     onClick={() => setTab("chat")}
                   >
                     Chat <span>{messages.length}</span>
                   </button>
-                  <button
-                    role="tab"
-                    aria-selected={tab === "log"}
-                    onClick={() => setTab("log")}
-                  >
-                    Activity
-                  </button>
+                  {game.phase !== "lobby" && (
+                    <button
+                      role="tab"
+                      aria-selected={activeTab === "log"}
+                      onClick={() => setTab("log")}
+                    >
+                      Activity
+                    </button>
+                  )}
                 </div>
                 <div
-                  className={`sidebar-content ${tab === "chat" ? "chat-content" : ""}`}
+                  className={`sidebar-content ${activeTab === "chat" ? "chat-content" : ""}`}
                 >
-                  {tab === "tickets" ? (
+                  {activeTab === "tickets" ? (
                     <>
                       {me?.tickets.length ? (
                         me.tickets.map((id) => (
@@ -1423,7 +1441,7 @@ export default function App() {
                         </div>
                       )}
                     </>
-                  ) : tab === "chat" ? (
+                  ) : activeTab === "chat" ? (
                     <div className="chat-box">
                       <div className="messages" ref={messagesBox}>
                         {messages.length ? (
@@ -1463,7 +1481,7 @@ export default function App() {
                         <button
                           className="icon"
                           aria-label="Send message"
-                          disabled={busy || !chatText.trim()}
+                          disabled={sendingChat || !chatText.trim()}
                         >
                           <Send size={18} />
                         </button>
