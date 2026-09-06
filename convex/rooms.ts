@@ -212,6 +212,8 @@ export const manage = mutation({
     if (args.operation === "resign") {
       if (g.phase !== "playing" && g.phase !== "setup")
         throw new Error("No active game.");
+      if (me.bot)
+        throw new Error("This seat is already controlled by a computer.");
       me.bot = true;
       me.name = me.name + " (AI)";
     } else if (args.operation === "leave") {
@@ -225,7 +227,14 @@ export const manage = mutation({
         if (g.phase !== "finished")
           throw new Error("Finish the current game first.");
         const players = g.players.map((p) =>
-          newPlayer(p.id, p.name, p.color, p.bot),
+          newPlayer(
+            p.id,
+            p.id.startsWith("bot-")
+              ? p.name
+              : p.name.replace(/(?: \(AI\))+$/, ""),
+            p.color,
+            p.id.startsWith("bot-"),
+          ),
         );
         g = newGame(g.mode, players[0]);
         g.players = players;

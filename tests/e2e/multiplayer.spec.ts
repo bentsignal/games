@@ -133,6 +133,11 @@ test("computer takeover finishes the game, reveals scores, and rematches", async
   await expect(
     page.getByRole("heading", { name: "A new adventure awaits." }),
   ).toBeVisible();
+  await expect(
+    page.getByText("Conductor QA (you)", { exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: /Remove / }).click();
+  await page.getByRole("button", { name: "Leave table", exact: true }).click();
   expect(errors).toEqual([]);
 });
 test("mobile landing, catalog, and room remain usable", async ({ page }) => {
