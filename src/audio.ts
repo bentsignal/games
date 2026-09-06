@@ -57,7 +57,9 @@ function noise(
     gain.disconnect();
   };
 }
-export function cue(kind: "card" | "draw" | "claim" | "turn" | "tickets") {
+export function cue(
+  kind: "card" | "draw" | "claim" | "turn" | "tickets" | "complete",
+) {
   if (!enabled) return;
   void unlockAudio().then(() => {
     if (!enabled || !context || context.state !== "running") return;
@@ -66,14 +68,31 @@ export function cue(kind: "card" | "draw" | "claim" | "turn" | "tickets") {
     if (kind === "card") {
       noise(ctx, now, 0.055, 0.17, 2500);
       noise(ctx, now + 0.045, 0.035, 0.08, 1400);
-    } else if (kind === "draw" || kind === "tickets") {
-      const count = kind === "tickets" ? 4 : 2;
+    } else if (kind === "draw") {
+      // One crisp paper snap and a brief low pop as the card lifts off the table.
+      noise(ctx, now, 0.045, 0.3, 3900);
+      const pop = ctx.createOscillator(),
+        gain = ctx.createGain();
+      pop.frequency.setValueAtTime(360, now);
+      pop.frequency.exponentialRampToValueAtTime(95, now + 0.065);
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.16, now + 0.003);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.085);
+      pop.connect(gain).connect(ctx.destination);
+      pop.start(now);
+      pop.stop(now + 0.09);
+      pop.onended = () => {
+        pop.disconnect();
+        gain.disconnect();
+      };
+    } else if (kind === "tickets") {
+      const count = 4;
       for (let i = 0; i < count; i++)
         noise(ctx, now + i * 0.07, 0.14, 0.18, 2100 + i * 350);
       noise(ctx, now + count * 0.07 + 0.04, 0.045, 0.1, 900);
     } else if (kind === "turn") {
       // A short three-note steam whistle, with a soft breath and slight vibrato.
-      noise(ctx, now, 0.85, 0.065, 1800);
+      noise(ctx, now, 0.85, 0.1, 1800);
       for (const frequency of [311.13, 392, 466.16]) {
         const osc = ctx.createOscillator(),
           gain = ctx.createGain();
@@ -90,8 +109,8 @@ export function cue(kind: "card" | "draw" | "claim" | "turn" | "tickets") {
         depth.gain.value = 2;
         vibrato.connect(depth).connect(osc.frequency);
         gain.gain.setValueAtTime(0, now);
-        gain.gain.linearRampToValueAtTime(0.025, now + 0.1);
-        gain.gain.setValueAtTime(0.022, now + 0.45);
+        gain.gain.linearRampToValueAtTime(0.06, now + 0.04);
+        gain.gain.setValueAtTime(0.052, now + 0.45);
         gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.85);
         osc.connect(gain).connect(ctx.destination);
         osc.start(now);
@@ -105,6 +124,29 @@ export function cue(kind: "card" | "draw" | "claim" | "turn" | "tickets") {
           depth.disconnect();
         };
       }
+    } else if (kind === "complete") {
+      // Two railway bell strikes; distinct from the turn whistle.
+      for (const delay of [0, 0.28])
+        for (const [frequency, level] of [
+          [880, 0.07],
+          [2376, 0.022],
+          [4752, 0.009],
+        ]) {
+          const bell = ctx.createOscillator(),
+            gain = ctx.createGain(),
+            start = now + delay;
+          bell.frequency.value = frequency;
+          gain.gain.setValueAtTime(0, start);
+          gain.gain.linearRampToValueAtTime(level, start + 0.004);
+          gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.9);
+          bell.connect(gain).connect(ctx.destination);
+          bell.start(start);
+          bell.stop(start + 0.95);
+          bell.onended = () => {
+            bell.disconnect();
+            gain.disconnect();
+          };
+        }
     } else {
       [523.25, 659.25, 783.99, 1046.5].forEach((frequency, i) => {
         const osc = ctx.createOscillator(),

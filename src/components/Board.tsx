@@ -25,6 +25,8 @@ const demoRoutes = [
   91, 95, 98,
 ];
 import { labels } from "../game/map-labels";
+import { playerDisplayColors } from "../game/player-colors";
+import { TICKET_BY_ID } from "../game/data";
 export default function Board({
   game,
   selected,
@@ -36,6 +38,8 @@ export default function Board({
   dropTarget,
   previews = [],
   controls,
+  colorSeed = "",
+  completedTickets = [],
 }: {
   game?: View | null;
   selected?: string;
@@ -47,6 +51,8 @@ export default function Board({
   dropTarget?: string;
   previews?: TicketPreview[];
   controls?: ReactNode;
+  colorSeed?: string;
+  completedTickets?: string[];
 }) {
   const id = useId().replace(/:/g, "");
   const svg = useRef<SVGSVGElement>(null);
@@ -86,6 +92,13 @@ export default function Board({
     [game?.me?.tickets, game?.claimed, game?.me?.id],
   );
   const demo = !game;
+  const playerColors = useMemo(
+    () => playerDisplayColors(game, colorSeed),
+    [game?.players, game?.me?.id, colorSeed],
+  );
+  const completedCities = new Set(
+    completedTickets.flatMap((id) => [TICKET_BY_ID[id].a, TICKET_BY_ID[id].b]),
+  );
   const picked = ROUTES.find((r) => r.id === (dropTarget ?? hover));
   const hoveredRoutes = picked
     ? ROUTES.filter(
@@ -289,7 +302,7 @@ export default function Board({
               <text x="650" y="95" className="country-name">
                 C A N A D A
               </text>
-              <text x="610" y="864" className="country-name">
+              <text x="490" y="864" className="country-name">
                 M É X I C O
               </text>
               <text
@@ -346,7 +359,7 @@ export default function Board({
                 const demoIndex = demoRoutes.indexOf(Number(r.id.slice(1)));
                 const occupied = !!owner || (demo && demoIndex >= 0);
                 const color = owner
-                  ? PLAYER_COLORS[owner.color]
+                  ? playerColors[owner.id]
                   : occupied
                     ? PLAYER_COLORS[Math.floor(demoIndex / 4) % 5]
                     : PALETTE[r.color];
@@ -362,6 +375,7 @@ export default function Board({
                     className={`map-route ${blocked ? "closed" : ""} ${occupied ? "claimed" : ""} ${highlighted ? "highlighted" : ""} ${eligible ? (droppable ? "drop-eligible" : "drop-unavailable") : ""} ${dropTarget === r.id ? "drop-target" : ""}`}
                     data-route={r.id}
                     data-owner={owner?.id}
+                    data-owner-color={owner ? color : undefined}
                     data-droppable={droppable || undefined}
                     role={demo ? undefined : "button"}
                     tabIndex={demo ? undefined : 0}
@@ -465,6 +479,16 @@ export default function Board({
                         ? `${name}: ${status === "incomplete" ? "unfinished destination ticket" : "all destination tickets complete"}`
                         : name}
                     </title>
+                    {completedCities.has(name) && (
+                      <circle
+                        className="destination-complete-ring"
+                        key={completedTickets.join("|")}
+                        r="18"
+                        fill="none"
+                        stroke="#55c837"
+                        strokeWidth="3"
+                      />
+                    )}
                     {status && (
                       <circle
                         r="15"

@@ -13,6 +13,7 @@ export default function TrainCard({
   onDrag,
   onDrop,
   onCancel,
+  marketSource,
 }: {
   color: Color | "back";
   count?: number;
@@ -23,6 +24,7 @@ export default function TrainCard({
   onDrag?: (color: Color, point: CardPoint) => void;
   onDrop?: (color: Color, point: CardPoint) => void;
   onCancel?: () => void;
+  marketSource?: number;
 }) {
   const pointer = useRef<{
       id: number;
@@ -41,6 +43,7 @@ export default function TrainCard({
       }
       disabled={disabled}
       data-card-color={color}
+      data-market-source={marketSource}
       draggable={false}
       onDragStart={(e) => e.preventDefault()}
       aria-label={label || `${color} ${count ?? ""}`}
@@ -57,7 +60,7 @@ export default function TrainCard({
           suppress.current = false;
           return;
         }
-        cue("card");
+        if (onDrag) cue("card");
         onClick?.();
       }}
       onPointerDown={(e) => {

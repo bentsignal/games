@@ -1,4 +1,8 @@
 import CardDrawFlight, { type DrawFlight } from "./components/CardDrawFlight";
+import DestinationFeedback, {
+  useDestinationFeedback,
+} from "./components/DestinationFeedback";
+import { playerDisplayColors } from "./game/player-colors";
 import { routeAtMapPoint } from "./game/map-layout";
 import {
   Component,
@@ -49,7 +53,6 @@ import {
   COLORS,
   MODES,
   PALETTE,
-  PLAYER_COLORS,
   POINTS,
   ROUTES,
   TICKETS,
@@ -407,6 +410,11 @@ export default function App() {
   const room = useQuery(api.rooms.get, code ? { code, token } : "skip");
   const game = room?.game as View | null | undefined;
   const me = game?.me;
+  const playerColors = useMemo(
+    () => playerDisplayColors(game, code),
+    [game?.players, me?.id, code],
+  );
+  const completion = useDestinationFeedback(game, code);
   const connection = useConvexConnectionState();
   const connectedServer = connection.isWebSocketConnected;
   const messages =
@@ -674,7 +682,9 @@ export default function App() {
         const source =
           a.source < 0
             ? document.querySelector(".face-down-pile .train-card")
-            : document.querySelectorAll(".market-cards .train-card")[a.source];
+            : document.querySelector(
+                `.market-cards [data-market-source="${a.source}"]`,
+              );
         const rect = source?.getBoundingClientRect();
         if (rect)
           pendingDraw.current = {
@@ -1020,15 +1030,18 @@ export default function App() {
                     key={p.id}
                     style={
                       {
-                        "--player": PLAYER_COLORS[p.color],
+                        "--player": playerColors[p.id],
                       } as React.CSSProperties
                     }
                   >
                     <span
                       className="avatar"
-                      style={{ background: PLAYER_COLORS[p.color] }}
+                      style={{ background: playerColors[p.id] }}
                     >
-                      <ConductorPortrait index={p.color} />
+                      <ConductorPortrait
+                        index={p.color}
+                        color={playerColors[p.id]}
+                      />
                       <b className="player-number">{p.color + 1}</b>
                     </span>
                     <div>
@@ -1063,6 +1076,8 @@ export default function App() {
             )}
             <div className="board-shell">
               <BoardView
+                colorSeed={code}
+                completedTickets={completion?.tickets}
                 game={game}
                 selected={selected?.id}
                 onSelect={select}
@@ -1101,6 +1116,12 @@ export default function App() {
                   </>
                 }
               />
+              {completion && (
+                <DestinationFeedback
+                  key={completion.id}
+                  tickets={completion.tickets}
+                />
+              )}
               {game.finalTurns !== null && game.phase !== "finished" && (
                 <div className="final-round">
                   <Flag size={15} />
@@ -1313,7 +1334,7 @@ export default function App() {
                     <div className="seat-list" aria-label="Players">
                       {game.players.map((p) => (
                         <div key={p.id}>
-                          <span style={{ color: PLAYER_COLORS[p.color] }}>
+                          <span style={{ color: playerColors[p.id] }}>
                             {p.bot ? <Bot size={19} /> : <Users size={19} />}
                           </span>
                           <strong>{p.name}</strong>
@@ -1463,17 +1484,31 @@ export default function App() {
                       <span>{game.deckCount + game.discardCount} in deck</span>
                     </div>
                     <div className="market-cards">
-                      {game.market.map((c, i) => (
-                        <TrainCard
-                          key={i}
-                          color={c}
-                          label={`Draw ${c} market card ${i + 1}`}
-                          onClick={() =>
-                            action({ type: "draw", source: i, expected: c })
-                          }
-                          disabled={!canAct || (!!game.drawn && c === "wild")}
-                        />
-                      ))}
+                      {[0, 1, 2, 3, 4].map((slot) => {
+                        const i = (
+                          game.marketSlots ??
+                          game.market.map((_, index) => index)
+                        ).indexOf(slot);
+                        const c = game.market[i];
+                        return c ? (
+                          <TrainCard
+                            key={slot}
+                            marketSource={i}
+                            color={c}
+                            label={`Draw ${c} market card ${slot + 1}`}
+                            onClick={() =>
+                              action({ type: "draw", source: i, expected: c })
+                            }
+                            disabled={!canAct || (!!game.drawn && c === "wild")}
+                          />
+                        ) : (
+                          <div
+                            key={slot}
+                            className="empty-market-slot"
+                            aria-label={`Empty market slot ${slot + 1}`}
+                          />
+                        );
+                      })}
                     </div>
                     <div className="draw-piles">
                       <div className="face-down-pile">

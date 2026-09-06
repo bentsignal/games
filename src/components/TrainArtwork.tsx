@@ -99,14 +99,20 @@ export function TrainArtwork({ color }: { color: Color | "back" }) {
     </svg>
   );
 }
-export function ConductorPortrait({ index }: { index: number }) {
+export function ConductorPortrait({
+  index,
+  color,
+}: {
+  index: number;
+  color?: string;
+}) {
   const coats = ["#a93c31", "#28669f", "#bd8b25", "#3c824c", "#7546ac"];
   return (
     <svg viewBox="0 0 64 64" aria-hidden="true" className="conductor-portrait">
       <circle cx="32" cy="32" r="31" fill="#e5c785" />
       <path
         d="M7 64Q9 42 32 42T57 64"
-        fill={coats[index % 5]}
+        fill={color ?? coats[index % 5]}
         stroke="#4c3028"
         strokeWidth="2"
       />
@@ -123,7 +129,7 @@ export function ConductorPortrait({ index }: { index: number }) {
       />
       <path
         d="M19 25L21 14Q32 8 43 14L45 25Z"
-        fill={coats[index % 5]}
+        fill={color ?? coats[index % 5]}
         stroke="#493126"
         strokeWidth="2"
       />

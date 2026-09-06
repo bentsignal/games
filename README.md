@@ -44,6 +44,7 @@ npm run build                  # TypeScript + production build
 npx playwright install chromium
 npm run test:e2e                # isolated multiplayer sessions and mobile UI
 npm run test:map                # approved track layout and natural basemap
+npm run test:feedback           # completion animation, bell and viewer colors
 npm run test:live               # full game against configured live backend
 ```
 
@@ -92,3 +93,5 @@ All route spaces use the same 36-unit width, with aligned parallel pieces. `src/
 Card dragging moves the floating card through an animation-frame transform and uses geometric map hit testing. It does not update React with every pointer coordinate; the browser regression checks 120 movements without a React commit or map DOM mutation. Static train artwork is memoized.
 
 The basemap uses a single Albers geographic projection with uniform scale and rotation. It is independent of the board’s station positions and fixed route layout; coastal rails may cross water. Destination cities glow blue while any of your tickets involving that city remain unfinished, and green when all are complete. Confirmed card draws animate into your hand, with reduced-motion support. Paper-card sounds and a short turn whistle follow the existing Effects toggle.
+
+Your own trains and player badge are always gold in your view; opponents use distinct room-seeded colors. Completed destinations briefly pulse and show a local completion notice with a railway bell, without replaying on reconnect. Face-up cards refill in their existing physical slots; empty positions stay empty when the deck is exhausted. Three visible locomotives still reset the full market under standard rules.

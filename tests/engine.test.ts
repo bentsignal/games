@@ -66,6 +66,45 @@ describe("USA dataset", () => {
   });
 });
 describe("turn rules", () => {
+  it("replaces the chosen face-up slot without moving its neighbors", () => {
+    let g = started();
+    g.market = ["red", "blue", "green", "black", "pink"];
+    g.deck = ["yellow", "orange"];
+    g.discard = [];
+    delete g.marketSlots; // Existing rooms upgrade on their next draw.
+    g = applyAction(g, "p0", { type: "draw", source: 1, expected: "blue" });
+    expect(g.market).toEqual(["red", "orange", "green", "black", "pink"]);
+    expect(g.marketSlots).toEqual([0, 1, 2, 3, 4]);
+    g = applyAction(g, "p0", { type: "draw", source: 3, expected: "black" });
+    expect(g.market).toEqual(["red", "orange", "green", "yellow", "pink"]);
+    expect(g.players[0].hand.slice(-2)).toEqual(["blue", "black"]);
+  });
+  it("preserves empty slots at deck exhaustion and fills them when cards return", () => {
+    let g = started();
+    g.market = ["red", "blue", "green", "black", "pink"];
+    g.deck = [];
+    g.discard = [];
+    g = applyAction(g, "p0", { type: "draw", source: 1 });
+    expect(g.market).toEqual(["red", "green", "black", "pink"]);
+    expect(g.marketSlots).toEqual([0, 2, 3, 4]);
+    g = applyAction(g, "p0", { type: "draw", source: 2, expected: "black" });
+    expect(g.marketSlots).toEqual([0, 2, 4]);
+    g.discard = ["orange", "yellow"];
+    refillMarket(g);
+    expect(g.marketSlots).toEqual([0, 2, 4, 1, 3]);
+    expect(g.market.slice(0, 3)).toEqual(["red", "green", "pink"]);
+    expect(g.market.slice(3).sort()).toEqual(["orange", "yellow"]);
+  });
+  it("still resets the entire market when a replacement reveals a third locomotive", () => {
+    let g = started();
+    g.market = ["wild", "wild", "green", "black", "pink"];
+    g.deck = ["red", "blue", "green", "orange", "yellow", "wild"];
+    g.discard = [];
+    g = applyAction(g, "p0", { type: "draw", source: 2 });
+    expect(g.market.filter((c) => c === "wild").length).toBeLessThan(3);
+    expect(g.marketSlots).toEqual([0, 1, 2, 3, 4]);
+    expect(g.players[0].hand.at(-1)).toBe("green");
+  });
   it("deals 4 trains, 45 pieces, and variant-specific tickets", () => {
     for (const mode of Object.keys(MODES) as Mode[]) {
       const g = started(5, mode);

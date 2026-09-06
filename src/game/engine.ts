@@ -43,6 +43,8 @@ export interface Game {
   deck: Color[];
   discard: Color[];
   market: Color[];
+  // Physical positions stay fixed even when the deck runs out. Optional for old rooms.
+  marketSlots?: number[];
   ticketDeck: string[];
   claimed: Record<string, string>;
   finalTurns: number | null;
@@ -117,10 +119,14 @@ function takeCard(g: Game): Color | undefined {
   return g.deck.pop();
 }
 export function refillMarket(g: Game) {
+  g.marketSlots ??= g.market.map((_, i) => i);
   for (let tries = 0; tries < 100; tries++) {
     while (g.market.length < 5) {
       const c = takeCard(g);
       if (!c) break;
+      g.marketSlots.push(
+        [0, 1, 2, 3, 4].find((s) => !g.marketSlots!.includes(s))!,
+      );
       g.market.push(c);
     }
     if (g.market.filter((c) => c === "wild").length < 3) return;
@@ -129,23 +135,27 @@ export function refillMarket(g: Game) {
     if (available.filter((c) => c !== "wild").length < 3) {
       g.discard.push(...g.market);
       g.market = [];
+      g.marketSlots = [];
       return;
     }
     g.discard.push(...g.market);
     g.market = [];
+    g.marketSlots = [];
   }
   // Bounded fallback: randomize available cards and construct a legal market.
   const available = shuffle([...g.deck, ...g.discard, ...g.market]);
   g.deck = [];
   g.discard = [];
   g.market = [];
+  g.marketSlots = [];
   for (const c of available) {
     if (
       g.market.length < 5 &&
       (c !== "wild" || g.market.filter((v) => v === "wild").length < 2)
-    )
+    ) {
+      g.marketSlots.push(g.market.length);
       g.market.push(c);
-    else g.deck.push(c);
+    } else g.deck.push(c);
   }
 }
 export function connected(
@@ -385,7 +395,13 @@ export function applyAction(original: Game, id: string, action: Action): Game {
         !(g.drawn === 1 && card === "wild"),
         "A face-up locomotive takes your whole turn.",
       );
-      g.market.splice(action.source, 1);
+      g.marketSlots ??= g.market.map((_, i) => i);
+      const replacement = takeCard(g);
+      if (replacement) g.market[action.source] = replacement;
+      else {
+        g.market.splice(action.source, 1);
+        g.marketSlots.splice(action.source, 1);
+      }
     }
     p.hand.push(card);
     g.drawn += action.source >= 0 && card === "wild" ? 2 : 1;

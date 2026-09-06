@@ -155,6 +155,19 @@ test("two independent friends join, choose tickets, chat, draw, and reconnect", 
     "aria-label",
     /claimed by Alice QA/,
   );
+  await expect(a.locator('[data-route="r1"]')).toHaveAttribute(
+    "data-owner-color",
+    "#ffc629",
+  );
+  await expect(b.locator('[data-route="r1"]')).not.toHaveAttribute(
+    "data-owner-color",
+    "#ffc629",
+  );
+  for (const page of [a, b]) {
+    await expect(
+      page.locator(".player-pill").filter({ hasText: "(you)" }),
+    ).toHaveCSS("--player", "#ffc629");
+  }
   await expect(b.locator('[data-route="r1"]')).toHaveAttribute(
     "data-owner",
     (await a.locator('[data-route="r1"]').getAttribute("data-owner")) as string,

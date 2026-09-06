@@ -17,6 +17,7 @@ import {
 import { newGame, newPlayer, playerView } from "../src/game/engine";
 import { collisions } from "./helpers/map-collisions";
 import { ROUTE_BY_ID, type Ticket } from "../src/game/data";
+import { playerDisplayColors, SELF_GOLD } from "../src/game/player-colors";
 function game() {
   const g = newGame("mega", newPlayer("a", "Alice", 0));
   g.players.push(newPlayer("b", "Bob", 1));
@@ -107,6 +108,25 @@ describe("card payments and journey previews", () => {
   });
 });
 describe("destination city markers", () => {
+  it("makes every viewer gold and gives opponents unique, stable game colors", () => {
+    const g = game();
+    g.players.push(
+      newPlayer("c", "Carol", 2),
+      newPlayer("d", "Dave", 3),
+      newPlayer("e", "Erin", 4),
+    );
+    for (const p of g.players) {
+      const colors = playerDisplayColors(playerView(g, p.id), "ROOM1234");
+      expect(colors[p.id]).toBe(SELF_GOLD);
+      expect(new Set(Object.values(colors)).size).toBe(5);
+      expect(
+        playerDisplayColors(playerView(structuredClone(g), p.id), "ROOM1234"),
+      ).toEqual(colors);
+      expect(playerDisplayColors(playerView(g, p.id), "OTHER567")).not.toEqual(
+        colors,
+      );
+    }
+  });
   it("keeps shared endpoints blue until every owned ticket is complete", () => {
     const g = game();
     g.players[0].tickets = ["t62", "t59"];
