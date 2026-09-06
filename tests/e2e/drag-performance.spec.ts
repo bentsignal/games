@@ -1,4 +1,3 @@
-import fs from "node:fs";
 import { test, expect } from "@playwright/test";
 
 test.use({ trace: "off" });
@@ -68,13 +67,6 @@ test("card movement stays off the React render loop and keeps the map stable", a
     });
     (window as any).__dragObserver = observer;
   });
-  const cdp = await aContext.newCDPSession(a);
-  await cdp.send("Performance.enable");
-  const before = await cdp.send("Performance.getMetrics");
-  if (process.env.PROFILE_CPU) {
-    await cdp.send("Profiler.enable");
-    await cdp.send("Profiler.start");
-  }
   for (let i = 0; i < 120; i++) await a.mouse.move(x + (i % 16), y + (i % 3));
   await a.evaluate(
     () =>
@@ -82,14 +74,6 @@ test("card movement stays off the React render loop and keeps the map stable", a
         requestAnimationFrame(() => requestAnimationFrame(() => r())),
       ),
   );
-  if (process.env.PROFILE_CPU) {
-    const result = await cdp.send("Profiler.stop");
-    fs.writeFileSync(
-      "/tmp/ticket-drag.cpuprofile",
-      JSON.stringify(result.profile),
-    );
-  }
-  const after = await cdp.send("Performance.getMetrics");
   const result = await a.evaluate(() => {
     (window as any).__dragObserver.disconnect();
     return {
@@ -97,15 +81,9 @@ test("card movement stays off the React render loop and keeps the map stable", a
       mapMutations: (window as any).__mapMutations,
     };
   });
-  const metric = (v: any, k: string) =>
-    v.metrics.find((m: any) => m.name === k).value;
-  const scriptMs =
-    (metric(after, "ScriptDuration") - metric(before, "ScriptDuration")) * 1000;
-  console.log(JSON.stringify({ baseURL, ...result, scriptMs }));
-  if (!process.env.PROFILE_ONLY) {
-    expect(result.commits).toBeLessThan(8);
-    expect(result.mapMutations).toBe(0);
-  }
+  console.log(JSON.stringify({ baseURL, ...result }));
+  expect(result.commits).toBeLessThan(8);
+  expect(result.mapMutations).toBe(0);
   await a.keyboard.press("Escape");
   await a.mouse.up();
   await expect(a.locator(".card-drag-ghost")).toHaveCount(0);
