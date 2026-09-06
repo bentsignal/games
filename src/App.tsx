@@ -57,6 +57,9 @@ import {
   type Game,
   type View,
 } from "./game/engine";
+import Music from "./components/Music";
+import { TrainArtwork, ConductorPortrait } from "./components/TrainArtwork";
+import { cue } from "./audio";
 const Board = lazy(() => import("./components/Board"));
 function getToken() {
   let t = localStorage.getItem("railbound-session");
@@ -83,11 +86,8 @@ class BoardBoundary extends Component<
     return this.state.error ? (
       <div className="board-error">
         <Compass size={36} />
-        <h3>3D view unavailable</h3>
-        <p>
-          You can still play using the route list. Try reloading or enabling
-          hardware acceleration.
-        </p>
+        <h3>Map unavailable</h3>
+        <p>You can still play using the route list. Try reloading the page.</p>
       </div>
     ) : (
       this.props.children
@@ -221,7 +221,7 @@ function TrainCard({
             ? "?"
             : color[0].toUpperCase()}
       </span>
-      <TrainFront size={30} strokeWidth={1.35} />
+      <TrainArtwork color={color} />
       <span className="card-name">
         {color === "back" ? "DECK" : color === "wild" ? "LOCO" : color}
       </span>
@@ -413,6 +413,11 @@ export default function App() {
     game?.phase === "playing" &&
     game.players[game.turn]?.id === me.id &&
     !me.bot;
+  const wasMine = useRef(false);
+  useEffect(() => {
+    if (mine && !wasMine.current) cue("turn");
+    wasMine.current = mine;
+  }, [mine]);
   const host = !!me && game?.players[0]?.id === me.id;
   const canAct = mine && !busy && connectedServer && !me?.pending.length;
   const options =
@@ -449,7 +454,12 @@ export default function App() {
     if (!room) return;
     await run(async () => {
       await play({ code, token, revision: room.revision, action: a });
-      if (a.type === "claim") setSelected(null);
+      if (a.type === "claim") {
+        setSelected(null);
+        setFocus([]);
+      }
+      if (["draw", "claim", "tickets"].includes(a.type))
+        cue(a.type as "draw" | "claim" | "tickets");
     });
   }
   function saveName() {
@@ -497,14 +507,13 @@ export default function App() {
           <span className="brand-icon">
             <TrainFront size={23} />
           </span>
-          <span>
-            railbound<span className="brand-dot">.</span>
-          </span>
+          <span>Railbound</span>
         </button>
         <div className="nav-center">
           THE GREAT AMERICAN RAILWAY GAME <span>EST. 1910</span>
         </div>
         <nav>
+          <Music />
           {code && (
             <button className="room-code" onClick={copy}>
               {copied ? <Check size={14} /> : <Copy size={14} />}
@@ -540,16 +549,14 @@ export default function App() {
         <main className="home-page">
           <section className="hero-copy">
             <div className="eyebrow">
-              <span className="little-line" /> FRIENDS. TRAINS. POSSIBILITIES.
+              <span className="little-line" /> THE GREAT AMERICAN RAILWAY GAME
             </div>
             <h1>
-              The long way
-              <br />
-              is the <em>good way.</em>
+              Railbound
+              <span className="title-ribbon">USA · 1910</span>
             </h1>
             <p className="hero-description">
-              From the Pacific coast to the streets of New York. Gather your
-              friends, lay your tracks, and make the journey yours.
+              Claim the rails. Connect the continent.
             </p>
             <div className="hero-tags">
               <span>
@@ -557,7 +564,8 @@ export default function App() {
                 2–5 players
               </span>
               <span>
-                <Compass size={15} />A real 3D table
+                <Compass size={15} />
+                Play with friends
               </span>
               <span>
                 <TicketIcon size={15} />
@@ -671,11 +679,11 @@ export default function App() {
           </section>
           <section className="hero-world">
             <div className="edition-label">
-              <span>NORTH AMERICA</span>
+              <span>THE RAILROAD ATLAS</span>
               <strong>
                 USA <i>1910</i>
               </strong>
-              <span>THE COMPLETE COLLECTION</span>
+              <span>69 TICKETS · ONE GREAT ADVENTURE</span>
             </div>
             <div className="hero-board">
               <BoardView onSelect={() => {}} top={false} />
@@ -683,19 +691,19 @@ export default function App() {
             <div className="postmark">
               <Compass size={32} />
               <span>
-                GOOD COMPANY.
+                ALL ABOARD!
                 <br />
-                GREAT JOURNEYS.
+                NEXT STOP: GAME NIGHT
               </span>
             </div>
             <div className="hero-caption">
-              <span className="live-dot" /> YOUR TABLE IS READY{" "}
-              <span>Drag to explore · Scroll to zoom</span>
+              <span className="live-dot" /> A COAST-TO-COAST ADVENTURE{" "}
+              <span>Map preview · USA 1910</span>
             </div>
           </section>
           <footer className="home-footer">
-            <span>69 destinations. A thousand ways to get there.</span>
-            <span>Private rooms · No account needed · Made for game night</span>
+            <span>✦ ALL ABOARD THE EVENING EXPRESS ✦</span>
+            <span>2–5 friends · Private tables · No account needed</span>
           </footer>
         </main>
       ) : room === undefined ? (
@@ -788,16 +796,18 @@ export default function App() {
                 <div
                   className={`player-pill ${game.phase === "playing" && game.turn === i ? "active" : ""}`}
                   key={p.id}
+                  style={
+                    {
+                      "--player": PLAYER_COLORS[p.color],
+                    } as React.CSSProperties
+                  }
                 >
                   <span
                     className="avatar"
                     style={{ background: PLAYER_COLORS[p.color] }}
                   >
-                    {p.bot ? (
-                      <Bot size={18} />
-                    ) : (
-                      p.name.slice(0, 1).toUpperCase()
-                    )}
+                    <ConductorPortrait index={p.color} />
+                    <b className="player-number">{p.color + 1}</b>
                   </span>
                   <div>
                     <strong>
@@ -841,16 +851,16 @@ export default function App() {
                 <button
                   className="icon"
                   onClick={() => setReset((v) => v + 1)}
-                  aria-label="Reset camera"
-                  title="Reset camera"
+                  aria-label="Reset map"
+                  title="Reset map"
                 >
                   <RotateCcw size={17} />
                 </button>
                 <button
                   className={`icon ${top ? "is-active" : ""}`}
                   onClick={() => setTop(!top)}
-                  aria-label="Toggle overhead view"
-                  title="Overhead view"
+                  aria-label="Toggle close-up view"
+                  title="Close-up view"
                 >
                   <Maximize size={17} />
                 </button>
@@ -864,7 +874,7 @@ export default function App() {
                 </button>
               </div>
               <div className="map-instruction">
-                Drag to orbit · Scroll to zoom · Click a route
+                Click a route · Drag to pan · Scroll or pinch to zoom
               </div>
               {game.finalTurns !== null && game.phase !== "finished" && (
                 <div className="final-round">

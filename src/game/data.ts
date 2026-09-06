@@ -36,23 +36,23 @@ export const TICKET_BY_ID = Object.fromEntries(TICKETS.map((t) => [t.id, t]));
 export const ROUTE_BY_ID = Object.fromEntries(ROUTES.map((r) => [r.id, r]));
 export const POINTS = [0, 1, 2, 4, 7, 10, 15];
 export const PALETTE: Record<RouteColor, string> = {
-  red: "#c95643",
-  orange: "#d68a3c",
-  yellow: "#dbbd55",
-  green: "#5d8e68",
-  blue: "#5188ab",
-  pink: "#b87c9a",
-  black: "#404547",
-  white: "#f1e9d5",
+  red: "#c74636",
+  orange: "#df8a2e",
+  yellow: "#e5c546",
+  green: "#639353",
+  blue: "#5791b7",
+  pink: "#ca80a6",
+  black: "#4b4546",
+  white: "#fff6df",
   wild: "#ae965d",
-  gray: "#aaa58e",
+  gray: "#cec6b1",
 };
 export const PLAYER_COLORS = [
-  "#d9674e",
-  "#4f97c2",
-  "#dfb345",
-  "#71a77c",
-  "#a98ac5",
+  "#e5332a",
+  "#197cdb",
+  "#f3cb29",
+  "#32b843",
+  "#a840d0",
 ];
 export const MODES: Record<
   Mode,

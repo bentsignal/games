@@ -83,14 +83,81 @@ test("two independent friends join, choose tickets, chat, draw, and reconnect", 
   await expect(
     b.getByText("Alice QA claimed Vancouver → Seattle (+1).", { exact: true }),
   ).toBeVisible();
+  await expect(a.locator('[data-route="r1"]')).toHaveAttribute(
+    "aria-label",
+    /claimed by Alice QA/,
+  );
+  await expect(b.locator('[data-route="r1"]')).toHaveAttribute(
+    "data-owner",
+    (await a.locator('[data-route="r1"]').getAttribute("data-owner")) as string,
+  );
   await a.screenshot({
     path: "test-results/multiplayer-desktop.png",
     fullPage: true,
   });
-  await expect(a.getByText("3D view unavailable")).toHaveCount(0);
+  await expect(a.getByText("Map unavailable")).toHaveCount(0);
   expect(errors).toEqual([]);
   await first.close();
   await second.close();
+});
+
+test("the 2D atlas supports keyboard route selection, pan, zoom, and optional sound", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(page.locator("iframe")).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "Music and sound", exact: true })
+    .click();
+  const player = page.getByTitle(
+    "Ticket to Ride America soundtrack on YouTube",
+  );
+  await expect(player).toHaveAttribute(
+    "src",
+    /youtube-nocookie.com\/embed\/jBZochITFMs/,
+  );
+  await page.getByRole("button", { name: "Effects on" }).click();
+  await expect(
+    page.getByRole("button", { name: "Effects off" }),
+  ).toHaveAttribute("aria-pressed", "false");
+  await page.getByRole("button", { name: "Close music player" }).click();
+  await expect(player).toHaveCount(0);
+  await page.getByLabel("YOUR CONDUCTOR NAME").fill("Atlas QA");
+  await page.getByRole("button", { name: "Create a private table" }).click();
+  const map = page.getByRole("group", { name: "USA railway map" });
+  await expect(map).toBeVisible();
+  await expect(map.getByRole("button")).toHaveCount(100);
+  await expect(page.locator("canvas")).toHaveCount(0);
+  const route = page.locator('[data-route="r16"]');
+  await route.focus();
+  await page.keyboard.press("Enter");
+  await expect(route).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "Zoom in", exact: true }).click();
+  await expect(page.locator(".map-zoom")).toContainText("130%");
+  await map.focus();
+  await page.keyboard.press("ArrowRight");
+  // A drag across the map must not accidentally choose a different route.
+  const rect = await map.boundingBox();
+  await page.mouse.move(
+    rect!.x + rect!.width * 0.4,
+    rect!.y + rect!.height * 0.6,
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    rect!.x + rect!.width * 0.55,
+    rect!.y + rect!.height * 0.65,
+    { steps: 12 },
+  );
+  await page.mouse.up();
+  await expect(route).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "Reset map", exact: true }).click();
+  await expect(page.locator(".map-zoom")).toContainText("100%");
+  await map.focus();
+  await page.keyboard.press("+");
+  await expect(page.locator(".map-zoom")).toContainText("130%");
+  await page.keyboard.press("0");
+  await expect(page.locator(".map-zoom")).toContainText("100%");
+  await page.getByRole("button", { name: "Leave table", exact: true }).click();
 });
 test("computer takeover finishes the game, reveals scores, and rematches", async ({
   page,
@@ -119,7 +186,7 @@ test("computer takeover finishes the game, reveals scores, and rematches", async
     page.getByRole("heading", { name: "The final whistle.", exact: true }),
   ).toBeVisible({ timeout: 210000 });
   await expect(page.locator(".result-row")).toHaveCount(2);
-  await expect(page.getByText("3D view unavailable")).toHaveCount(0);
+  await expect(page.getByText("Map unavailable")).toHaveCount(0);
   await page
     .getByText("Reveal destination tickets", { exact: true })
     .first()
@@ -144,7 +211,7 @@ test("mobile landing, catalog, and room remain usable", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: "The long way is the good way." }),
+    page.getByRole("heading", { name: "Railbound USA · 1910" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "View the tickets" }).click();
   await expect(page.getByRole("dialog").locator(".ticket-tile")).toHaveCount(
@@ -175,6 +242,34 @@ test("mobile landing, catalog, and room remain usable", async ({ page }) => {
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
+  const map = page.getByRole("group", { name: "USA railway map" });
+  await map.scrollIntoViewIfNeeded();
+  const rect = (await map.boundingBox())!;
+  const cx = rect.x + rect.width / 2,
+    cy = rect.y + rect.height / 2;
+  const touch = await page.context().newCDPSession(page);
+  await touch.send("Input.dispatchTouchEvent", {
+    type: "touchStart",
+    touchPoints: [
+      { x: cx - 25, y: cy, id: 1 },
+      { x: cx + 25, y: cy, id: 2 },
+    ],
+  });
+  await touch.send("Input.dispatchTouchEvent", {
+    type: "touchMove",
+    touchPoints: [
+      { x: cx - 50, y: cy, id: 1 },
+      { x: cx + 50, y: cy, id: 2 },
+    ],
+  });
+  await touch.send("Input.dispatchTouchEvent", {
+    type: "touchEnd",
+    touchPoints: [],
+  });
+  await expect(page.locator(".map-zoom")).toContainText("200%");
+  await page.getByRole("button", { name: "Reset map", exact: true }).click();
+  await expect(page.locator(".map-zoom")).toContainText("100%");
+  await touch.detach();
   await page.screenshot({
     path: "test-results/multiplayer-mobile.png",
     fullPage: true,
