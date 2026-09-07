@@ -3,7 +3,7 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
-      "source": "/((?!assets/|models/|privacy.html|favicon.svg).*)",
+      "source": "/((?!assets/|models/|favicon.svg).*)",
       "destination": "/index.html"
     }
   ],

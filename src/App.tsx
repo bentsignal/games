@@ -837,11 +837,6 @@ export default function App({ username }: { username: string }) {
           <span>Ticket to Ride</span>
         </button>
         <nav>
-          <span className="account-name">{username}</span>
-          <button className="nav-help" onClick={() => void signOut()}>
-            <LogOut size={16} />
-            <span>Sign out</span>
-          </button>
           <Music />
           {code && (
             <button className="room-code" onClick={copy}>
@@ -853,6 +848,30 @@ export default function App({ username }: { username: string }) {
             <BookOpen size={17} />
             <span>How to play</span>
           </button>
+          <details
+            className="account-menu"
+            onBlur={(event) => {
+              if (!event.currentTarget.contains(event.relatedTarget))
+                event.currentTarget.open = false;
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                event.currentTarget.open = false;
+                event.currentTarget.querySelector("summary")?.focus();
+              }
+            }}
+          >
+            <summary>
+              {username}
+              <ChevronDown size={14} />
+            </summary>
+            <div className="account-menu-panel">
+              <button onClick={() => void signOut()}>
+                <LogOut size={16} />
+                Sign out
+              </button>
+            </div>
+          </details>
         </nav>
       </header>
       {!connectedServer && code && (
@@ -1381,7 +1400,7 @@ export default function App({ username }: { username: string }) {
                     </button>
                     <p className="small muted">
                       Click to copy the invitation link. Your friends can join
-                      without an account.
+                      after signing in with Google.
                     </p>
                     {host && (
                       <button

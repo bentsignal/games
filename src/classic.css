@@ -3165,7 +3165,7 @@ label {
 
 .account-page {
   width: min(420px, calc(100% - 40px));
-  margin: 12vh auto;
+  margin: 0;
   padding: 28px;
   background: #f4e6c5;
   border: 1px solid #b49760;
@@ -3190,12 +3190,102 @@ label {
   color: #a12624;
   font-size: 14px;
 }
-.account-name {
-  font-size: 12px;
-  color: #eeddb5;
+
+.auth-screen {
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
 }
-@media (max-width: 700px) {
-  .account-name {
-    display: none;
+.auth-screen .account-page {
+  width: min(420px, 100%);
+}
+.sign-in-page {
+  position: relative;
+}
+.sign-in-page [role="alert"] {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 300px;
+  text-align: center;
+  color: #efd6bc;
+}
+.google-sign-in {
+  min-height: 50px;
+  padding: 14px 28px;
+}
+.account-secondary {
+  justify-self: center;
+  border: 0;
+  background: transparent;
+  color: #70533f;
+  padding: 8px 16px;
+  font-size: 13px;
+  border-radius: 4px;
+}
+.account-secondary:hover {
+  background: #70533f12;
+  color: #3d2a20;
+}
+.auth-reveal {
+  animation: auth-reveal 180ms ease-out both;
+}
+@keyframes auth-reveal {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.account-menu {
+  position: relative;
+  margin-left: 8px;
+}
+.account-menu summary {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  list-style: none;
+  color: #eeddb5;
+  font-size: 13px;
+  padding: 10px 4px;
+}
+.account-menu summary::-webkit-details-marker {
+  display: none;
+}
+.account-menu-panel {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 100;
+  min-width: 140px;
+  padding: 6px;
+  background: #f4e6c5;
+  border: 1px solid #b49760;
+  border-radius: 6px;
+  box-shadow: 0 6px 20px #0003;
+}
+.account-menu-panel button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: #593c2d;
+  font-size: 13px;
+}
+.account-menu-panel button:hover {
+  background: #70533f12;
+}
+@media (prefers-reduced-motion: reduce) {
+  .auth-reveal {
+    animation: none;
   }
 }

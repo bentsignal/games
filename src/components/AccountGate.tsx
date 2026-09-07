@@ -22,23 +22,16 @@ export default function AccountGate({
   const [username, setUsername] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  if (isAuthenticated && user?.username) return children(user.username);
+  if (isAuthenticated && user?.username)
+    return <div className="auth-reveal">{children(user.username)}</div>;
   const loading = isLoading || (isAuthenticated && user === undefined);
+  if (loading) return null;
   return (
-    <div className="app">
-      <header className="masthead">
-        <span className="brand">Ticket to Ride</span>
-      </header>
-      <main className="account-page">
-        <h1>
-          {loading
-            ? "Signing you in…"
-            : isAuthenticated
-              ? "Choose a username"
-              : "Sign in to play"}
-        </h1>
-        {!loading &&
-          (isAuthenticated ? (
+    <main className="auth-screen auth-reveal">
+      <div className={isAuthenticated ? "account-page" : "sign-in-page"}>
+        {isAuthenticated ? (
+          <>
+            <h1>Choose a username</h1>
             <form
               onSubmit={async (e) => {
                 e.preventDefault();
@@ -81,32 +74,33 @@ export default function AccountGate({
                 Continue
               </button>
               <button
-                className="text-button"
+                className="account-secondary"
                 type="button"
                 onClick={() => void signOut()}
               >
                 Sign out
               </button>
             </form>
-          ) : (
-            <button
-              className="primary full google-sign-in"
-              disabled={busy}
-              onClick={async () => {
-                setBusy(true);
-                setError("");
-                try {
-                  await signInGoogle();
-                } catch {
-                  setError("Couldn’t sign in. Please try again.");
-                } finally {
-                  setBusy(false);
-                }
-              }}
-            >
-              Sign in with Google
-            </button>
-          ))}
+          </>
+        ) : (
+          <button
+            className="primary google-sign-in"
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true);
+              setError("");
+              try {
+                await signInGoogle();
+              } catch {
+                setError("Couldn’t sign in. Please try again.");
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            Sign in with Google
+          </button>
+        )}
         {(error || flowError) && (
           <p role="alert">
             {error ||
@@ -114,10 +108,7 @@ export default function AccountGate({
               "Sign-in didn’t finish. Please try again."}
           </p>
         )}
-        <p className="account-privacy">
-          <a href="/privacy.html">Privacy</a>
-        </p>
-      </main>
-    </div>
+      </div>
+    </main>
   );
 }
