@@ -65,6 +65,8 @@ export function cue(
     | "turn"
     | "tickets"
     | "complete"
+    | "cash"
+    | "buzzer"
     | "score-step"
     | "score-tick"
     | "finale",
@@ -74,7 +76,57 @@ export function cue(
     if (!enabled || !context || context.state !== "running") return;
     const ctx = context,
       now = ctx.currentTime;
-    if (kind === "score-tick") {
+    if (kind === "cash") {
+      // Register key and drawer clacks, followed by a bright double bell.
+      noise(ctx, now, 0.045, 0.22, 1100);
+      noise(ctx, now + 0.1, 0.06, 0.16, 2200);
+      for (const [delay, pitch] of [
+        [0.1, 1568],
+        [0.22, 2093],
+      ])
+        for (const [ratio, volume] of [
+          [1, 0.11],
+          [2.76, 0.025],
+          [4.07, 0.008],
+        ]) {
+          const bell = ctx.createOscillator(),
+            gain = ctx.createGain(),
+            start = now + delay;
+          bell.frequency.value = pitch * ratio;
+          gain.gain.setValueAtTime(0, start);
+          gain.gain.linearRampToValueAtTime(volume, start + 0.003);
+          gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.65);
+          bell.connect(gain).connect(ctx.destination);
+          bell.start(start);
+          bell.stop(start + 0.7);
+          bell.onended = () => {
+            bell.disconnect();
+            gain.disconnect();
+          };
+        }
+    } else if (kind === "buzzer") {
+      // A short, low wrong-answer buzz with softened edges.
+      const osc = ctx.createOscillator(),
+        filter = ctx.createBiquadFilter(),
+        gain = ctx.createGain();
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(147, now);
+      osc.frequency.linearRampToValueAtTime(110, now + 0.38);
+      filter.type = "lowpass";
+      filter.frequency.value = 950;
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.14, now + 0.015);
+      gain.gain.setValueAtTime(0.14, now + 0.28);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.42);
+      osc.connect(filter).connect(gain).connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.45);
+      osc.onended = () => {
+        osc.disconnect();
+        filter.disconnect();
+        gain.disconnect();
+      };
+    } else if (kind === "score-tick") {
       noise(ctx, now, 0.026, 0.075, 850);
     } else if (kind === "score-step") {
       noise(ctx, now, 0.13, 0.12, 1500);

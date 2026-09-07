@@ -66,12 +66,13 @@ export function scoreSteps(game: View): ScoreStep[] {
     intro("Longest trail");
     for (const p of game.players) {
       const r = game.results.find((r) => r.id === p.id)!;
+      if (r.longestBonus <= 0) continue;
       steps.push({
         kind: "longest",
         label: `${r.longest} trains · Longest trail`,
         player: p.id,
         delta: r.longestBonus,
-        duration: r.longestBonus ? 2100 : 1100,
+        duration: 2100,
         routes: [],
       });
     }
@@ -80,12 +81,13 @@ export function scoreSteps(game: View): ScoreStep[] {
     intro("Globetrotter");
     for (const p of game.players) {
       const r = game.results.find((r) => r.id === p.id)!;
+      if (r.globeBonus <= 0) continue;
       steps.push({
         kind: "globe",
         label: `${r.completed} destinations · Globetrotter`,
         player: p.id,
         delta: r.globeBonus,
-        duration: r.globeBonus ? 2100 : 1100,
+        duration: 2100,
         routes: [],
       });
     }
@@ -116,4 +118,8 @@ export function sameRank(a: Result, b: Result) {
     a.completed === b.completed &&
     a.longestBonus === b.longestBonus
   );
+}
+
+export function scoreSound(step: ScoreStep) {
+  return step.delta > 0 ? "cash" : step.delta < 0 ? "buzzer" : "score-step";
 }

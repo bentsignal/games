@@ -8,6 +8,8 @@ test("the final reveal keeps the winner hidden, counts all scores, and supports 
   page.on("pageerror", (e) => errors.push(e.message));
   await page.addInitScript(() => {
     (window as any).__endingFinales = 0;
+    (window as any).__cashSounds = 0;
+    (window as any).__buzzerSounds = 0;
     const native = AudioContext.prototype.createOscillator;
     AudioContext.prototype.createOscillator = function () {
       const node = native.call(this),
@@ -18,6 +20,9 @@ test("the final reveal keeps the winner hidden, counts all scores, and supports 
           Math.abs(node.frequency.value - 1046.5) < 0.1
         )
           (window as any).__endingFinales++;
+        if (node.type === "sine" && Math.abs(node.frequency.value - 1568) < 0.1)
+          (window as any).__cashSounds++;
+        if (node.type === "sawtooth") (window as any).__buzzerSounds++;
         start(...args);
       };
       return node;
@@ -136,6 +141,18 @@ test("the final reveal keeps the winner hidden, counts all scores, and supports 
     "40",
     "23",
   ]);
+  expect(
+    await page.evaluate(() => (window as any).__cashSounds),
+  ).toBeGreaterThan(7);
+  expect(
+    await page.evaluate(() => (window as any).__buzzerSounds),
+  ).toBeGreaterThan(0);
+  await expect(
+    page.locator(".result-row").filter({ hasText: "Longest trail" }),
+  ).toHaveCount(4);
+  await expect(
+    page.locator(".result-row").filter({ hasText: "Globetrotter" }),
+  ).toHaveCount(4);
   await page.getByRole("tab", { name: "Activity" }).click();
   await expect
     .poll(() => page.evaluate(() => (window as any).__endingFinales))

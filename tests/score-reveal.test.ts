@@ -6,6 +6,7 @@ import {
   rankResults,
   sameRank,
   scoreSteps,
+  scoreSound,
 } from "../src/game/score-reveal";
 import { ROUTES } from "../src/game/data";
 
@@ -51,6 +52,35 @@ describe("end-game scoring", () => {
       g.results = scoreGame(g);
       const steps = scoreSteps(playerView(g, "host"));
       const totals = countScores(steps, steps.length);
+      for (const step of steps) {
+        expect(scoreSound(step)).toBe(
+          step.delta > 0 ? "cash" : step.delta < 0 ? "buzzer" : "score-step",
+        );
+        if (step.kind === "longest" || step.kind === "globe")
+          expect(step.delta).toBeGreaterThan(0);
+      }
+      expect(
+        steps
+          .filter((s) => s.kind === "longest")
+          .map((s) => s.player)
+          .sort(),
+      ).toEqual(
+        g.results
+          .filter((r) => r.longestBonus > 0)
+          .map((r) => r.id)
+          .sort(),
+      );
+      expect(
+        steps
+          .filter((s) => s.kind === "globe")
+          .map((s) => s.player)
+          .sort(),
+      ).toEqual(
+        g.results
+          .filter((r) => r.globeBonus > 0)
+          .map((r) => r.id)
+          .sort(),
+      );
       for (const r of g.results) expect(totals[r.id]).toBe(r.total);
       expect(steps.filter((s) => s.kind === "ticket")).toHaveLength(
         g.players.reduce((sum, p) => sum + p.tickets.length, 0),

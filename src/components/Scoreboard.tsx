@@ -7,6 +7,7 @@ import {
   rankResults,
   sameRank,
   scoreSteps,
+  scoreSound,
 } from "../game/score-reveal";
 import { cue } from "../audio";
 
@@ -26,7 +27,9 @@ export function useScoreReveal(game: View | null | undefined, room: string) {
   const previousScope = useRef("");
   const savedIndex = useMemo(() => {
     if (!scope) return 0;
-    const saved = Number(sessionStorage.getItem(`ticket-reveal:${scope}`) ?? 0);
+    const saved = Number(
+      sessionStorage.getItem(`ticket-reveal:v2:${scope}`) ?? 0,
+    );
     return Number.isInteger(saved)
       ? Math.min(Math.max(0, saved), steps.length)
       : 0;
@@ -72,13 +75,7 @@ export function useScoreReveal(game: View | null | undefined, room: string) {
       if (!step) return;
       if (sounded !== c.index) {
         sounded = c.index;
-        cue(
-          step.kind === "longest" || step.kind === "globe"
-            ? step.delta
-              ? "complete"
-              : "score-step"
-            : "score-step",
-        );
+        cue(scoreSound(step));
       }
       const progress = Math.min(
         1,
@@ -92,7 +89,7 @@ export function useScoreReveal(game: View | null | undefined, room: string) {
       if (c.elapsed >= step.duration) {
         c.index++;
         c.elapsed = 0;
-        sessionStorage.setItem(`ticket-reveal:${scope}`, String(c.index));
+        sessionStorage.setItem(`ticket-reveal:v2:${scope}`, String(c.index));
         setFrame({ scope, index: c.index, progress: 0 });
         if (c.index >= steps.length) {
           cue("finale");
@@ -115,13 +112,13 @@ export function useScoreReveal(game: View | null | undefined, room: string) {
     togglePause: () => setPaused((p) => !p),
     skip: () => {
       cursor.current = { index: steps.length, elapsed: 0 };
-      sessionStorage.setItem(`ticket-reveal:${scope}`, String(steps.length));
+      sessionStorage.setItem(`ticket-reveal:v2:${scope}`, String(steps.length));
       setFrame({ scope, index: steps.length, progress: 1 });
       setReplay((r) => r + 1);
     },
     restart: () => {
       cursor.current = { index: 0, elapsed: 0 };
-      sessionStorage.removeItem(`ticket-reveal:${scope}`);
+      sessionStorage.removeItem(`ticket-reveal:v2:${scope}`);
       setFrame({ scope, index: 0, progress: 0 });
       setPaused(false);
       setReplay((r) => r + 1);
