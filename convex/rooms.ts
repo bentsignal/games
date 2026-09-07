@@ -1,8 +1,9 @@
+import { paginationOptsValidator } from "convex/server";
 import { mutation, query, internalMutation } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v, ConvexError } from "convex/values";
-import { sha256 } from "@noble/hashes/sha2.js";
-import { bytesToHex } from "@noble/hashes/utils.js";
+import { requirePlayer } from "./users";
+import { saveResult } from "./results";
 import { endingPreview } from "../src/game/ending-preview";
 import {
   applyAction,
@@ -50,17 +51,6 @@ const action = v.union(
   }),
   v.object({ type: v.literal("pass") }),
 );
-function identity(token: string) {
-  if (!/^[a-f0-9]{64}$/.test(token))
-    throw new ConvexError("Invalid session. Reload the page.");
-  return bytesToHex(sha256(new TextEncoder().encode(token)));
-}
-function nameOf(name: string) {
-  const n = name.trim().replace(/[\u0000-\u001f]/g, "");
-  if (n.length < 1 || n.length > 24)
-    throw new ConvexError("Use a name between 1 and 24 characters.");
-  return n;
-}
 export const create = mutation({
   args: {
     token: v.string(),
@@ -69,8 +59,7 @@ export const create = mutation({
     endingPreview: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const id = identity(args.token),
-      name = nameOf(args.name);
+    const { id, name } = await requirePlayer(ctx);
     let session = await ctx.db
       .query("sessions")
       .withIndex("by_hash", (q) => q.eq("hash", id))
@@ -79,12 +68,25 @@ export const create = mutation({
       throw new ConvexError(
         "Please wait a few seconds before creating another room.",
       );
-    if (session) await ctx.db.patch(session._id, { lastCreate: Date.now() });
+    const day = Math.floor(Date.now() / 86400000);
+    const count = session?.createDay === day ? (session.createCount ?? 0) : 0;
+    if (count >= 20)
+      throw new ConvexError(
+        "You’ve created 20 games today. Please try again tomorrow.",
+      );
+    if (session)
+      await ctx.db.patch(session._id, {
+        lastCreate: Date.now(),
+        createDay: day,
+        createCount: count + 1,
+      });
     else
       await ctx.db.insert("sessions", {
         hash: id,
         lastCreate: Date.now(),
         lastChat: 0,
+        createDay: day,
+        createCount: count + 1,
       });
     let code = "";
     for (let i = 0; i < 8; i++)
@@ -106,6 +108,7 @@ export const create = mutation({
         ? endingPreview(id, name, code)
         : newGame(args.mode, newPlayer(id, name, 0)),
       revision: 0,
+      preview: args.endingPreview ?? false,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
@@ -115,7 +118,7 @@ export const create = mutation({
 export const get = query({
   args: { code: v.string(), token: v.string() },
   handler: async (ctx, { code, token }) => {
-    const id = identity(token),
+    const { id } = await requirePlayer(ctx),
       room = await ctx.db
         .query("rooms")
         .withIndex("by_code", (q) => q.eq("code", code.toUpperCase()))
@@ -142,7 +145,7 @@ export const get = query({
 export const join = mutation({
   args: { code: v.string(), token: v.string(), name: v.string() },
   handler: async (ctx, { code, token, name }) => {
-    const id = identity(token);
+    const { id, name: accountName } = await requirePlayer(ctx);
     const room = await ctx.db
       .query("rooms")
       .withIndex("by_code", (q) => q.eq("code", code.toUpperCase()))
@@ -158,7 +161,7 @@ export const join = mutation({
     const available = [0, 1, 2, 3, 4].find(
       (c) => !g.players.some((p) => p.color === c),
     )!;
-    g.players.push(newPlayer(id, nameOf(name), available));
+    g.players.push(newPlayer(id, accountName, available));
     await ctx.db.patch(room._id, {
       game: g,
       revision: room.revision + 1,
@@ -170,7 +173,7 @@ export const join = mutation({
 export const play = mutation({
   args: { code: v.string(), token: v.string(), revision: v.number(), action },
   handler: async (ctx, args) => {
-    const id = identity(args.token),
+    const { id } = await requirePlayer(ctx),
       room = await ctx.db
         .query("rooms")
         .withIndex("by_code", (q) => q.eq("code", args.code))
@@ -199,10 +202,12 @@ export const play = mutation({
       revision: room.revision + 1,
       updatedAt: Date.now(),
     });
-    await ctx.scheduler.runAfter(600, internal.rooms.advanceBot, {
-      roomId: room._id,
-      revision: room.revision + 1,
-    });
+    await saveResult(ctx, room, game);
+    if (nextBot(game))
+      await ctx.scheduler.runAfter(600, internal.rooms.advanceBot, {
+        roomId: room._id,
+        revision: room.revision + 1,
+      });
   },
 });
 export const manage = mutation({
@@ -221,7 +226,7 @@ export const manage = mutation({
     mode: v.optional(mode),
   },
   handler: async (ctx, args) => {
-    const id = identity(args.token),
+    const { id } = await requirePlayer(ctx),
       room = await ctx.db
         .query("rooms")
         .withIndex("by_code", (q) => q.eq("code", args.code))
@@ -249,6 +254,7 @@ export const manage = mutation({
       if (args.operation === "rematch") {
         if (g.phase !== "finished")
           throw new ConvexError("Finish the current game first.");
+        await saveResult(ctx, room, g);
         const players = g.players.map((p) =>
           newPlayer(
             p.id,
@@ -288,12 +294,10 @@ export const manage = mutation({
       }
     }
     if (!g.players.length) {
-      const messages = await ctx.db
-        .query("messages")
-        .withIndex("by_room", (q) => q.eq("room", room._id))
-        .take(100);
-      for (const message of messages) await ctx.db.delete(message._id);
       await ctx.db.delete(room._id);
+      await ctx.scheduler.runAfter(0, internal.rooms.deleteRoomChat, {
+        roomId: room._id,
+      });
       return;
     }
     await ctx.db.patch(room._id, {
@@ -301,25 +305,27 @@ export const manage = mutation({
       revision: room.revision + 1,
       updatedAt: Date.now(),
     });
-    if (args.operation === "resign")
+    if (args.operation === "resign" && nextBot(g))
       await ctx.scheduler.runAfter(300, internal.rooms.advanceBot, {
         roomId: room._id,
         revision: room.revision + 1,
       });
   },
 });
+function nextBot(g: Game) {
+  return g.phase === "setup"
+    ? g.players.find((p) => p.bot && p.pending.length)
+    : g.phase === "playing" && g.players[g.turn]?.bot
+      ? g.players[g.turn]
+      : null;
+}
 export const advanceBot = internalMutation({
   args: { roomId: v.id("rooms"), revision: v.number() },
   handler: async (ctx, args) => {
     const room = await ctx.db.get(args.roomId);
     if (!room || room.revision !== args.revision) return;
     const g = room.game as Game;
-    const p =
-      g.phase === "setup"
-        ? g.players.find((p) => p.bot && p.pending.length)
-        : g.phase === "playing" && g.players[g.turn].bot
-          ? g.players[g.turn]
-          : null;
+    const p = nextBot(g);
     if (!p) return;
     const game = applyAction(g, p.id, botAction(g, p));
     await ctx.db.patch(room._id, {
@@ -327,35 +333,39 @@ export const advanceBot = internalMutation({
       revision: room.revision + 1,
       updatedAt: Date.now(),
     });
-    await ctx.scheduler.runAfter(650, internal.rooms.advanceBot, {
-      roomId: room._id,
-      revision: room.revision + 1,
-    });
+    await saveResult(ctx, room, game);
+    if (nextBot(game))
+      await ctx.scheduler.runAfter(650, internal.rooms.advanceBot, {
+        roomId: room._id,
+        revision: room.revision + 1,
+      });
   },
 });
 export const chat = query({
-  args: { code: v.string(), token: v.string() },
-  handler: async (ctx, { code, token }) => {
-    const id = identity(token),
+  args: {
+    code: v.string(),
+    token: v.string(),
+    paginationOpts: paginationOptsValidator,
+  },
+  handler: async (ctx, { code, paginationOpts }) => {
+    const { id } = await requirePlayer(ctx),
       room = await ctx.db
         .query("rooms")
         .withIndex("by_code", (q) => q.eq("code", code))
         .unique();
     if (!room || !(room.game as Game).players.some((p) => p.id === id))
-      return [];
-    return (
-      await ctx.db
-        .query("messages")
-        .withIndex("by_room", (q) => q.eq("room", room._id))
-        .order("desc")
-        .take(100)
-    ).reverse();
+      return { page: [], isDone: true, continueCursor: "" };
+    return await ctx.db
+      .query("messages")
+      .withIndex("by_room", (q) => q.eq("room", room._id))
+      .order("desc")
+      .paginate(paginationOpts);
   },
 });
 export const send = mutation({
   args: { code: v.string(), token: v.string(), text: v.string() },
   handler: async (ctx, { code, token, text }) => {
-    const id = identity(token),
+    const { id } = await requirePlayer(ctx),
       room = await ctx.db
         .query("rooms")
         .withIndex("by_code", (q) => q.eq("code", code))
@@ -387,11 +397,22 @@ export const send = mutation({
       text: message,
       time: Date.now(),
     });
-    const oldest = await ctx.db
+  },
+});
+
+// Bounded cleanup only when the last player explicitly leaves an empty lobby.
+export const deleteRoomChat = internalMutation({
+  args: { roomId: v.id("rooms") },
+  handler: async (ctx, { roomId }) => {
+    if (await ctx.db.get(roomId)) return;
+    const batch = await ctx.db
       .query("messages")
-      .withIndex("by_room", (q) => q.eq("room", room._id))
-      .order("desc")
-      .take(110);
-    for (const old of oldest.slice(100)) await ctx.db.delete(old._id);
+      .withIndex("by_room", (q) => q.eq("room", roomId))
+      .take(100);
+    for (const message of batch) await ctx.db.delete(message._id);
+    if (batch.length === 100)
+      await ctx.scheduler.runAfter(0, internal.rooms.deleteRoomChat, {
+        roomId,
+      });
   },
 });

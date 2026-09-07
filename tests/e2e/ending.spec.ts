@@ -1,3 +1,4 @@
+import { signIn } from "./auth";
 import { test, expect } from "@playwright/test";
 
 test("the final reveal keeps the winner hidden, counts all scores, and supports chat, pause, skip and replay", async ({
@@ -29,7 +30,7 @@ test("the final reveal keeps the winner hidden, counts all scores, and supports 
     };
   });
   await page.goto("/ending-preview");
-  await page.getByLabel("Name", { exact: true }).fill("Ending QA");
+  await signIn(page, "Ending_QA");
   await page.getByRole("button", { name: "Create ending preview" }).click();
   await expect(page).toHaveURL(/\/room\//);
   await expect(page.getByText("Your turn", { exact: true })).toBeVisible();
@@ -47,7 +48,7 @@ test("the final reveal keeps the winner hidden, counts all scores, and supports 
   await expect(page.locator(".rank-trophy")).toHaveCount(0);
   await expect(page.locator(".award-globe,.award-longest")).toHaveCount(0);
   expect(await page.locator(".result-name").allTextContents()).toEqual([
-    "Ending QA",
+    "Ending_QA",
     "Jules",
     "Ada",
     "Miles",
@@ -83,7 +84,7 @@ test("the final reveal keeps the winner hidden, counts all scores, and supports 
   await expect(scoreboard).toHaveAttribute("data-reveal-done", "true");
   expect(await page.locator(".result-name").allTextContents()).toEqual([
     "Miles",
-    "Ending QA",
+    "Ending_QA",
     "Jules",
     "Ada",
   ]);
@@ -175,7 +176,7 @@ test("the finished scoreboard and chat remain usable on a phone", async ({
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/ending-preview");
-  await page.getByLabel("Name", { exact: true }).fill("Mobile ending QA");
+  await signIn(page, "Mobile_ending_QA");
   await page.getByRole("button", { name: "Create ending preview" }).click();
   await page.getByRole("button", { name: "Draw from hidden deck" }).click();
   await expect(page.getByText("Choose one more train card.")).toBeVisible();

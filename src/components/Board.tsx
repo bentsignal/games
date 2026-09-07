@@ -494,7 +494,7 @@ export default function Board({
                     )}
                     {status && (
                       <circle
-                        r="15"
+                        r="18"
                         fill={
                           status === "incomplete" ? "#298cff38" : "#42c63738"
                         }
@@ -512,7 +512,7 @@ export default function Board({
                       />
                     )}
                     <circle
-                      r={status ? 9 : 7.5}
+                      r={status ? 11.5 : 8}
                       fill={
                         status === "incomplete"
                           ? "#0962d1"
@@ -524,7 +524,7 @@ export default function Board({
                       strokeWidth="2"
                     />
                     <circle
-                      r={status ? 5 : 3.5}
+                      r={status ? 6.5 : 4}
                       fill={
                         status === "incomplete"
                           ? "#69cbff"

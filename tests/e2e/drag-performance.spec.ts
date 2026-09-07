@@ -1,3 +1,4 @@
+import { signIn } from "./auth";
 import { test, expect } from "@playwright/test";
 
 test.use({ trace: "off" });
@@ -22,11 +23,11 @@ test("card movement stays off the React render loop and keeps the map stable", a
   const a = await aContext.newPage(),
     b = await bContext.newPage();
   await a.goto(baseURL!);
-  await a.getByLabel("Name", { exact: true }).fill("Drag QA");
+  await signIn(a, "Drag_QA");
   await a.getByRole("button", { name: "Create a game" }).click();
   await expect(a).toHaveURL(/room/);
   await b.goto(a.url());
-  await b.getByLabel("Name", { exact: true }).fill("Second QA");
+  await signIn(b, "Second_QA");
   await b.getByRole("button", { name: "Join game" }).click();
   await a.getByRole("button", { name: "Start game" }).click();
   for (const p of [a, b]) {

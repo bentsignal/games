@@ -1,6 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { ConvexProvider, ConvexReactClient } from "convex/react";
+import { ConvexReactClient } from "convex/react";
 import "@fontsource/rye/400.css";
 import "@fontsource/bree-serif/400.css";
 import "@fontsource/fraunces/400.css";
@@ -10,15 +10,20 @@ import "@fontsource/manrope/600.css";
 import "@fontsource/manrope/700.css";
 import "@fontsource/ibm-plex-mono/400.css";
 import App from "./App";
+import AccountGate from "./components/AccountGate";
+import { ConvexAuthProvider } from "@convex-dev/auth/react";
+import { api } from "../convex/_generated/api";
 import "./styles.css";
 import "./classic.css";
 const url = import.meta.env.VITE_CONVEX_URL;
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     {url ? (
-      <ConvexProvider client={new ConvexReactClient(url)}>
-        <App />
-      </ConvexProvider>
+      <ConvexAuthProvider client={new ConvexReactClient(url)} api={api.auth}>
+        <AccountGate>
+          {(username) => <App key={username} username={username} />}
+        </AccountGate>
+      </ConvexAuthProvider>
     ) : (
       <main className="config-error">
         <h1>Connect the railway</h1>

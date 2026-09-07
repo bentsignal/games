@@ -17,6 +17,7 @@ import {
   type FormEvent,
 } from "react";
 import {
+  usePaginatedQuery,
   useConvex,
   useConvexConnectionState,
   useMutation,
@@ -83,6 +84,7 @@ import Scoreboard, {
 } from "./components/Scoreboard";
 import { TrainArtwork, ConductorPortrait } from "./components/TrainArtwork";
 import { cue } from "./audio";
+import { useAuthActions } from "@convex-dev/auth/react";
 const Board = lazy(() => import("./components/Board"));
 function getToken() {
   let t = localStorage.getItem("railbound-session");
@@ -350,9 +352,10 @@ function Rules({ onClose }: { onClose: () => void }) {
   );
 }
 
-export default function App() {
+export default function App({ username }: { username: string }) {
+  const { signOut } = useAuthActions();
   const [code, setCode] = useState(roomFromUrl),
-    [name, setName] = useState(localStorage.getItem("railbound-name") || ""),
+    [name] = useState(username),
     [mode, setMode] = useState<Mode>("mega"),
     [joinCode, setJoinCode] = useState(""),
     [busy, setBusy] = useState(false),
@@ -429,8 +432,15 @@ export default function App() {
   }, [game?.phase, code]);
   const connection = useConvexConnectionState();
   const connectedServer = connection.isWebSocketConnected;
-  const messages =
-    useQuery(api.rooms.chat, code && game ? { code, token } : "skip") || [];
+  const {
+    results: messages,
+    status: chatStatus,
+    loadMore: loadMoreChat,
+  } = usePaginatedQuery(
+    api.rooms.chat,
+    code && game ? { code, token } : "skip",
+    { initialNumItems: 50 },
+  );
   const [chatText, setChatText] = useState("");
   const [sendingChat, setSendingChat] = useState(false);
   const [chatNotices, setChatNotices] = useState<
@@ -450,9 +460,16 @@ export default function App() {
   const activeTab = game?.phase === "lobby" ? "chat" : tab;
   const chatEnd = useRef<HTMLDivElement>(null);
   const messagesBox = useRef<HTMLDivElement>(null);
+  const olderChatScroll = useRef<{ height: number; top: number } | null>(null);
   useEffect(() => {
     const box = messagesBox.current;
-    if (box) box.scrollTop = box.scrollHeight;
+    if (box) {
+      const prior = olderChatScroll.current;
+      box.scrollTop = prior
+        ? prior.top + box.scrollHeight - prior.height
+        : box.scrollHeight;
+      olderChatScroll.current = null;
+    }
   }, [chatMessages.length, activeTab]);
   useEffect(() => {
     const pop = () => setCode(roomFromUrl());
@@ -820,6 +837,11 @@ export default function App() {
           <span>Ticket to Ride</span>
         </button>
         <nav>
+          <span className="account-name">{username}</span>
+          <button className="nav-help" onClick={() => void signOut()}>
+            <LogOut size={16} />
+            <span>Sign out</span>
+          </button>
           <Music />
           {code && (
             <button className="room-code" onClick={copy}>
@@ -875,14 +897,6 @@ export default function App() {
               );
             }}
           >
-            <label htmlFor="preview-name">Name</label>
-            <input
-              id="preview-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              maxLength={24}
-              required
-            />
             <button className="primary full" disabled={busy || !name.trim()}>
               Create ending preview <ArrowRight size={18} />
             </button>
@@ -902,15 +916,6 @@ export default function App() {
                 );
               }}
             >
-              <label htmlFor="name">Name</label>
-              <input
-                id="name"
-                required
-                maxLength={24}
-                placeholder="Your name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
               <div className="mode-label">
                 <label htmlFor="mode">GAME MODE</label>
                 <button
@@ -1026,15 +1031,6 @@ export default function App() {
                 });
               }}
             >
-              <label htmlFor="join-name">Name</label>
-              <input
-                id="join-name"
-                placeholder="Your name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-                maxLength={24}
-              />
               <button className="primary" disabled={busy || !name.trim()}>
                 Join game <ArrowRight size={18} />
               </button>
@@ -1043,7 +1039,7 @@ export default function App() {
             <p>
               {room.phase === "lobby"
                 ? "This table is full."
-                : "The game has already started. Reopen this link in the browser where you joined to recover your seat."}
+                : "The game has already started. Sign in with the account you used to join to recover your seat."}
             </p>
           )}
           <button className="text-button" onClick={() => visit("")}>
@@ -1645,6 +1641,22 @@ export default function App() {
                         aria-label="Conversation"
                         aria-live="polite"
                       >
+                        {chatStatus === "CanLoadMore" && (
+                          <button
+                            className="text-button"
+                            onClick={() => {
+                              const box = messagesBox.current;
+                              if (box)
+                                olderChatScroll.current = {
+                                  height: box.scrollHeight,
+                                  top: box.scrollTop,
+                                };
+                              loadMoreChat(50);
+                            }}
+                          >
+                            Load older messages
+                          </button>
+                        )}
                         {chatMessages.length ? (
                           chatMessages.map((m) => (
                             <div

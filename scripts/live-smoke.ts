@@ -1,4 +1,5 @@
 import { ConvexHttpClient } from "convex/browser";
+import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
@@ -9,49 +10,67 @@ const url =
   readFileSync(".env.local", "utf8")
     .match(/VITE_CONVEX_URL=(.+)/)![1]
     .trim();
-const client = new ConvexHttpClient(url);
+if (url !== "https://sincere-jellyfish-682.convex.cloud")
+  throw new Error("Run account fixtures only on development.");
+const clients = Array.from({ length: 3 }, (_, i) => {
+  const bundle = JSON.parse(
+    execFileSync(
+      "npx",
+      [
+        "convex",
+        "run",
+        "testing:signIn",
+        JSON.stringify({ username: "Server_QA_" + i }),
+      ],
+      { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
+    ),
+  );
+  const client = new ConvexHttpClient(url);
+  client.setAuth(bundle.accessToken);
+  return client;
+});
 const tokens = [
   randomBytes(32).toString("hex"),
   randomBytes(32).toString("hex"),
 ];
-const code = await client.mutation(api.rooms.create, {
+const code = await clients[0].mutation(api.rooms.create, {
   token: tokens[0],
   name: "Server QA 1",
   mode: "mega",
 });
-await client.mutation(api.rooms.join, {
+await clients[1].mutation(api.rooms.join, {
   code,
   token: tokens[1],
   name: "Server QA 2",
 });
 const get = async (i: number) => {
-  const r = await client.query(api.rooms.get, { code, token: tokens[i] });
+  const r = await clients[i].query(api.rooms.get, { code, token: tokens[i] });
   assert(r?.game);
   return { ...r, game: r.game as View };
 };
 let r = await get(0);
 const ids = r.game.players.map((p) => p.id);
-const outsider = await client.query(api.rooms.get, {
+const outsider = await clients[2].query(api.rooms.get, {
   code,
   token: randomBytes(32).toString("hex"),
 });
 assert.equal(outsider?.game, null);
 await assert.rejects(
-  client.mutation(api.rooms.play, {
+  clients[1].mutation(api.rooms.play, {
     code,
     token: tokens[1],
     revision: r.revision,
     action: { type: "start" },
   }),
 );
-await client.mutation(api.rooms.play, {
+await clients[0].mutation(api.rooms.play, {
   code,
   token: tokens[0],
   revision: r.revision,
   action: { type: "start" },
 });
 await assert.rejects(
-  client.mutation(api.rooms.play, {
+  clients[0].mutation(api.rooms.play, {
     code,
     token: tokens[0],
     revision: r.revision,
@@ -62,7 +81,7 @@ const offers = await Promise.all([get(0), get(1)]);
 assert.equal(offers[0].revision, offers[1].revision);
 await Promise.all(
   offers.map((offer, i) =>
-    client.mutation(api.rooms.play, {
+    clients[i].mutation(api.rooms.play, {
       code,
       token: tokens[i],
       revision: offer.revision,
@@ -71,13 +90,19 @@ await Promise.all(
   ),
 );
 console.log("Concurrent starting-ticket choices verified.");
-await client.mutation(api.rooms.send, {
+await clients[0].mutation(api.rooms.send, {
   code,
   token: tokens[0],
   text: "Backend integration check",
 });
 assert.equal(
-  (await client.query(api.rooms.chat, { code, token: tokens[1] })).at(-1)?.text,
+  (
+    await clients[1].query(api.rooms.chat, {
+      code,
+      token: tokens[1],
+      paginationOpts: { numItems: 50, cursor: null },
+    })
+  ).page[0]?.text,
   "Backend integration check",
 );
 let actor = 0,
@@ -101,7 +126,7 @@ while (actions < 1800) {
     ),
   } as Game;
   const action = botAction(g, v.me!);
-  await client.mutation(api.rooms.play, {
+  await clients[actor].mutation(api.rooms.play, {
     code,
     token: tokens[actor],
     revision: r.revision,
@@ -127,7 +152,7 @@ console.log(
     2,
   ),
 );
-await client.mutation(api.rooms.manage, {
+await clients[0].mutation(api.rooms.manage, {
   code,
   token: tokens[0],
   operation: "rematch",
@@ -136,12 +161,12 @@ r = await get(0);
 assert.equal(r.game.phase, "lobby");
 assert(r.game.players.every((p) => p.score === 0 && p.trains === 45));
 console.log("Rematch reset verified.");
-await client.mutation(api.rooms.manage, {
+await clients[1].mutation(api.rooms.manage, {
   code,
   token: tokens[1],
   operation: "leave",
 });
-await client.mutation(api.rooms.manage, {
+await clients[0].mutation(api.rooms.manage, {
   code,
   token: tokens[0],
   operation: "leave",

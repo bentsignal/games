@@ -1,3 +1,4 @@
+import { signIn } from "./auth";
 import { test, expect, type Page } from "@playwright/test";
 
 test("draws fly into the hand, destination pins persist, turns stay steady, and effects can be muted", async ({
@@ -40,11 +41,11 @@ test("draws fly into the hand, destination pins persist, turns stay steady, and 
   b.on("pageerror", (e) => errors.push(e.message));
   try {
     await a.goto(baseURL!);
-    await a.getByLabel("Name", { exact: true }).fill("Feedback QA");
+    await signIn(a, "Feedback_QA");
     await a.getByRole("button", { name: "Create a game" }).click();
     await expect(a).toHaveURL(/\/room\//);
     await b.goto(a.url());
-    await b.getByLabel("Name", { exact: true }).fill("Long player name QA");
+    await signIn(b, "Long_player_name_QA");
     await b.getByRole("button", { name: "Join game" }).click();
     await a.getByRole("button", { name: "Start game" }).click();
     for (const page of [a, b]) {

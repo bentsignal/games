@@ -3162,3 +3162,40 @@ label {
   width: 100%;
   margin-bottom: 18px;
 }
+
+.account-page {
+  width: min(420px, calc(100% - 40px));
+  margin: 12vh auto;
+  padding: 28px;
+  background: #f4e6c5;
+  border: 1px solid #b49760;
+  border-radius: 8px;
+  box-shadow: 0 12px 40px #25182730;
+}
+.account-page h1 {
+  font-family: "Bree Serif", serif;
+  font-size: 28px;
+  margin: 0 0 24px;
+}
+.account-page form {
+  display: grid;
+  gap: 12px;
+}
+.account-page .muted {
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0 0 8px;
+}
+.account-page [role="alert"] {
+  color: #a12624;
+  font-size: 14px;
+}
+.account-name {
+  font-size: 12px;
+  color: #eeddb5;
+}
+@media (max-width: 700px) {
+  .account-name {
+    display: none;
+  }
+}
