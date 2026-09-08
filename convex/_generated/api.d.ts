@@ -9,6 +9,7 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as playtest from "../playtest.js";
 import type * as results from "../results.js";
 import type * as rooms from "../rooms.js";
 import type * as testing from "../testing.js";
@@ -22,6 +23,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  playtest: typeof playtest;
   results: typeof results;
   rooms: typeof rooms;
   testing: typeof testing;
