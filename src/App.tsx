@@ -1127,6 +1127,11 @@ export default function App({ username }: { username: string }) {
                   <div
                     className={`player-pill ${game.phase === "playing" && game.turn === i ? "active" : ""}`}
                     key={p.id}
+                    aria-current={
+                      game.phase === "playing" && game.turn === i
+                        ? "true"
+                        : undefined
+                    }
                     style={
                       {
                         "--player": playerColors[p.id],
@@ -1144,10 +1149,15 @@ export default function App({ username }: { username: string }) {
                       <b className="player-number">{p.color + 1}</b>
                     </span>
                     <div>
-                      <strong>
-                        {p.name}
-                        {p.id === me?.id ? " (you)" : ""}
-                      </strong>
+                      <div className="player-heading">
+                        <strong>
+                          {p.name}
+                          {p.id === me?.id ? " (you)" : ""}
+                        </strong>
+                        {game.phase === "playing" && game.turn === i && (
+                          <span className="turn-badge">TURN</span>
+                        )}
+                      </div>
                       <small>
                         {game.phase === "lobby"
                           ? i === 0
@@ -1222,6 +1232,11 @@ export default function App({ username }: { username: string }) {
                     </button>
                   </>
                 }
+              />
+              <GameEvents
+                game={me || watching ? game : undefined}
+                room={code}
+                revealDone={scoreReveal.done}
               />
               {game.phase === "finished" && !scoreReveal.done && (
                 <ScoreRevealCard
@@ -1791,11 +1806,6 @@ export default function App({ username }: { username: string }) {
           </aside>
         </main>
       )}
-      <GameEvents
-        game={me || watching ? game : undefined}
-        room={code}
-        revealDone={scoreReveal.done}
-      />
       {drawFlights.map((flight) => (
         <CardDrawFlight
           key={flight.id}

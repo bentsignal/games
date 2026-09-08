@@ -50,8 +50,13 @@ try {
   const notice = await page
     .locator(".final-round-announcement > div")
     .boundingBox();
-  assert(Math.abs(notice!.x + notice!.width / 2 - 720) < 2);
-  assert(Math.abs(notice!.y + notice!.height / 2 - 500) < 2);
+  const board = (await page.locator(".board-shell").boundingBox())!;
+  assert(
+    Math.abs(notice!.x + notice!.width / 2 - board.x - board.width / 2) < 2,
+  );
+  assert(
+    Math.abs(notice!.y + notice!.height / 2 - board.y - board.height / 2) < 2,
+  );
   await page.screenshot({ path: "/tmp/ticket-final-round.png" });
   await expect(page.locator(".final-round-announcement")).toBeHidden({
     timeout: 4000,

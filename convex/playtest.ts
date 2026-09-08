@@ -1,4 +1,4 @@
-// Admin-only creation of isolated end-game previews; never changes existing rooms.
+// Admin-only creation and explicit reset of isolated end-game previews.
 import { internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import fixtures from "../src/game/playtest-endings.json";
@@ -30,29 +30,7 @@ export const createEndings = internalMutation({
           .unique()
       );
       const fixture = fixtures[outcome];
-      const game = structuredClone(fixture.game) as Game;
-      const ids = Object.fromEntries(
-        game.players.map((p, i) => [
-          p.id,
-          i === 0 ? user.playerId! : `bot-${code}`,
-        ]),
-      );
-      const oldNames = game.players.map((p) => p.name);
-      game.players = game.players.map((p, i) => ({
-        ...p,
-        id: ids[p.id],
-        name: i === 0 ? user.username! : "Jules",
-        bot: i !== 0,
-      }));
-      game.claimed = Object.fromEntries(
-        Object.entries(game.claimed).map(([route, id]) => [route, ids[id]]),
-      );
-      game.log = game.log.map((line) =>
-        line
-          .replaceAll(oldNames[0], user.username!)
-          .replaceAll(oldNames[1], "Jules"),
-      );
-      game.roundId = Date.now();
+      const game = previewGame(outcome, code, user.playerId, user.username);
       await ctx.db.insert("rooms", {
         code,
         game,
@@ -74,5 +52,74 @@ export const createEndings = internalMutation({
       });
     }
     return links;
+  },
+});
+
+function previewGame(
+  outcome: "win" | "lose",
+  code: string,
+  playerId: string,
+  username: string,
+): Game {
+  const fixture = fixtures[outcome];
+  const game = structuredClone(fixture.game) as Game;
+  const ids = Object.fromEntries(
+    game.players.map((p, i) => [p.id, i === 0 ? playerId : `bot-${code}`]),
+  );
+  const oldNames = game.players.map((p) => p.name);
+  game.players = game.players.map((p, i) => ({
+    ...p,
+    id: ids[p.id],
+    name: i === 0 ? username : "Jules",
+    bot: i !== 0,
+  }));
+  game.claimed = Object.fromEntries(
+    Object.entries(game.claimed).map(([route, id]) => [route, ids[id]]),
+  );
+  game.log = game.log.map((line) =>
+    line.replaceAll(oldNames[0], username).replaceAll(oldNames[1], "Jules"),
+  );
+  game.roundId = Date.now();
+  return game;
+}
+
+// Explicitly reset one preview only; revision invalidates any queued computer moves.
+export const resetEnding = internalMutation({
+  args: {
+    code: v.string(),
+    username: v.string(),
+    outcome: v.union(v.literal("win"), v.literal("lose")),
+  },
+  handler: async (ctx, { code, username, outcome }) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_username", (q) =>
+        q.eq("usernameKey", username.toLowerCase()),
+      )
+      .unique();
+    const room = await ctx.db
+      .query("rooms")
+      .withIndex("by_code", (q) => q.eq("code", code))
+      .unique();
+    if (
+      !user?.playerId ||
+      !user.username ||
+      !room?.preview ||
+      (room.game as Game).players[0]?.id !== user.playerId
+    )
+      throw Error("This must be a preview owned by the specified account.");
+    const game = previewGame(outcome, code, user.playerId, user.username);
+    game.roundId = Math.max(Date.now(), ((room.game as Game).roundId ?? 0) + 1);
+    await ctx.db.patch(room._id, {
+      game,
+      revision: room.revision + 1,
+      updatedAt: Date.now(),
+    });
+    return {
+      code,
+      roundId: game.roundId,
+      phase: game.phase,
+      finalTurns: game.finalTurns,
+    };
   },
 });

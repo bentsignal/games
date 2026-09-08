@@ -72,12 +72,12 @@ function Fixture() {
       <TrainCard color="wild" />
       <div className="board-shell" style={{ height: 600 }}>
         <Board game={playerView(game, "a")} onSelect={() => {}} />
+        <GameEvents
+          game={playerView(game, "a")}
+          room="EVENTS"
+          revealDone={done}
+        />
       </div>
-      <GameEvents
-        game={playerView(game, "a")}
-        room="EVENTS"
-        revealDone={done}
-      />
     </>
   );
 }

@@ -53,7 +53,7 @@ export default function GameEvents({
   useEffect(() => {
     setConfetti(false);
   }, [scope]);
-  return createPortal(
+  return (
     <>
       {finalRound && (
         <div className="final-round-announcement" role="status">
@@ -63,31 +63,32 @@ export default function GameEvents({
           </div>
         </div>
       )}
-      {confetti && (
-        <div className="winner-confetti" aria-hidden="true">
-          {Array.from({ length: 110 }, (_, i) => (
-            <i
-              key={i}
-              style={
-                {
-                  left: `${(i * 37) % 100}%`,
-                  background: [
-                    "#ffc629",
-                    "#f24c50",
-                    "#37bcec",
-                    "#59da76",
-                    "#d479ed",
-                    "#fff3bd",
-                  ][i % 6],
-                  animationDelay: `${(i % 17) * 0.05}s`,
-                  "--drift": `${((i * 43) % 280) - 140}px`,
-                } as CSSProperties
-              }
-            />
-          ))}
-        </div>
-      )}
-    </>,
-    document.body,
+      {confetti &&
+        createPortal(
+          <div className="winner-confetti" aria-hidden="true">
+            {Array.from({ length: 110 }, (_, i) => (
+              <i
+                key={i}
+                style={
+                  {
+                    left: `${(i * 37) % 100}%`,
+                    background: [
+                      "#ffc629",
+                      "#f24c50",
+                      "#37bcec",
+                      "#59da76",
+                      "#d479ed",
+                      "#fff3bd",
+                    ][i % 6],
+                    animationDelay: `${(i % 17) * 0.05}s`,
+                    "--drift": `${((i * 43) % 280) - 140}px`,
+                  } as CSSProperties
+                }
+              />
+            ))}
+          </div>,
+          document.body,
+        )}
+    </>
   );
 }
