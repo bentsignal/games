@@ -38,9 +38,31 @@ describe("Google account game access", () => {
       other.mutation(api.users.onboard, { username: "shawn" }),
     ).rejects.toThrow("taken");
     await other.mutation(api.users.onboard, { username: "Friend" });
-    expect(
-      (await other.query(api.rooms.get, { token, code }))?.game,
-    ).toBeNull();
+    const spectator = (await other.query(api.rooms.get, { token, code }))!
+      .game!;
+    expect(spectator.me).toBeNull();
+    expect(spectator.revealed).toEqual({});
+    expect(spectator.players[0]).not.toHaveProperty("hand");
+    expect(spectator.players[0]).not.toHaveProperty("tickets");
+    expect(spectator).not.toHaveProperty("deck");
+    await expect(
+      other.mutation(api.rooms.manage, { token, code, operation: "bot" }),
+    ).rejects.toThrow("Not seated");
+    await expect(
+      other.mutation(api.rooms.play, {
+        token,
+        code,
+        revision: 0,
+        action: { type: "start" },
+      }),
+    ).rejects.toThrow();
+    await other.mutation(api.rooms.send, { token, code, text: "Watching!" });
+    const chat = await other.query(api.rooms.chat, {
+      token,
+      code,
+      paginationOpts: { numItems: 50, cursor: null },
+    });
+    expect(chat.page[0].name).toBe("Friend");
     await other.mutation(api.rooms.join, { token, code, name: "Spoofed" });
     expect(
       (await other.query(api.rooms.get, { token, code }))?.game?.me?.name,

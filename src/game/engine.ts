@@ -395,7 +395,7 @@ export function applyAction(original: Game, id: string, action: Action): Game {
       );
       insist(
         !(g.drawn === 1 && card === "wild"),
-        "A face-up locomotive takes your whole turn.",
+        "A face-up rainbow card takes your whole turn.",
       );
       g.marketSlots ??= g.market.map((_, i) => i);
       const replacement = takeCard(g);
@@ -410,7 +410,7 @@ export function applyAction(original: Game, id: string, action: Action): Game {
     g.passes = 0;
     log(
       g,
-      `${p.name} drew ${action.source === -1 ? "a hidden train card" : card === "wild" ? "a locomotive" : `a ${card} train card`}.`,
+      `${p.name} drew ${action.source === -1 ? "a hidden train card" : card === "wild" ? "a rainbow card" : `a ${card} train card`}.`,
     );
     refillMarket(g);
     const canDrawAgain =

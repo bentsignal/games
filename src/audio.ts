@@ -69,14 +69,59 @@ export function cue(
     | "buzzer"
     | "score-step"
     | "score-tick"
-    | "finale",
+    | "finale"
+    | "applause"
+    | "boo",
 ) {
   if (!enabled) return;
   void unlockAudio().then(() => {
     if (!enabled || !context || context.state !== "running") return;
     const ctx = context,
       now = ctx.currentTime;
-    if (kind === "cash") {
+    if (kind === "applause") {
+      // A small crowd of overlapping handclaps, with varied timing and timbre.
+      for (let i = 0; i < 95; i++) {
+        const delay = i * 0.03 + Math.random() * 0.08;
+        const level = 0.16 * Math.min(1, (i + 8) / 20, (100 - i) / 25);
+        noise(
+          ctx,
+          now + delay,
+          0.045 + Math.random() * 0.055,
+          level,
+          1000 + Math.random() * 1600,
+        );
+      }
+    } else if (kind === "boo") {
+      // Layered low voices through two vowel formants make a playful crowd “boo”.
+      for (let i = 0; i < 7; i++) {
+        const voice = ctx.createOscillator(),
+          gain = ctx.createGain();
+        const start = now + i * 0.045;
+        voice.type = "sawtooth";
+        voice.frequency.setValueAtTime(105 + i * 13, start);
+        voice.frequency.linearRampToValueAtTime(85 + i * 11, start + 1.25);
+        gain.gain.setValueAtTime(0, start);
+        gain.gain.linearRampToValueAtTime(0.028, start + 0.18);
+        gain.gain.setValueAtTime(0.023, start + 0.9);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + 1.65);
+        const filters = [350, 750].map((frequency) => {
+          const filter = ctx.createBiquadFilter();
+          filter.type = "bandpass";
+          filter.frequency.value = frequency;
+          filter.Q.value = 4;
+          voice.connect(filter).connect(gain);
+          return filter;
+        });
+        gain.connect(ctx.destination);
+        voice.start(start);
+        voice.stop(start + 1.7);
+        voice.onended = () => {
+          voice.disconnect();
+          gain.disconnect();
+          filters.forEach((f) => f.disconnect());
+        };
+      }
+    } else if (kind === "cash") {
       // Register key and drawer clacks, followed by a bright double bell.
       noise(ctx, now, 0.045, 0.22, 1100);
       noise(ctx, now + 0.1, 0.06, 0.16, 2200);

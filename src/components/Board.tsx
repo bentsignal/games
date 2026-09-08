@@ -384,8 +384,12 @@ export default function Board({
                     tabIndex={demo ? undefined : 0}
                     aria-label={`${r.a} to ${r.b}, ${r.length} ${r.color}${owner ? `, claimed by ${owner.name}` : blocked ? `, ${blocked}` : ""}`}
                     aria-pressed={demo ? undefined : selected === r.id}
-                    onMouseEnter={() => setHover(r.id)}
-                    onMouseLeave={() => setHover(undefined)}
+                    onMouseEnter={() => {
+                      if (!eligible) setHover(r.id);
+                    }}
+                    onMouseLeave={() => {
+                      if (!eligible) setHover(undefined);
+                    }}
                     onFocus={() => setHover(r.id)}
                     onBlur={() => setHover(undefined)}
                     onKeyDown={(e) => {
@@ -585,6 +589,24 @@ export default function Board({
           </g>
         </g>
       </svg>
+      <svg
+        className="drag-highlight-layer"
+        viewBox="0 0 1400 900"
+        aria-hidden="true"
+      >
+        <g
+          transform={`translate(${700 + view.x} ${450 + view.y}) scale(${view.z}) translate(-700 -450)`}
+        >
+          <path
+            data-drag-highlight="true"
+            fill="none"
+            stroke="#18a87d"
+            strokeWidth="24"
+            strokeLinecap="round"
+            opacity=".65"
+          />
+        </g>
+      </svg>
       {!demo && (
         <>
           <div className="map-controls">
@@ -707,7 +729,7 @@ const TrainPieces = memo(function TrainPieces({
                 width={c.width}
                 height="9"
                 rx="1.5"
-                fill={blocked ? "#b7aa96" : color}
+                fill={color}
                 stroke="#675c4e"
                 strokeWidth="1.2"
               />

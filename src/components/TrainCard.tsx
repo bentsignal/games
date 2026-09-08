@@ -46,13 +46,15 @@ export default function TrainCard({
       data-market-source={marketSource}
       draggable={false}
       onDragStart={(e) => e.preventDefault()}
-      aria-label={label || `${color} ${count ?? ""}`}
+      aria-label={
+        label || `${color === "wild" ? "rainbow" : color} ${count ?? ""}`
+      }
       aria-pressed={selected}
       title={
         color === "back"
           ? "Draw a random face-down card"
           : color === "wild"
-            ? "Locomotive · wild"
+            ? "Rainbow · wild card"
             : `${color}${onDrag ? " · drag to a route" : ""}`
       }
       onClick={() => {
@@ -112,7 +114,7 @@ export default function TrainCard({
       </span>
       <TrainArtwork color={color} />
       <span className="card-name">
-        {color === "back" ? "FACE DOWN" : color === "wild" ? "LOCO" : color}
+        {color === "back" ? "FACE DOWN" : color === "wild" ? "RAINBOW" : color}
       </span>
       {count !== undefined && <b className="card-count">{count}</b>}
     </button>

@@ -113,3 +113,11 @@ Production redirects return only to `https://ticket.bentsignal.com`; localhost:5
 Usernames use 3–24 letters, digits, or underscores and are case-insensitively unique. Room creation has a transactional 10-second cooldown and a 20-per-account UTC-day limit. Chat has a 750ms cooldown and 500-character message limit, with no message-count retention cap. Queries load 50 messages at a time; older messages remain available. Only an empty lobby abandoned by its last player is deleted, with its chat cleaned in bounded batches. Active/finished games remain saved; completed real rounds get separate permanent results before any rematch.
 
 See [cost and retention audit](docs/costs-and-retention.md) for measured usage and spend-control limitations.
+
+## Spectators and playtest feedback
+
+Signed-in friends can open a room code and choose **Watch game**, including after play starts or all five seats are filled. Spectators receive the public board, card counts, market, chat, activity, and final scoring. They cannot see hands or uncompleted ticket choices, make moves, or manage seats. Watching links retain `?watch=1` across refresh; spectators may take an open seat before the game starts.
+
+Blocked double lanes keep their printed color under the cross-out marks. Rainbow cards use a brighter spectrum. A brief centered final-round notice plays a whistle; finishing the scoring reveal plays applause and full-viewport confetti for winners, or playful synthesized boos for other players. Spectators get neither personal outcome effect. Effects respect mute and reduced-motion preferences. `npx tsx scripts/check-game-events.ts` checks these visual and sound behaviors with local fixtures.
+
+Card dragging uses geometric hit testing and a separate composited SVG highlight layer. Crossing routes does not modify the underlying map/train elements; layout reads precede ghost movement writes.

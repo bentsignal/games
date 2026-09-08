@@ -125,14 +125,6 @@ export const get = query({
         .unique();
     if (!room) return null;
     const game = room.game as Game;
-    if (!game.players.some((p) => p.id === id))
-      return {
-        code: room.code,
-        revision: room.revision,
-        game: null,
-        seats: game.players.length,
-        phase: game.phase,
-      };
     return {
       code: room.code,
       revision: room.revision,
@@ -353,8 +345,7 @@ export const chat = query({
         .query("rooms")
         .withIndex("by_code", (q) => q.eq("code", code))
         .unique();
-    if (!room || !(room.game as Game).players.some((p) => p.id === id))
-      return { page: [], isDone: true, continueCursor: "" };
+    if (!room) return { page: [], isDone: true, continueCursor: "" };
     return await ctx.db
       .query("messages")
       .withIndex("by_room", (q) => q.eq("room", room._id))
@@ -365,7 +356,7 @@ export const chat = query({
 export const send = mutation({
   args: { code: v.string(), token: v.string(), text: v.string() },
   handler: async (ctx, { code, token, text }) => {
-    const { id } = await requirePlayer(ctx),
+    const { id, name: accountName } = await requirePlayer(ctx),
       room = await ctx.db
         .query("rooms")
         .withIndex("by_code", (q) => q.eq("code", code))
@@ -373,7 +364,7 @@ export const send = mutation({
     const p = (room?.game as Game | undefined)?.players.find(
       (p) => p.id === id,
     );
-    if (!room || !p) throw new ConvexError("Join this room to chat.");
+    if (!room) throw new ConvexError("Room not found.");
     const message = text.trim();
     if (!message || message.length > 500)
       throw new ConvexError("Messages must be 1–500 characters.");
@@ -393,7 +384,7 @@ export const send = mutation({
     await ctx.db.insert("messages", {
       room: room._id,
       sender: id,
-      name: p.name,
+      name: p?.name ?? accountName,
       text: message,
       time: Date.now(),
     });

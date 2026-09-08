@@ -85,6 +85,40 @@ test("card movement stays off the React render loop and keeps the map stable", a
   console.log(JSON.stringify({ baseURL, ...result }));
   expect(result.commits).toBeLessThan(8);
   expect(result.mapMutations).toBe(0);
+  // Crossing routes must update only the single highlight path, not hundreds of train nodes.
+  const cdp = await aContext.newCDPSession(a);
+  await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 });
+  await a.evaluate(() => {
+    (window as any).__trackMutations = 0;
+    const observer = new MutationObserver((records) => {
+      (window as any).__trackMutations += records.length;
+    });
+    document
+      .querySelectorAll(".map-route")
+      .forEach((route) =>
+        observer.observe(route, {
+          attributes: true,
+          childList: true,
+          subtree: true,
+        }),
+      );
+    (window as any).__trackObserver = observer;
+  });
+  await a.mouse.move(map.x + map.width * 0.15, map.y + map.height * 0.25, {
+    steps: 30,
+  });
+  await a.mouse.move(map.x + map.width * 0.85, map.y + map.height * 0.65, {
+    steps: 60,
+  });
+  const trackMutations = await a.evaluate(() => {
+    (window as any).__trackObserver.disconnect();
+    return (window as any).__trackMutations;
+  });
+  console.log(
+    JSON.stringify({ throttledRouteCrossingMutations: trackMutations }),
+  );
+  expect(trackMutations).toBe(0);
+  await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 });
   await a.keyboard.press("Escape");
   await a.mouse.up();
   await expect(a.locator(".card-drag-ghost")).toHaveCount(0);

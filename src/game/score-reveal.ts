@@ -33,12 +33,12 @@ export function scoreSteps(game: View): ScoreStep[] {
   const steps: ScoreStep[] = [];
   const intro = (label: string) =>
     steps.push({ kind: "intro", label, delta: 0, duration: 1000, routes: [] });
-  intro("Route points");
+  intro("Base score (trains placed)");
   for (const p of game.players) {
     const r = game.results.find((r) => r.id === p.id)!;
     steps.push({
       kind: "routes",
-      label: "Routes",
+      label: "Base score (trains placed)",
       player: p.id,
       delta: r.routePoints,
       duration: 1900,

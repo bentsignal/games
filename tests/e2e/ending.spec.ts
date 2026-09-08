@@ -8,19 +8,19 @@ test("the final reveal keeps the winner hidden, counts all scores, and supports 
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.addInitScript(() => {
-    (window as any).__endingFinales = 0;
+    (window as any).__crowdBoos = 0;
     (window as any).__cashSounds = 0;
     (window as any).__buzzerSounds = 0;
     const native = AudioContext.prototype.createOscillator;
     AudioContext.prototype.createOscillator = function () {
       const node = native.call(this),
         start = node.start.bind(node);
+      const setFrequency = node.frequency.setValueAtTime.bind(node.frequency);
+      node.frequency.setValueAtTime = (value, time) => {
+        if (value === 105) (window as any).__crowdBoos++;
+        return setFrequency(value, time);
+      };
       node.start = (...args) => {
-        if (
-          node.type === "triangle" &&
-          Math.abs(node.frequency.value - 1046.5) < 0.1
-        )
-          (window as any).__endingFinales++;
         if (node.type === "sine" && Math.abs(node.frequency.value - 1568) < 0.1)
           (window as any).__cashSounds++;
         if (node.type === "sawtooth") (window as any).__buzzerSounds++;
@@ -115,7 +115,7 @@ test("the final reveal keeps the winner hidden, counts all scores, and supports 
   await expect(scoreboard).toHaveAttribute("data-reveal-done", "false");
   await expect(page.locator(".rank-trophy")).toHaveCount(0);
   await expect(page.locator(".score-reveal-card")).toContainText(
-    "Route points",
+    "Base score (trains placed)",
   );
   await expect(page.locator(".score-reveal-card")).toContainText(
     "Destination tickets",
@@ -156,8 +156,8 @@ test("the final reveal keeps the winner hidden, counts all scores, and supports 
   ).toHaveCount(4);
   await page.getByRole("tab", { name: "Activity" }).click();
   await expect
-    .poll(() => page.evaluate(() => (window as any).__endingFinales))
-    .toBe(1);
+    .poll(() => page.evaluate(() => (window as any).__crowdBoos))
+    .toBeGreaterThan(0);
   await expect(
     page.getByText("The final whistle. All destination tickets are revealed.", {
       exact: true,

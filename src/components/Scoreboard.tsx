@@ -92,7 +92,6 @@ export function useScoreReveal(game: View | null | undefined, room: string) {
         sessionStorage.setItem(`ticket-reveal:v2:${scope}`, String(c.index));
         setFrame({ scope, index: c.index, progress: 0 });
         if (c.index >= steps.length) {
-          cue("finale");
           clearInterval(timer);
         }
       }
@@ -204,7 +203,7 @@ export default function Scoreboard({
             </strong>
             <dl>
               <div>
-                <dt>Routes</dt>
+                <dt>Base score</dt>
                 <dd>{shown("routes") ? r.routePoints : "—"}</dd>
               </div>
               <div>

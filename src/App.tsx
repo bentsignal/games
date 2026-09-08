@@ -1,9 +1,10 @@
+import GameEvents from "./components/GameEvents";
 import CardDrawFlight, { type DrawFlight } from "./components/CardDrawFlight";
 import DestinationFeedback, {
   useDestinationFeedback,
 } from "./components/DestinationFeedback";
 import { playerDisplayColors } from "./game/player-colors";
-import { routeAtMapPoint } from "./game/map-layout";
+import { routeAtMapPoint, tracks } from "./game/map-layout";
 import {
   Component,
   Suspense,
@@ -64,6 +65,7 @@ import {
 } from "./game/data";
 import {
   connected,
+  routeAvailable,
   paymentOptions,
   type Action,
   type Game,
@@ -281,17 +283,17 @@ function Rules({ onClose }: { onClose: () => void }) {
         <article>
           <b>01 · Collect train cards</b>
           <p>
-            Take two cards from the market or hidden deck. A face-up locomotive
-            is wild and uses your entire turn; you cannot take it as your second
-            card. A hidden locomotive counts as one draw.
+            Take two cards from the market or hidden deck. A face-up rainbow
+            card is wild and uses your entire turn; you cannot take it as your
+            second card. A hidden rainbow card counts as one draw.
           </p>
         </article>
         <article>
           <b>02 · Claim a route</b>
           <p>
             Click a track or open the route list. Pay one matching card for each
-            space. Gray routes use any one color; locomotives can replace any
-            cards. You choose exactly how many locomotives to spend.
+            space. Gray routes use any one color; rainbow cards can replace any
+            cards. You choose exactly how many rainbow cards to spend.
           </p>
         </article>
         <article>
@@ -316,8 +318,8 @@ function Rules({ onClose }: { onClose: () => void }) {
         <p>
           Each player starts with 45 trains and four cards. With 2–3 players
           only one half of a double route can be used. With 4–5 players both
-          halves can be claimed by different players. Three face-up locomotives
-          clear the market. Empty train decks refill from discards.
+          halves can be claimed by different players. Three face-up rainbow
+          cards clear the market. Empty train decks refill from discards.
         </p>
         <p>
           Route lengths 1 / 2 / 3 / 4 / 5 / 6 score 1 / 2 / 4 / 7 / 10 / 15
@@ -354,6 +356,9 @@ function Rules({ onClose }: { onClose: () => void }) {
 
 export default function App({ username }: { username: string }) {
   const { signOut } = useAuthActions();
+  const [watching, setWatching] = useState(() =>
+    new URLSearchParams(location.search).has("watch"),
+  );
   const [code, setCode] = useState(roomFromUrl),
     [name] = useState(username),
     [mode, setMode] = useState<Mode>("mega"),
@@ -391,6 +396,7 @@ export default function App({ username }: { username: string }) {
   const dragSession = useRef<{ color: Color; point: CardPoint } | null>(null);
   const dragGhost = useRef<HTMLDivElement>(null);
   const dragFrame = useRef<number | null>(null);
+  const lastDragTarget = useRef<string | undefined>(undefined);
   const releaseDrag = useRef<(point: CardPoint) => void>(() => {});
   const [ticketSelection, setTicketSelection] = useState<string[]>([]),
     [pinnedTickets, setPinnedTickets] = useState<string[]>([]),
@@ -423,7 +429,7 @@ export default function App({ username }: { username: string }) {
     [game?.players, me?.id, code],
   );
   const completion = useDestinationFeedback(game, code);
-  const scoreReveal = useScoreReveal(game, code);
+  const scoreReveal = useScoreReveal(me || watching ? game : undefined, code);
   useEffect(() => {
     if (game?.phase === "finished") {
       setTab("scoreboard");
@@ -457,7 +463,8 @@ export default function App({ username }: { username: string }) {
     ...messages,
     ...chatNotices.filter((m) => m.code === code),
   ].sort((a, b) => a.time - b.time);
-  const activeTab = game?.phase === "lobby" ? "chat" : tab;
+  const activeTab =
+    game?.phase === "lobby" || (!me && tab === "tickets") ? "chat" : tab;
   const chatEnd = useRef<HTMLDivElement>(null);
   const messagesBox = useRef<HTMLDivElement>(null);
   const olderChatScroll = useRef<{ height: number; top: number } | null>(null);
@@ -472,7 +479,10 @@ export default function App({ username }: { username: string }) {
     }
   }, [chatMessages.length, activeTab]);
   useEffect(() => {
-    const pop = () => setCode(roomFromUrl());
+    const pop = () => {
+      setCode(roomFromUrl());
+      setWatching(new URLSearchParams(location.search).has("watch"));
+    };
     window.addEventListener("popstate", pop);
     return () => window.removeEventListener("popstate", pop);
   }, []);
@@ -605,16 +615,42 @@ export default function App({ username }: { username: string }) {
       dragFrame.current = null;
       const session = dragSession.current;
       if (!session) return;
-      if (dragGhost.current)
-        dragGhost.current.style.translate = `${session.point.x}px ${session.point.y}px`;
+      // Read SVG geometry before moving the ghost, avoiding a write/read layout flush.
       const hit = ROUTES.find((r) => r.id === routeAt(session.point));
-      setDropRoute(
+      const target =
         hit && game
           ? (automaticRoute(game, hit, session.color)?.id ?? hit.id)
-          : undefined,
-      );
+          : undefined;
+      if (dragGhost.current)
+        dragGhost.current.style.translate = `${session.point.x}px ${session.point.y}px`;
+      if (target !== lastDragTarget.current) {
+        lastDragTarget.current = target;
+        setDropRoute(target);
+        const paths =
+          hit && game
+            ? tracks
+                .filter(
+                  (t) =>
+                    t.route.a === hit.a &&
+                    t.route.b === hit.b &&
+                    routeAvailable(game as unknown as Game, game.me!, t.route),
+                )
+                .map((t) => t.path)
+                .join(" ")
+            : "";
+        document
+          .querySelector("[data-drag-highlight]")
+          ?.setAttribute("d", paths);
+      }
     });
   }
+  useEffect(() => {
+    if (!dragPoint) {
+      lastDragTarget.current = undefined;
+      const overlay = document.querySelector("[data-drag-highlight]");
+      if (overlay?.getAttribute("d")) overlay.setAttribute("d", "");
+    }
+  }, [dragPoint]);
   function cancelCard() {
     dragSession.current = null;
     setCardColor(null);
@@ -675,6 +711,7 @@ export default function App({ username }: { username: string }) {
   const visit = (roomCode: string) => {
     history.pushState({}, "", roomCode ? "/room/" + roomCode : "/");
     setCode(roomCode);
+    setWatching(false);
     setSelected(null);
     setError("");
   };
@@ -982,16 +1019,7 @@ export default function App({ username }: { username: string }) {
               className="join-form"
               onSubmit={(e) => {
                 e.preventDefault();
-                saveName();
-                void run(async () =>
-                  visit(
-                    await join({
-                      code: joinCode.toUpperCase().trim(),
-                      name,
-                      token,
-                    }),
-                  ),
-                );
+                visit(joinCode.toUpperCase().trim());
               }}
             >
               <input
@@ -1007,7 +1035,7 @@ export default function App({ username }: { username: string }) {
                 className="secondary"
                 disabled={busy || !name.trim() || joinCode.length !== 8}
               >
-                Join <ArrowRight size={16} />
+                Open <ArrowRight size={16} />
               </button>
             </form>
           </section>
@@ -1031,7 +1059,7 @@ export default function App({ username }: { username: string }) {
             Back to home
           </button>
         </div>
-      ) : !game ? (
+      ) : !game || (!me && !watching) ? (
         <main className="join-page">
           <div className="join-illustration">
             <TrainFront size={70} strokeWidth={1} />
@@ -1061,13 +1089,23 @@ export default function App({ username }: { username: string }) {
                 : "The game has already started. Sign in with the account you used to join to recover your seat."}
             </p>
           )}
+          <button
+            className="secondary"
+            onClick={() => {
+              history.replaceState({}, "", `/room/${code}?watch=1`);
+              setWatching(true);
+              setTab("chat");
+            }}
+          >
+            Watch game
+          </button>
           <button className="text-button" onClick={() => visit("")}>
             Back to home
           </button>
         </main>
       ) : (
         <main
-          className={`table-layout ${game.phase === "lobby" ? "lobby-layout" : ""} ${game.phase === "finished" ? "finished-layout" : ""}`}
+          className={`table-layout ${!me ? "spectating" : ""} ${game.phase === "lobby" ? "lobby-layout" : ""} ${game.phase === "finished" ? "finished-layout" : ""}`}
         >
           <section className="table-main">
             <div className="table-heading compact-heading">
@@ -1156,7 +1194,6 @@ export default function App({ username }: { username: string }) {
                   game.phase === "finished" && !scoreReveal.done ? [] : previews
                 }
                 eligible={eligible}
-                dropTarget={dropRoute}
                 controls={
                   <>
                     <button
@@ -1247,7 +1284,7 @@ export default function App({ username }: { username: string }) {
                               } as React.CSSProperties
                             }
                             disabled={!canAct || !!game.drawn}
-                            aria-label={`Claim route with ${selected.length - o.wilds} ${o.color}${o.wilds ? ` and ${o.wilds} locomotives` : ""}`}
+                            aria-label={`Claim route with ${selected.length - o.wilds} ${o.color}${o.wilds ? ` and ${o.wilds} rainbow cards` : ""}`}
                             onClick={() =>
                               action({
                                 type: "claim",
@@ -1280,9 +1317,8 @@ export default function App({ username }: { username: string }) {
             {game.phase !== "lobby" && me && (
               <section className="hand-panel">
                 <div className="hand-title">
-                  <div className="eyebrow">YOUR CARRIAGE</div>
                   <h3>
-                    Train cards <span>{me.hand.length}</span>
+                    Cards <span>{me.hand.length}</span>
                   </h3>
                   <p>
                     <TrainFront size={14} />
@@ -1316,6 +1352,15 @@ export default function App({ username }: { username: string }) {
             className={`table-sidebar ${me?.pending.length ? "choosing-tickets" : ""}`}
           >
             <div className="table-actions">
+              {!me && game.phase === "lobby" && game.players.length < 5 && (
+                <button
+                  className="primary full"
+                  disabled={busy}
+                  onClick={() => void run(() => join({ code, token, name }))}
+                >
+                  Join game
+                </button>
+              )}
               {game.phase === "finished" && host && (
                 <button
                   className="primary full"
@@ -1347,16 +1392,19 @@ export default function App({ username }: { username: string }) {
                   pendingTable.includes("resign")
                 }
                 onClick={() =>
-                  game.phase === "lobby"
-                    ? setTable("leave")
-                    : !me?.bot && game.phase !== "finished"
-                      ? setResign(true)
-                      : visit("")
+                  !me
+                    ? visit("")
+                    : game.phase === "lobby"
+                      ? setTable("leave")
+                      : !me?.bot && game.phase !== "finished"
+                        ? setResign(true)
+                        : visit("")
                 }
               >
                 <LogOut size={16} /> Leave table
               </button>
             </div>
+            {!me && <p className="spectator-status">SPECTATING</p>}
             {me?.pending.length && !me.bot ? (
               <TicketChoice
                 game={game}
@@ -1488,7 +1536,7 @@ export default function App({ username }: { username: string }) {
                       </div>
                     </div>
                     <div className="market-heading">
-                      <h3>Train cards</h3>
+                      <h3>Cards</h3>
                       <span>{game.deckCount + game.discardCount} in deck</span>
                     </div>
                     <div className="market-cards">
@@ -1503,7 +1551,7 @@ export default function App({ username }: { username: string }) {
                             key={slot}
                             marketSource={i}
                             color={c}
-                            label={`Draw ${c} market card ${slot + 1}`}
+                            label={`Draw ${c === "wild" ? "rainbow" : c} market card ${slot + 1}`}
                             onClick={() =>
                               action({ type: "draw", source: i, expected: c })
                             }
@@ -1518,7 +1566,9 @@ export default function App({ username }: { username: string }) {
                         );
                       })}
                     </div>
-                    <div className="draw-piles">
+                    <div
+                      className={`draw-piles ${!me ? "spectator-hidden" : ""}`}
+                    >
                       <div className="face-down-pile">
                         <TrainCard
                           color="back"
@@ -1577,7 +1627,7 @@ export default function App({ username }: { username: string }) {
                       Scoreboard
                     </button>
                   )}
-                  {game.phase !== "lobby" && (
+                  {game.phase !== "lobby" && me && (
                     <button
                       role="tab"
                       aria-selected={activeTab === "tickets"}
@@ -1741,6 +1791,11 @@ export default function App({ username }: { username: string }) {
           </aside>
         </main>
       )}
+      <GameEvents
+        game={me || watching ? game : undefined}
+        room={code}
+        revealDone={scoreReveal.done}
+      />
       {drawFlights.map((flight) => (
         <CardDrawFlight
           key={flight.id}
