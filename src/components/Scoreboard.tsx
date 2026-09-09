@@ -107,6 +107,23 @@ export function useScoreReveal(game: View | null | undefined, room: string) {
     done,
     paused,
     totals,
+    ticketTotals: countScores(
+      steps,
+      index,
+      done ? 1 : frame.progress,
+      "ticket",
+    ),
+    completedTickets: steps.reduce<Record<string, number>>((counts, s, i) => {
+      if (
+        s.player &&
+        s.kind === "ticket" &&
+        s.delta > 0 &&
+        (i < index || (i === index && frame.progress >= 1))
+      ) {
+        counts[s.player] = (counts[s.player] ?? 0) + 1;
+      }
+      return counts;
+    }, {}),
     step: done ? undefined : steps[index],
     togglePause: () => setPaused((p) => !p),
     skip: () => {
@@ -171,6 +188,12 @@ export default function Scoreboard({
       {rows.map((r, i) => {
         if (i && !sameRank(rows[i - 1], r)) rank = i + 1;
         const p = game.players.find((p) => p.id === r.id)!;
+        const ticketPoints = reveal.done
+          ? r.ticketPoints
+          : (reveal.ticketTotals[r.id] ?? 0);
+        const completed = reveal.done
+          ? r.completed
+          : (reveal.completedTickets[r.id] ?? 0);
         const shown = (kind: string) =>
           reveal.done ||
           reveal.steps.some(
@@ -207,14 +230,8 @@ export default function Scoreboard({
                 <dd>{shown("routes") ? r.routePoints : "—"}</dd>
               </div>
               <div>
-                <dt>
-                  Tickets{reveal.done ? ` (${r.completed} complete)` : ""}
-                </dt>
-                <dd>
-                  {reveal.done
-                    ? `${r.ticketPoints > 0 ? "+" : ""}${r.ticketPoints}`
-                    : "—"}
-                </dd>
+                <dt>Tickets{` (${completed} complete)`}</dt>
+                <dd>{`${ticketPoints > 0 ? "+" : ""}${ticketPoints}`}</dd>
               </div>
               <div
                 className={

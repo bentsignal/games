@@ -1,4 +1,5 @@
 import applauseUrl from "./assets/audio/applause.mp3";
+import golfClapUrl from "./assets/audio/golf-clap.mp3";
 import booUrl from "./assets/audio/boo.mp3";
 // Original paper/card and steam-whistle sounds, synthesized locally.
 let context: AudioContext | undefined;
@@ -74,10 +75,11 @@ export function cue(
     | "score-tick"
     | "finale"
     | "applause"
+    | "golf-clap"
     | "boo",
 ) {
   if (!enabled) return;
-  if (kind === "applause" || kind === "boo") {
+  if (kind === "applause" || kind === "boo" || kind === "golf-clap") {
     void playCrowdAudio(kind);
     return;
   }
@@ -263,7 +265,12 @@ export function cue(
   });
 }
 
-type CrowdSound = "applause" | "boo";
+const crowdUrls = {
+  applause: applauseUrl,
+  boo: booUrl,
+  "golf-clap": golfClapUrl,
+};
+type CrowdSound = keyof typeof crowdUrls;
 const crowdBuffers = new Map<CrowdSound, Promise<AudioBuffer>>();
 let crowdSource: AudioBufferSourceNode | undefined;
 let crowdGeneration = 0;
@@ -272,7 +279,7 @@ function loadCrowdAudio(kind: CrowdSound) {
   const ctx = context;
   let pending = crowdBuffers.get(kind);
   if (!pending) {
-    pending = fetch(kind === "applause" ? applauseUrl : booUrl)
+    pending = fetch(crowdUrls[kind])
       .then((response) => {
         if (!response.ok) throw new Error("Crowd audio unavailable");
         return response.arrayBuffer();

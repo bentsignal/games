@@ -1154,9 +1154,6 @@ export default function App({ username }: { username: string }) {
                           {p.name}
                           {p.id === me?.id ? " (you)" : ""}
                         </strong>
-                        {game.phase === "playing" && game.turn === i && (
-                          <span className="turn-badge">TURN</span>
-                        )}
                       </div>
                       <small>
                         {game.phase === "lobby"

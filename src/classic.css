@@ -3467,17 +3467,7 @@ label {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.turn-badge {
-  flex: none;
-  padding: 3px 5px;
-  border-radius: 3px;
-  background: #65343a;
-  color: #fff4ce;
-  font:
-    700 10px Manrope,
-    sans-serif;
-  letter-spacing: 0.4px;
-}
+
 .final-round-announcement > div {
   max-width: calc(100% - 24px);
 }

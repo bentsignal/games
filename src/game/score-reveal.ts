@@ -94,10 +94,15 @@ export function scoreSteps(game: View): ScoreStep[] {
   }
   return steps;
 }
-export function countScores(steps: ScoreStep[], index: number, progress = 1) {
+export function countScores(
+  steps: ScoreStep[],
+  index: number,
+  progress = 1,
+  kind?: ScoreKind,
+) {
   const totals: Record<string, number> = {};
   steps.forEach((s, i) => {
-    if (!s.player || i > index) return;
+    if (!s.player || i > index || (kind && s.kind !== kind)) return;
     totals[s.player] =
       (totals[s.player] ?? 0) +
       (i === index ? Math.trunc(s.delta * progress) : s.delta);
@@ -122,4 +127,15 @@ export function sameRank(a: Result, b: Result) {
 
 export function scoreSound(step: ScoreStep) {
   return step.delta > 0 ? "cash" : step.delta < 0 ? "buzzer" : "score-step";
+}
+
+// Use the same tie breakers and shared ranks as the scoreboard.
+export function outcomeSound(results: Result[], player: string) {
+  const ranked = rankResults(results);
+  const mine = ranked.find((r) => r.id === player);
+  if (!mine) return undefined;
+  if (sameRank(ranked[0], mine)) return "applause" as const;
+  if (sameRank(ranked[ranked.length - 1], mine)) return "boo" as const;
+  const rank = ranked.findIndex((r) => sameRank(r, mine)) + 1;
+  return rank <= 3 ? ("golf-clap" as const) : undefined;
 }

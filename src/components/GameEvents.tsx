@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import WinnerConfetti from "./WinnerConfetti";
 import { cue, preloadCrowdAudio, stopCrowdAudio } from "../audio";
 import type { View } from "../game/engine";
-import { rankResults, sameRank } from "../game/score-reveal";
+import { outcomeSound } from "../game/score-reveal";
 
 export default function GameEvents({
   game,
@@ -33,10 +33,8 @@ export default function GameEvents({
   }, [scope, game?.finalTurns !== null, game?.phase === "finished"]);
   useEffect(() => {
     if (game?.phase !== "finished" || !game.me) return;
-    const best = rankResults(game.results)[0];
-    const mine = game.results.find((r) => r.id === game.me!.id);
-    if (best && mine)
-      preloadCrowdAudio(sameRank(best, mine) ? "applause" : "boo");
+    const sound = outcomeSound(game.results, game.me.id);
+    if (sound) preloadCrowdAudio(sound);
   }, [scope, game?.phase, game?.me?.id]);
   useEffect(() => {
     if (!revealDone) setConfetti(false);
@@ -50,10 +48,9 @@ export default function GameEvents({
       !game.me
     )
       return;
-    const best = rankResults(game.results)[0];
-    const mine = game.results.find((r) => r.id === game.me!.id);
-    const won = !!best && !!mine && sameRank(best, mine);
-    cue(won ? "applause" : "boo");
+    const sound = outcomeSound(game.results, game.me.id);
+    const won = sound === "applause";
+    if (sound) cue(sound);
     setConfetti(won);
     const timer = setTimeout(() => setConfetti(false), 6500);
     return () => {

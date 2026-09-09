@@ -8,7 +8,7 @@ test("the final reveal keeps the winner hidden, counts all scores, and supports 
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.addInitScript(() => {
-    (window as any).__crowdBoos = 0;
+    (window as any).__golfClaps = 0;
     (window as any).__cashSounds = 0;
     (window as any).__buzzerSounds = 0;
     const nativeSource = AudioContext.prototype.createBufferSource;
@@ -16,8 +16,8 @@ test("the final reveal keeps the winner hidden, counts all scores, and supports 
       const source = nativeSource.call(this),
         start = source.start.bind(source);
       source.start = (...args) => {
-        if (source.buffer && Math.abs(source.buffer.duration - 4.5) < 0.1)
-          (window as any).__crowdBoos++;
+        if (source.buffer && Math.abs(source.buffer.duration - 4) < 0.1)
+          (window as any).__golfClaps++;
         start(...args);
       };
       return source;
@@ -127,6 +127,18 @@ test("the final reveal keeps the winner hidden, counts all scores, and supports 
     "Destination tickets",
     { timeout: 16000 },
   );
+  const ticketSubtotal = page
+    .locator(".result-row")
+    .first()
+    .locator("dl > div")
+    .nth(1)
+    .locator("dd");
+  await expect
+    .poll(async () => Number(await ticketSubtotal.textContent()))
+    .toBeGreaterThan(0);
+  await expect(page.locator(".result-row").first().locator("dl")).toContainText(
+    "1 complete",
+  );
   await page.screenshot({
     path: "test-results/scoreboard-counting.png",
     fullPage: true,
@@ -162,7 +174,7 @@ test("the final reveal keeps the winner hidden, counts all scores, and supports 
   ).toHaveCount(4);
   await page.getByRole("tab", { name: "Activity" }).click();
   await expect
-    .poll(() => page.evaluate(() => (window as any).__crowdBoos))
+    .poll(() => page.evaluate(() => (window as any).__golfClaps))
     .toBeGreaterThan(0);
   await expect(
     page.getByText("The final whistle. All destination tickets are revealed.", {
