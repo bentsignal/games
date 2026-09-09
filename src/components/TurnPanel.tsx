@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { preloadTicking, startTicking, stopTicking } from "../audio";
 import type { View } from "../game/engine";
 
 export default function TurnPanel({
@@ -25,6 +26,16 @@ export default function TurnPanel({
     0,
     Math.ceil(((game.turnDeadline ?? now) - now) / 1000),
   );
+  const ownTimedTurn =
+    mine && !game.me?.bot && game.phase === "playing" && !!game.turnDeadline;
+  const urgent = ownTimedTurn && seconds > 0 && seconds <= 10;
+  useEffect(() => {
+    if (ownTimedTurn) preloadTicking();
+  }, [ownTimedTurn, game.turnDeadline]);
+  useEffect(() => {
+    if (urgent) void startTicking(game.turnDeadline! - now);
+    return stopTicking;
+  }, [urgent, game.turnDeadline]);
   return (
     <div className={`turn-banner ${mine ? "your-turn" : ""}`}>
       <span className="turn-light" />

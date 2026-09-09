@@ -1,4 +1,4 @@
-# Crowd recordings
+# Recorded sound effects
 
 These recordings are CC0 1.0 public-domain dedications. Bundled excerpts are trimmed, normalized to approximately -16 LUFS (golf clap: -20 LUFS), faded, and encoded as 64 kbps mono MP3s.
 
@@ -9,3 +9,5 @@ These recordings are CC0 1.0 public-domain dedications. Bundled excerpts are tri
 Applause: 44,556 bytes. Boo: 36,615 bytes. Vite emits content-hashed assets. Only the appropriate result sound is loaded, during the scoring reveal, and the existing immutable asset cache applies.
 
 - `golf-clap.mp3`: “golfclap.aif” by mattheos, CC0. Source: https://freesound.org/people/mattheos/sounds/116769/ (1–5 seconds of the HQ preview). Four seconds, 32644 bytes.
+
+- `clock-tick.mp3`: “Clock Tick (Tik Tak) Loop” by KaosMakinesi, CC0. Source: https://freesound.org/people/KaosMakinesi/sounds/403001/ . Two-second loop, normalized to -19 LUFS, 64 kbps mono (16553 bytes). Cached and loaded only for your timed turns.

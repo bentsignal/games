@@ -123,3 +123,5 @@ Blocked double lanes keep their printed color under the cross-out marks. Rainbow
 Card dragging uses geometric hit testing and a separate composited SVG highlight layer. Crossing routes does not modify the underlying map/train elements; layout reads precede ghost movement writes.
 
 Hosts can choose an optional 30-, 60-, 90-, or 120-second turn timer in the lobby (default Off). The shared countdown appears in the turn panel, larger on your turn. The server enforces expiry even when the active player disconnects: it draws up to two face-down cards, finishes a partial draw, or keeps the required minimum if destination selection is pending. Initial ticket selection is untimed. Rematches retain the chosen timer setting.
+
+During your final 10 seconds, a small cached clock recording loops until the deadline or your move ends the turn. It respects the sound-effects mute setting. `npx tsx scripts/check-turn-sound.ts` checks timing, playback, cancellation, and caching.

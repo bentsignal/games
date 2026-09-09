@@ -1,3 +1,4 @@
+import clockTickUrl from "./assets/audio/clock-tick.mp3";
 import applauseUrl from "./assets/audio/applause.mp3";
 import golfClapUrl from "./assets/audio/golf-clap.mp3";
 import booUrl from "./assets/audio/boo.mp3";
@@ -9,7 +10,10 @@ export function setEffects(value: boolean) {
   enabled = value;
   localStorage.setItem("railbound-effects", value ? "on" : "off");
   if (value) void unlockAudio();
-  else stopCrowdAudio();
+  else {
+    stopCrowdAudio();
+    stopTicking();
+  }
 }
 export function effectsEnabled() {
   return enabled;
@@ -265,21 +269,22 @@ export function cue(
   });
 }
 
-const crowdUrls = {
+const recordedUrls = {
+  "clock-tick": clockTickUrl,
   applause: applauseUrl,
   boo: booUrl,
   "golf-clap": golfClapUrl,
 };
-type CrowdSound = keyof typeof crowdUrls;
-const crowdBuffers = new Map<CrowdSound, Promise<AudioBuffer>>();
+type CrowdSound = "applause" | "boo" | "golf-clap";
+const crowdBuffers = new Map<keyof typeof recordedUrls, Promise<AudioBuffer>>();
 let crowdSource: AudioBufferSourceNode | undefined;
 let crowdGeneration = 0;
-function loadCrowdAudio(kind: CrowdSound) {
+function loadRecordedAudio(kind: keyof typeof recordedUrls) {
   context ??= new AudioContext();
   const ctx = context;
   let pending = crowdBuffers.get(kind);
   if (!pending) {
-    pending = fetch(crowdUrls[kind])
+    pending = fetch(recordedUrls[kind])
       .then((response) => {
         if (!response.ok) throw new Error("Crowd audio unavailable");
         return response.arrayBuffer();
@@ -295,7 +300,7 @@ function loadCrowdAudio(kind: CrowdSound) {
 }
 // Only the listener's result clip is fetched, while the score reveal is running.
 export function preloadCrowdAudio(kind: CrowdSound) {
-  if (enabled) void loadCrowdAudio(kind).catch(() => {});
+  if (enabled) void loadRecordedAudio(kind).catch(() => {});
 }
 export function stopCrowdAudio() {
   crowdGeneration++;
@@ -307,7 +312,7 @@ async function playCrowdAudio(kind: CrowdSound) {
   const generation = crowdGeneration;
   try {
     await unlockAudio();
-    const buffer = await loadCrowdAudio(kind);
+    const buffer = await loadRecordedAudio(kind);
     if (
       !enabled ||
       generation !== crowdGeneration ||
@@ -326,5 +331,48 @@ async function playCrowdAudio(kind: CrowdSound) {
     source.start();
   } catch {
     // A failed fetch is not cached; Replay can retry it.
+  }
+}
+
+let tickingSource: AudioBufferSourceNode | undefined;
+let tickingGeneration = 0;
+export function preloadTicking() {
+  if (enabled) void loadRecordedAudio("clock-tick").catch(() => {});
+}
+export function stopTicking() {
+  tickingGeneration++;
+  tickingSource?.stop();
+  tickingSource = undefined;
+}
+export async function startTicking(remainingMs: number) {
+  stopTicking();
+  if (!enabled || remainingMs <= 0) return;
+  const generation = tickingGeneration;
+  const end = performance.now() + Math.min(10000, remainingMs);
+  try {
+    await unlockAudio();
+    const buffer = await loadRecordedAudio("clock-tick");
+    const remaining = (end - performance.now()) / 1000;
+    if (
+      !enabled ||
+      generation !== tickingGeneration ||
+      !context ||
+      context.state !== "running" ||
+      remaining <= 0
+    )
+      return;
+    const source = context.createBufferSource();
+    source.buffer = buffer;
+    source.loop = true;
+    source.connect(context.destination);
+    tickingSource = source;
+    source.onended = () => {
+      source.disconnect();
+      if (tickingSource === source) tickingSource = undefined;
+    };
+    source.start();
+    source.stop(context.currentTime + remaining);
+  } catch {
+    // Optional audio can retry on a later turn.
   }
 }

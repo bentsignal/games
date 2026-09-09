@@ -42,3 +42,5 @@ Authentication reduces backend abuse, but it is not a hard hosting budget: the p
 ## Optional turn timer
 
 Off by default. With a timer enabled, the server schedules one deadline job per turn; the on-screen countdown runs locally and does not write to Convex every second. Jobs check the round, turn, and deadline before acting, so an old deadline cannot affect a later turn or rematch. Starting destination selection is untimed. Expiry draws the remaining face-down cards, or keeps the first required destination ticket if a ticket draw was already started. If no hidden cards remain, the turn ends with whatever was available. Repeated empty-deck timeouts eventually finish a stalled game.
+
+The final-ten-second warning uses a 16553-byte clock recording, loaded on your first timed turn and reused from the same one-year immutable browser cache. Playback loops locally and makes no per-tick backend requests.
