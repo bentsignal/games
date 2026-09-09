@@ -54,3 +54,11 @@ Example, not a bill guarantee: six players each submitting 30 guesses in a round
 The restored original Grams assets total about 11 MB, including an unused old music file that is committed but not requested by the game. The active soundtrack is about 6 MB; the other sound effects total about 300 KB. They are separate static files, not JavaScript bundle payloads. Original sound bytes are preserved and cached for one year under versioned asset paths. Dictionaries stay on the backend and are not sent to players. Reusing cached audio costs no Convex calls; browser cache eviction can require downloading again.
 
 Grams keeps only the latest 100 chat/emote events for display (there is no lifetime message cap), one live lobby, expiring presence records, and completed round summaries with user IDs for future statistics.
+
+## BSX transfer and custom domains (2026-09-09)
+
+The existing project was transferred from Personal to the existing BSX Pro team at the owner’s request. Production and development deployment IDs, database records, and OAuth credentials are preserved. Games now shares BSX’s usage allowances and overage billing; the earlier Personal Free hard-limit description above is historical. No new subscription was purchased.
+
+Production endpoint setup: `api.games.bentsignal.com` for Convex API/WebSockets and `auth.games.bentsignal.com` for HTTP actions/OAuth. Both use CNAME `convex.domains` and a `_convex_domains` TXT record containing `proficient-porpoise-581`. Google’s existing OAuth client includes `https://auth.games.bentsignal.com/oauth/google/callback`; its original production and development callbacks remain available.
+
+Both custom endpoints were verified over HTTPS, selected as the deployment system URL overrides, and deployed to production. Vercel’s production `VITE_CONVEX_URL` points at the API domain. The website has an explicit `games` A record (`76.76.21.21`) because nested DNS names suppress the former wildcard match. Google branding changes are separate from the callback domain; its current form requires a privacy-policy URL, so no replacement policy or branding-verification submission was invented.
