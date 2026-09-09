@@ -26,7 +26,7 @@ const google: ReturnType<typeof setupOauth<"google", GoogleProfile, "users">> =
     {
       component: components.oauthGoogle,
       allowedRedirectOrigins: [
-        "http://localhost:5173",
+        "https://games.bentsignal.local",
         "https://ticket.bentsignal.com",
         "https://games.bentsignal.com",
       ],

@@ -4,7 +4,7 @@
   "description": "Games for friends",
   "scripts": {
     "test": "vitest run",
-    "dev": "vite",
+    "dev": "portless proxy start --lan && portless games.bentsignal vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "backend": "convex dev",
@@ -12,7 +12,8 @@
     "test:map": "tsx scripts/map-proof.tsx && tsx scripts/check-map.ts",
     "test:feedback": "tsx scripts/check-feedback.ts",
     "test:live": "tsx scripts/live-smoke.ts",
-    "format": "prettier --write src convex tests scripts/*.ts *.ts *.json *.md docs"
+    "format": "prettier --write src convex tests scripts/*.ts *.ts *.json *.md docs",
+    "dev:direct": "vite"
   },
   "keywords": [],
   "author": "",
@@ -42,6 +43,7 @@
     "@vitejs/plugin-react": "^6.1.1",
     "babel-plugin-react-compiler": "^1.0.0",
     "convex-test": "^0.0.56",
+    "portless": "^0.13.1",
     "prettier": "^3.9.6",
     "tsx": "^4.23.13",
     "typescript": "^7.0.2",
@@ -51,5 +53,9 @@
   "private": true,
   "engines": {
     "node": ">=22.12.0"
+  },
+  "portless": {
+    "name": "games.bentsignal",
+    "script": "dev:direct"
   }
 }

@@ -13,6 +13,8 @@ npx convex dev
 npm run dev
 ```
 
+Local development: **https://games.bentsignal.local**. `npm run dev` uses Portless HTTPS and LAN discovery, matching Ruby. Other devices on the same network need to trust the Portless local CA for HTTPS. Run `npm run backend` in a second terminal for Convex changes.
+
 ```sh
 npm test
 npm run build
