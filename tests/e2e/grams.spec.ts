@@ -1,5 +1,4 @@
 import { readFileSync } from "node:fs";
-import { execFileSync } from "node:child_process";
 import { test, expect } from "@playwright/test";
 import { signIn } from "./auth";
 test("Grams preserves its interface and plays a complete round with two accounts", async ({
@@ -7,16 +6,13 @@ test("Grams preserves its interface and plays a complete round with two accounts
   baseURL,
 }) => {
   test.setTimeout(110000);
-  execFileSync("npx", ["convex", "run", "testing:resetGrams", "{}"], {
-    stdio: "pipe",
-  });
   const ca = await browser.newContext(),
     cb = await browser.newContext();
   const a = await ca.newPage(),
     b = await cb.newPage();
   const errors: string[] = [];
-  a.on("pageerror", (e) => errors.push(e.message));
-  b.on("pageerror", (e) => errors.push(e.message));
+  a.on("pageerror", (e) => errors.push(e.stack || e.message));
+  b.on("pageerror", (e) => errors.push(e.stack || e.message));
   try {
     await a.goto(baseURL! + "/grams");
     await signIn(a, "Grams_A_QA");

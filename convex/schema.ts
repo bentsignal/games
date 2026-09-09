@@ -10,12 +10,13 @@ export default defineSchema({
     seq: v.number(),
   }).index("by_key", ["key"]),
   gramsRounds: defineTable({
+    externalId: v.optional(v.string()),
     round: v.number(),
     startedAt: v.number(),
     finishedAt: v.number(),
     word: v.string(),
     players: v.any(),
-  }),
+  }).index("by_external", ["externalId"]),
   gramsPresence: defineTable({ player: v.string(), seen: v.number() }).index(
     "by_player",
     ["player"],

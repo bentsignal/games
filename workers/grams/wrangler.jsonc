@@ -1,0 +1,28 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "games-grams",
+  "main": "index.ts",
+  "compatibility_date": "2026-09-09",
+  "workers_dev": true,
+  "observability": { "enabled": false },
+  "durable_objects": {
+    "bindings": [{ "name": "GRAMS", "class_name": "GramsRoom" }],
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["GramsRoom"] }],
+  "vars": {
+    "CONVEX_URL": "https://api.games.bentsignal.com",
+    "ALLOWED_ORIGINS": "https://games.bentsignal.com",
+  },
+  "env": {
+    "development": {
+      "name": "games-grams-development",
+      "durable_objects": {
+        "bindings": [{ "name": "GRAMS", "class_name": "GramsRoom" }],
+      },
+      "vars": {
+        "CONVEX_URL": "https://sincere-jellyfish-682.convex.cloud",
+        "ALLOWED_ORIGINS": "https://games.bentsignal.local,http://localhost:5173",
+      },
+    },
+  },
+}

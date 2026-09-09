@@ -28,7 +28,7 @@ function render(s){
  else for(const p of s.players)if(old.players.find(o=>o.id===p.id)?.score!==p.score)fire("updatePlayerScore",{id:p.id,score:p.score});
  fire("newHost",{id:s.host});
  const available=["ben","lukas"].map(n=>[1,2,3,4].map(i=>n+"-face-"+i+".jpg").filter(f=>!s.players.some(p=>p.pfp===f)));
- fire("pfpAvailable",{ben:available[0],lukas:available[1]});
+ if(document.getElementById("pfp-list-row-ben"))fire("pfpAvailable",{ben:available[0],lukas:available[1]});
  const me=s.players.find(p=>p.id===socket.id);
  if(me)fire("updatePlayerPfp",{id:me.id,pfp:me.pfp});
  if(s.phase==="playing"&&(!old||s.round!==old.round)){
@@ -43,6 +43,8 @@ function render(s){
 }
 window.addEventListener("message",e=>{
  if(e.origin!==location.origin||e.source!==parent)return;
+ if(e.data?.type==="grams-resume")previous=undefined;
+ if(e.data?.type==="grams-connection"){const input=document.getElementById("name-input");if(input)input.title=e.data.connected?"Join Grams":"Connecting…";}
  if(e.data?.type==="grams-state"){
   state=e.data.state;socket.id=state.id;
   const input=document.getElementById("name-input");

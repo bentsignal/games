@@ -62,3 +62,13 @@ The existing project was transferred from Personal to the existing BSX Pro team 
 Production endpoint setup: `api.games.bentsignal.com` for Convex API/WebSockets and `auth.games.bentsignal.com` for HTTP actions/OAuth. Both use CNAME `convex.domains` and a `_convex_domains` TXT record containing `proficient-porpoise-581`. Google’s existing OAuth client includes `https://auth.games.bentsignal.com/oauth/google/callback`; its original production and development callbacks remain available.
 
 Both custom endpoints were verified over HTTPS, selected as the deployment system URL overrides, and deployed to production. Vercel’s production `VITE_CONVEX_URL` points at the API domain. The website has an explicit `games` A record (`76.76.21.21`) because nested DNS names suppress the former wildcard match. Google branding changes are separate from the callback domain; its current form requires a privacy-policy URL, so no replacement policy or branding-verification submission was invented.
+
+## Grams Durable Objects migration (2026-09-09)
+
+Grams gameplay now runs in a SQLite Durable Object on Cloudflare, while Convex keeps accounts and completed round summaries. The earlier Convex-per-guess estimates above describe the retired client transport. The Cloudflare dashboard showed the 100,000 daily request allowance and $0 billable usage; no paid upgrade was made.
+
+For six players submitting 30 guesses each, the gameplay traffic is 180 incoming WebSocket messages, rather than 180 Convex mutations plus reactive query executions. Cloudflare applies a 20:1 billing ratio to incoming Durable Object WebSocket messages, and does not charge for outgoing WebSocket messages. Storage writes and active compute still count; this is not a promise of zero usage. Normal friend-group usage should fit the current free allowances. Hibernating connections and automatic ping/pong avoid keeping idle rooms running. Free limits are shared across the Cloudflare account.
+
+Accepted guesses persist one bounded room snapshot; invalid/duplicate guesses do not write or broadcast. Server countdown ticks do not exist. Round-end results are queued durably and delivered to Convex with idempotent retries. Live chat/emote history retains the latest 60 events with no lifetime message cap. Empty lobbies retain only a small state record, and completed summaries remain in Convex for future stats.
+
+Sources: [Durable Objects pricing](https://developers.cloudflare.com/durable-objects/platform/pricing/) and [WebSocket hibernation](https://developers.cloudflare.com/durable-objects/best-practices/websockets/). Setup: [Grams realtime server](grams/realtime.md).

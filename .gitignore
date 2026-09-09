@@ -8,3 +8,6 @@ playwright-report/
 .DS_Store
 *.blend1
 .vercel
+
+.wrangler/
+.dev.vars*

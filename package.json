@@ -13,7 +13,11 @@
     "test:feedback": "tsx scripts/check-feedback.ts",
     "test:live": "tsx scripts/live-smoke.ts",
     "format": "prettier --write src convex tests scripts/*.ts *.ts *.json *.md docs",
-    "dev:direct": "vite"
+    "dev:direct": "vite",
+    "grams:dev": "portless grams.bentsignal sh scripts/grams-dev.sh",
+    "grams:deploy": "wrangler deploy --config workers/grams/wrangler.jsonc --env \"\"",
+    "grams:check": "tsc -p workers/grams/tsconfig.json",
+    "grams:test": "tsx scripts/grams-worker-test.ts"
   },
   "keywords": [],
   "author": "",
@@ -34,6 +38,7 @@
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260908.1",
     "@playwright/test": "^1.63.0",
     "@rolldown/plugin-babel": "^0.2.3",
     "@types/canvas-confetti": "^1.9.0",
@@ -43,12 +48,14 @@
     "@vitejs/plugin-react": "^6.1.1",
     "babel-plugin-react-compiler": "^1.0.0",
     "convex-test": "^0.0.56",
+    "miniflare": "^5.20260908.0-alpha",
     "portless": "^0.13.1",
     "prettier": "^3.9.6",
     "tsx": "^4.23.13",
     "typescript": "^7.0.2",
     "vite": "^8.2.2",
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.0",
+    "wrangler": "^4.130.0"
   },
   "private": true,
   "engines": {

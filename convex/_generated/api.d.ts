@@ -11,6 +11,7 @@
 import type * as auth from "../auth.js";
 import type * as grams from "../grams.js";
 import type * as playtest from "../playtest.js";
+import type * as realtime from "../realtime.js";
 import type * as results from "../results.js";
 import type * as rooms from "../rooms.js";
 import type * as testing from "../testing.js";
@@ -26,6 +27,7 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   grams: typeof grams;
   playtest: typeof playtest;
+  realtime: typeof realtime;
   results: typeof results;
   rooms: typeof rooms;
   testing: typeof testing;
