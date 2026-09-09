@@ -60,7 +60,7 @@ Run the frontend before the browser tests. Automated signed-in fixtures require 
 - `src/components/Board.tsx`: accessible SVG board, curved and separated routes, vibrant player trains, ticket previews, city labels, mouse/touch pan and zoom.
 - `src/game/geography.json`: generated Natural Earth coastlines, state borders, lakes, and board city coordinates. `npx tsx scripts/generate-map.mjs` regenerates these public-domain layers.
 - `src/components/TrainArtwork.tsx`: original train-car engravings and conductor portraits.
-- `src/components/Music.tsx` and `src/audio.ts`: persistent YouTube soundtrack player and original synthesized game cues.
+- `src/components/Music.tsx` and `src/audio.ts`: persistent YouTube soundtrack player, synthesized game cues, and small cached crowd recordings (see `src/assets/audio/CREDITS.md`).
 - `assets/locomotive.blend`: original editable Blender source. `scripts/create_locomotive.py` recreates it inside Blender. The earlier 3D prototype and its GLB are retained as source assets; the current game uses the 2D board.
 
 Convex Auth v2 (pinned to 2.0.0-alpha.1) verifies Google OAuth and issues sessions. All room queries and mutations require a signed-in, onboarded account. Client-supplied names and legacy tokens never authorize a move. Other players' cards, pending choices, ticket identities, and deck order are excluded from query responses until the final reveal. A revision check and Convex transactions prevent double submissions and concurrent conflicting claims. Browser actions never submit a new game state or score. Computer players use their own cards and public board information only.
@@ -118,6 +118,6 @@ See [cost and retention audit](docs/costs-and-retention.md) for measured usage a
 
 Signed-in friends can open a room code and choose **Watch game**, including after play starts or all five seats are filled. Spectators receive the public board, card counts, market, chat, activity, and final scoring. They cannot see hands or uncompleted ticket choices, make moves, or manage seats. Watching links retain `?watch=1` across refresh; spectators may take an open seat before the game starts.
 
-Blocked double lanes keep their printed color under the cross-out marks. Rainbow cards use a brighter spectrum. A brief centered final-round notice plays a whistle; finishing the scoring reveal plays applause and full-viewport confetti for winners, or playful synthesized boos for other players. Spectators get neither personal outcome effect. Effects respect mute and reduced-motion preferences. `npx tsx scripts/check-game-events.ts` checks these visual and sound behaviors with local fixtures.
+Blocked double lanes keep their printed color under the cross-out marks. Rainbow cards use a brighter spectrum. A brief centered final-round notice plays a whistle; finishing the scoring reveal plays applause and full-viewport confetti for winners, or recorded crowd boos for other players. Spectators get neither personal outcome effect. Effects respect mute and reduced-motion preferences. `npx tsx scripts/check-game-events.ts` checks these visual and sound behaviors with local fixtures.
 
 Card dragging uses geometric hit testing and a separate composited SVG highlight layer. Crossing routes does not modify the underlying map/train elements; layout reads precede ghost movement writes.

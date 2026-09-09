@@ -11,15 +11,21 @@ test("the final reveal keeps the winner hidden, counts all scores, and supports 
     (window as any).__crowdBoos = 0;
     (window as any).__cashSounds = 0;
     (window as any).__buzzerSounds = 0;
+    const nativeSource = AudioContext.prototype.createBufferSource;
+    AudioContext.prototype.createBufferSource = function () {
+      const source = nativeSource.call(this),
+        start = source.start.bind(source);
+      source.start = (...args) => {
+        if (source.buffer && Math.abs(source.buffer.duration - 4.5) < 0.1)
+          (window as any).__crowdBoos++;
+        start(...args);
+      };
+      return source;
+    };
     const native = AudioContext.prototype.createOscillator;
     AudioContext.prototype.createOscillator = function () {
       const node = native.call(this),
         start = node.start.bind(node);
-      const setFrequency = node.frequency.setValueAtTime.bind(node.frequency);
-      node.frequency.setValueAtTime = (value, time) => {
-        if (value === 105) (window as any).__crowdBoos++;
-        return setFrequency(value, time);
-      };
       node.start = (...args) => {
         if (node.type === "sine" && Math.abs(node.frequency.value - 1568) < 0.1)
           (window as any).__cashSounds++;

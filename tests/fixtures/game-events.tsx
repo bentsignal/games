@@ -10,7 +10,7 @@ import {
   type Result,
 } from "../../src/game/engine";
 import { ROUTES } from "../../src/game/data";
-import { unlockAudio } from "../../src/audio";
+import { unlockAudio, setEffects } from "../../src/audio";
 import "../../src/styles.css";
 import "../../src/classic.css";
 function Fixture() {
@@ -59,6 +59,15 @@ function Fixture() {
   };
   return (
     <>
+      <button onClick={() => setEffects(false)}>Mute effects</button>
+      <button
+        onClick={() => {
+          setDone(false);
+          setGame((g) => ({ ...g, phase: "playing", results: [] }));
+        }}
+      >
+        Reset result
+      </button>
       <button
         onClick={() => {
           void unlockAudio();

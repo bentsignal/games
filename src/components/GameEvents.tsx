@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { createPortal } from "react-dom";
-import { cue } from "../audio";
+import { useEffect, useRef, useState } from "react";
+import WinnerConfetti from "./WinnerConfetti";
+import { cue, preloadCrowdAudio, stopCrowdAudio } from "../audio";
 import type { View } from "../game/engine";
 import { rankResults, sameRank } from "../game/score-reveal";
 
@@ -32,6 +32,14 @@ export default function GameEvents({
     return () => clearTimeout(timer);
   }, [scope, game?.finalTurns !== null, game?.phase === "finished"]);
   useEffect(() => {
+    if (game?.phase !== "finished" || !game.me) return;
+    const best = rankResults(game.results)[0];
+    const mine = game.results.find((r) => r.id === game.me!.id);
+    if (best && mine)
+      preloadCrowdAudio(sameRank(best, mine) ? "applause" : "boo");
+  }, [scope, game?.phase, game?.me?.id]);
+  useEffect(() => {
+    if (!revealDone) setConfetti(false);
     const before = priorReveal.current;
     priorReveal.current = { scope, done: revealDone };
     if (
@@ -47,8 +55,11 @@ export default function GameEvents({
     const won = !!best && !!mine && sameRank(best, mine);
     cue(won ? "applause" : "boo");
     setConfetti(won);
-    const timer = setTimeout(() => setConfetti(false), 5000);
-    return () => clearTimeout(timer);
+    const timer = setTimeout(() => setConfetti(false), 6500);
+    return () => {
+      clearTimeout(timer);
+      stopCrowdAudio();
+    };
   }, [scope, revealDone]);
   useEffect(() => {
     setConfetti(false);
@@ -63,32 +74,7 @@ export default function GameEvents({
           </div>
         </div>
       )}
-      {confetti &&
-        createPortal(
-          <div className="winner-confetti" aria-hidden="true">
-            {Array.from({ length: 110 }, (_, i) => (
-              <i
-                key={i}
-                style={
-                  {
-                    left: `${(i * 37) % 100}%`,
-                    background: [
-                      "#ffc629",
-                      "#f24c50",
-                      "#37bcec",
-                      "#59da76",
-                      "#d479ed",
-                      "#fff3bd",
-                    ][i % 6],
-                    animationDelay: `${(i % 17) * 0.05}s`,
-                    "--drift": `${((i * 43) % 280) - 140}px`,
-                  } as CSSProperties
-                }
-              />
-            ))}
-          </div>,
-          document.body,
-        )}
+      {confetti && <WinnerConfetti />}
     </>
   );
 }

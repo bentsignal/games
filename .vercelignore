@@ -4,7 +4,7 @@ node_modules
 dist
 test-results
 playwright-report
-assets
+/assets
 scripts
 docs
 .github

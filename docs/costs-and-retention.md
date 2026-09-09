@@ -9,7 +9,7 @@
 
 ## What causes usage
 
-Vercel serves a static React application, CSS, fonts, and the SVG map code. No game server, SSR functions, image transformations, or AI calls run on Vercel. Hashed assets now explicitly cache for one year; HTML remains updateable. The old GLB model is about 108 KB and not loaded by the current SVG board. Music streams directly from YouTube; effects are synthesized in the browser.
+Vercel serves a static React application, CSS, fonts, and the SVG map code. No game server, SSR functions, image transformations, or AI calls run on Vercel. Hashed assets now explicitly cache for one year; HTML remains updateable. The old GLB model is about 108 KB and not loaded by the current SVG board. Music streams directly from YouTube. Most effects are synthesized in the browser; the end-of-game applause (44,556 bytes) and boo (36,615 bytes) are short CC0 recordings. Only the player’s own outcome clip loads, during scoring. Vite gives each clip a content-hashed URL with a one-year immutable browser cache, so repeat playback can reuse the local file without a Convex call. Browsers may evict cached files. Even 10,000 uncached applause downloads transfer about 446 MB. Source attribution is in `src/assets/audio/CREDITS.md`.
 
 Convex runs transactional actions and subscriptions when game data changes. A human who abandons a turn leaves a small stored record, not a running worker. Bots advance through finite scheduled turns and stop at a human turn or game end. Authenticated open tabs also refresh Auth v2 sessions; that is small request traffic, not an always-running server. Disconnected browsers do not refresh sessions.
 

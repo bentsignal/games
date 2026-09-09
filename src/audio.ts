@@ -1,3 +1,5 @@
+import applauseUrl from "./assets/audio/applause.mp3";
+import booUrl from "./assets/audio/boo.mp3";
 // Original paper/card and steam-whistle sounds, synthesized locally.
 let context: AudioContext | undefined;
 let paperNoise: AudioBuffer | undefined;
@@ -6,6 +8,7 @@ export function setEffects(value: boolean) {
   enabled = value;
   localStorage.setItem("railbound-effects", value ? "on" : "off");
   if (value) void unlockAudio();
+  else stopCrowdAudio();
 }
 export function effectsEnabled() {
   return enabled;
@@ -74,54 +77,15 @@ export function cue(
     | "boo",
 ) {
   if (!enabled) return;
+  if (kind === "applause" || kind === "boo") {
+    void playCrowdAudio(kind);
+    return;
+  }
   void unlockAudio().then(() => {
     if (!enabled || !context || context.state !== "running") return;
     const ctx = context,
       now = ctx.currentTime;
-    if (kind === "applause") {
-      // A small crowd of overlapping handclaps, with varied timing and timbre.
-      for (let i = 0; i < 95; i++) {
-        const delay = i * 0.03 + Math.random() * 0.08;
-        const level = 0.16 * Math.min(1, (i + 8) / 20, (100 - i) / 25);
-        noise(
-          ctx,
-          now + delay,
-          0.045 + Math.random() * 0.055,
-          level,
-          1000 + Math.random() * 1600,
-        );
-      }
-    } else if (kind === "boo") {
-      // Layered low voices through two vowel formants make a playful crowd “boo”.
-      for (let i = 0; i < 7; i++) {
-        const voice = ctx.createOscillator(),
-          gain = ctx.createGain();
-        const start = now + i * 0.045;
-        voice.type = "sawtooth";
-        voice.frequency.setValueAtTime(105 + i * 13, start);
-        voice.frequency.linearRampToValueAtTime(85 + i * 11, start + 1.25);
-        gain.gain.setValueAtTime(0, start);
-        gain.gain.linearRampToValueAtTime(0.028, start + 0.18);
-        gain.gain.setValueAtTime(0.023, start + 0.9);
-        gain.gain.exponentialRampToValueAtTime(0.0001, start + 1.65);
-        const filters = [350, 750].map((frequency) => {
-          const filter = ctx.createBiquadFilter();
-          filter.type = "bandpass";
-          filter.frequency.value = frequency;
-          filter.Q.value = 4;
-          voice.connect(filter).connect(gain);
-          return filter;
-        });
-        gain.connect(ctx.destination);
-        voice.start(start);
-        voice.stop(start + 1.7);
-        voice.onended = () => {
-          voice.disconnect();
-          gain.disconnect();
-          filters.forEach((f) => f.disconnect());
-        };
-      }
-    } else if (kind === "cash") {
+    if (kind === "cash") {
       // Register key and drawer clacks, followed by a bright double bell.
       noise(ctx, now, 0.045, 0.22, 1100);
       noise(ctx, now + 0.1, 0.06, 0.16, 2200);
@@ -297,4 +261,63 @@ export function cue(
       });
     }
   });
+}
+
+type CrowdSound = "applause" | "boo";
+const crowdBuffers = new Map<CrowdSound, Promise<AudioBuffer>>();
+let crowdSource: AudioBufferSourceNode | undefined;
+let crowdGeneration = 0;
+function loadCrowdAudio(kind: CrowdSound) {
+  context ??= new AudioContext();
+  const ctx = context;
+  let pending = crowdBuffers.get(kind);
+  if (!pending) {
+    pending = fetch(kind === "applause" ? applauseUrl : booUrl)
+      .then((response) => {
+        if (!response.ok) throw new Error("Crowd audio unavailable");
+        return response.arrayBuffer();
+      })
+      .then((bytes) => ctx.decodeAudioData(bytes))
+      .catch((error) => {
+        crowdBuffers.delete(kind);
+        throw error;
+      });
+    crowdBuffers.set(kind, pending);
+  }
+  return pending;
+}
+// Only the listener's result clip is fetched, while the score reveal is running.
+export function preloadCrowdAudio(kind: CrowdSound) {
+  if (enabled) void loadCrowdAudio(kind).catch(() => {});
+}
+export function stopCrowdAudio() {
+  crowdGeneration++;
+  crowdSource?.stop();
+  crowdSource = undefined;
+}
+async function playCrowdAudio(kind: CrowdSound) {
+  stopCrowdAudio();
+  const generation = crowdGeneration;
+  try {
+    await unlockAudio();
+    const buffer = await loadCrowdAudio(kind);
+    if (
+      !enabled ||
+      generation !== crowdGeneration ||
+      !context ||
+      context.state !== "running"
+    )
+      return;
+    const source = context.createBufferSource();
+    source.buffer = buffer;
+    source.connect(context.destination);
+    crowdSource = source;
+    source.onended = () => {
+      source.disconnect();
+      if (crowdSource === source) crowdSource = undefined;
+    };
+    source.start();
+  } catch {
+    // A failed fetch is not cached; Replay can retry it.
+  }
 }
