@@ -14,7 +14,7 @@ test("host timer counts down for both players and completes a partial draw after
   const a = await ca.newPage(),
     b = await cb.newPage();
   try {
-    await a.goto(baseURL!);
+    await a.goto(baseURL! + "/ticket");
     await signIn(a, "Timer_Host_QA");
     await a.getByRole("button", { name: "Create a game", exact: true }).click();
     await expect(a.getByLabel("TURN TIMER", { exact: true })).toHaveValue("0");

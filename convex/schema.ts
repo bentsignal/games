@@ -1,6 +1,25 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 export default defineSchema({
+  grams: defineTable({ key: v.string(), state: v.any() }).index("by_key", [
+    "key",
+  ]),
+  gramsFeed: defineTable({
+    key: v.string(),
+    events: v.any(),
+    seq: v.number(),
+  }).index("by_key", ["key"]),
+  gramsRounds: defineTable({
+    round: v.number(),
+    startedAt: v.number(),
+    finishedAt: v.number(),
+    word: v.string(),
+    players: v.any(),
+  }),
+  gramsPresence: defineTable({ player: v.string(), seen: v.number() }).index(
+    "by_player",
+    ["player"],
+  ),
   users: defineTable({
     username: v.optional(v.string()),
     usernameKey: v.optional(v.string()),

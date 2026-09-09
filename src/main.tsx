@@ -9,7 +9,7 @@ import "@fontsource/manrope/400.css";
 import "@fontsource/manrope/600.css";
 import "@fontsource/manrope/700.css";
 import "@fontsource/ibm-plex-mono/400.css";
-import App from "./App";
+import Games from "./Games";
 import AccountGate from "./components/AccountGate";
 import { ConvexAuthProvider } from "@convex-dev/auth/react";
 import { api } from "../convex/_generated/api";
@@ -21,7 +21,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     {url ? (
       <ConvexAuthProvider client={new ConvexReactClient(url)} api={api.auth}>
         <AccountGate>
-          {(username) => <App key={username} username={username} />}
+          {(username) => <Games key={username} username={username} />}
         </AccountGate>
       </ConvexAuthProvider>
     ) : (

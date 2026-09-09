@@ -44,3 +44,13 @@ Authentication reduces backend abuse, but it is not a hard hosting budget: the p
 Off by default. With a timer enabled, the server schedules one deadline job per turn; the on-screen countdown runs locally and does not write to Convex every second. Jobs check the round, turn, and deadline before acting, so an old deadline cannot affect a later turn or rematch. Starting destination selection is untimed. Expiry draws the remaining face-down cards, or keeps the first required destination ticket if a ticket draw was already started. If no hidden cards remain, the turn ends with whatever was available. Repeated empty-deck timeouts eventually finish a stalled game.
 
 The final-ten-second warning uses a 16553-byte clock recording, loaded on your first timed turn and reused from the same one-year immutable browser cache. Playback loops locally and makes no per-tick backend requests.
+
+## Games hub and Grams
+
+Both games share the existing Vercel static frontend, Convex deployment, and Google accounts. No additional paid service or always-running server was introduced. Grams mutations occur on submitted guesses and explicit actions; keystrokes, animation frames, and countdown ticks stay on the client. Chat/emotes use a separate subscription, so guesses do not retransmit their history. Presence updates occur once per 30 seconds only while seated. One scheduled job ends each round; seat expiry checks run at most once per 90 seconds per seated account.
+
+Example, not a bill guarantee: six players each submitting 30 guesses in a round produce 180 mutations and at most about 1,080 subscribed view executions, plus joins, chat, and presence. Actual usage depends on play frequency and other projects sharing the plan. Convex Free currently includes 1 million function calls/month and has hard limits; verify the account's actual plan before assuming overages are impossible. Sources: https://www.convex.dev/pricing and https://docs.convex.dev/production/state/limits .
+
+The restored original Grams assets total about 11 MB, including an unused old music file that is committed but not requested by the game. The active soundtrack is about 6 MB; the other sound effects total about 300 KB. They are separate static files, not JavaScript bundle payloads. Original sound bytes are preserved and cached for one year under versioned asset paths. Dictionaries stay on the backend and are not sent to players. Reusing cached audio costs no Convex calls; browser cache eviction can require downloading again.
+
+Grams keeps only the latest 100 chat/emote events for display (there is no lifetime message cap), one live lobby, expiring presence records, and completed round summaries with user IDs for future statistics.

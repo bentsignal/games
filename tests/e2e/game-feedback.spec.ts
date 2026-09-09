@@ -40,7 +40,7 @@ test("draws fly into the hand, destination pins persist, turns stay steady, and 
   a.on("pageerror", (e) => errors.push(e.message));
   b.on("pageerror", (e) => errors.push(e.message));
   try {
-    await a.goto(baseURL!);
+    await a.goto(baseURL! + "/ticket");
     await signIn(a, "Feedback_QA");
     await a.getByRole("button", { name: "Create a game" }).click();
     await expect(a).toHaveURL(/\/room\//);

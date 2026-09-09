@@ -1,0 +1,468 @@
+@charset "utf-8";
+
+:root {
+    --day-length: 200s;
+    --orbital-dim: 100px;
+    --sun-color-daylight: yellow;
+    --sun-color-sunset: orange;
+    --moon-color: white;
+    --mountain-color: #22243d;/*linear-gradient(135deg, #22243d, #000000);*/
+    --mountain-range-max-height: 70%;
+}
+
+body {
+    position: relative;
+    width: 100vw;
+    height: 100vw;
+    display: flex;
+    overflow: hidden;
+    background: linear-gradient(#2846f1, #e77021);
+}
+
+#world {
+    position: relative;
+    z-index: -1;
+    width: 100vw;
+    height: 100vh;
+    position: absolute;
+    top: 0;
+    right: 0;
+}
+
+#fill {
+    z-index: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgb(2, 4, 110);
+    opacity: 0;
+}
+
+/*
+
+
+    -- Sky--
+
+
+*/
+
+.sky {
+    position: absolute;
+    z-index: -1;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    right: 0;
+}
+
+#sunrise {
+    background: linear-gradient(#02418a, #ffe87e);
+    opacity: 1;
+    animation: sunrise-sky var(--day-length) linear infinite;
+}
+
+#day {
+    background: linear-gradient(#0d56dd, #7eb6ff);
+    opacity: 0;
+    animation: day-sky var(--day-length) linear infinite;
+}
+
+#sunset { 
+    background: linear-gradient(#05289b, #fa5e2e);
+    opacity: 0;
+    animation: sunset-sky var(--day-length) linear infinite;
+}
+
+#night {
+    background: linear-gradient(#000f3d, #140085);
+    opacity: 0;
+    animation: night-sky var(--day-length) linear infinite;
+}
+
+@keyframes sunrise-sky {
+    0% { 
+        opacity: 1;
+    }
+
+    10% {
+        opacity: 0;
+    }
+    90% {
+        opacity: 0;
+    }
+    100% {
+        opacity: 1;
+    }
+}
+
+@keyframes day-sky {
+    0% {
+        opacity: 0;
+    }
+    10% {
+        opacity: 1;
+    }
+    30% {
+        opacity: 1;
+    }
+    40% {
+        opacity: 0;
+    }
+}
+
+@keyframes sunset-sky {
+    0% {
+        opacity: 0;
+    }
+    30% {
+        opacity: 0;
+    }
+    50% {
+        opacity: 1;
+    }
+    70% {
+        opacity: 0;
+    }
+}
+
+@keyframes night-sky {
+    0% {
+        opacity: 0;
+    }
+    50% {
+        opacity: 0;
+    } 
+    70% {
+        opacity: 1;
+    }
+    80% {
+        opacity: 1;
+    }
+    90% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+    }
+}
+
+/*
+
+
+    -- Sun & Moon --
+
+
+*/
+
+#orbit-wrapper {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+}
+
+#orbit {
+    display: flex;
+    justify-content: space-between;
+    width: 80vh;
+    height: var(--orbital-dim);
+    animation: orbit var(--day-length) linear infinite;
+}
+
+.orbital {
+    width: var(--orbital-dim);
+    height: var(--orbital-dim);
+    border-radius: calc(var(--orbital-dim) / 2);
+}
+
+#sun {
+    background-color: orange;
+    box-shadow: 0 0 100px 5px orange;
+    opacity: 1;
+    animation: reverse-spin var(--day-length) linear infinite, sun-color var(--day-length) linear infinite;
+}
+
+#moon {
+    background-color: var(--moon-color);
+    box-shadow: 0 0 100px 5px var(--moon-color);
+    opacity: 1;
+    animation: reverse-spin var(--day-length) linear infinite;
+}
+
+@keyframes orbit {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    25% {
+        transform: rotate(90deg);
+    }
+    50% {
+        transform: rotate(180deg);
+    }
+    75% {
+        transform: rotate(270deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes reverse-spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(-360deg);
+    }
+}
+
+@keyframes sun-color {
+    0% {
+        background-color: var(--sun-color-sunset);
+        box-shadow: 0 0 100px 5px var(--sun-color-sunset);
+    }
+    10% {
+        background-color: var(--sun-color-daylight);
+        box-shadow: 0 0 100px 5px var(--sun-color-daylight);
+    }
+    30% {
+        background-color: var(--sun-color-daylight);
+        box-shadow: 0 0 100px 5px var(--sun-color-daylight);
+    }
+    50% {
+        background-color: var(--sun-color-sunset);
+        box-shadow: 0 0 100px 5px var(--sun-color-sunset);
+    }
+}
+
+/*
+
+
+    -- Mountains --
+
+
+*/
+
+#mountains-wrapper {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    z-index: 2;
+    display: flex;
+    align-items: flex-end;
+    filter: brightness(100%);
+    animation: mountain-color var(--day-length) linear infinite;
+}
+
+#mountains-container {
+    width: 100%;
+    height: var(--mountain-range-max-height);
+    position: relative;
+
+}
+
+.range {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+#mountains-close {
+    z-index: 3;
+    filter: brightness(55%);
+}
+
+#mountains-mid {
+    z-index: 2;
+    filter: brightness(70%);
+}
+
+#mountains-far{
+     z-index: 1;
+     filter: brightness(85%);
+}
+
+#mountains-super-far {
+    z-index: 0;
+}
+
+.mountain {
+    position: absolute;
+    background: var(--mountain-color);
+    transform: rotate(45deg);
+    height: 140%;
+    aspect-ratio: 1 / 1;
+}
+
+#m-c-1 {
+    left: -100px;
+    bottom: calc(-70% - 200px);
+}
+
+#m-c-2 {
+    left: 1000px;
+    bottom: calc(-70% - 281px);
+}
+
+#m-c-3 {
+    left: 1706px;
+    bottom: calc(-70% - 358px);
+}
+
+#m-m-1 {
+    left: -375px;
+    bottom: calc(-70% - 281px);
+}
+
+#m-m-2 {
+    left: 285px;
+    bottom: calc(-70% - 266px);
+}
+
+#m-m-3 {
+    left: 1407px;
+    bottom: calc(-70% - 338px);
+}
+
+#m-m-4 {
+    left: 1836px;
+    bottom: calc(-70% - 294px);
+}
+
+#m-f-1 {
+    left: -264px;
+    bottom: calc(-70% - 234px);
+}
+
+#m-f-2 {
+    left: 95px;
+    bottom: calc(-70% - 163px);
+}
+
+#m-f-3 {
+    left: 624px;
+    bottom: calc(-70% - 62px);
+}
+
+#m-f-4 {
+    left: 1103px;
+    bottom: calc(-70% - 225px);
+}
+
+#m-f-5 {
+    left: 1731px;
+    bottom: calc(-70% - 118px);
+}
+
+#m-sf-1 {
+    left: -445px;
+    bottom: calc(-70% - 158px);
+}
+
+#m-sf-2 {
+    left: 352px;
+    bottom: calc(-70% - 119px);
+}
+
+#m-sf-3 {
+    left: 838px;
+    bottom: calc(-70% - 73px);
+}
+
+#m-sf-4 {
+    left: 1411px;
+    bottom: calc(-70% - 46px);
+}
+
+@keyframes mountain-color {
+    0% {
+        filter: brightness(70%);
+    }
+    10% {
+        filter: brightness(100%);
+    }
+    30% {
+        filter: brightness(100%);
+    }
+    70% {
+        filter: brightness(30%);
+    }
+    90% {
+        filter: brightness(30%);
+    }
+    100% {
+        filter: brightness(70%);
+    }
+}
+
+/*
+
+
+    -- Stars
+
+
+*/
+
+#stars-wrapper {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 0;
+    width: 100vw;
+    height: 100vh;
+    opacity: 0;
+    animation: stars-opacity var(--day-length) linear infinite;
+}
+
+.star {
+    position: absolute;
+    width: 2px;
+    height: 2px;
+    background-color: white;
+    /*box-shadow: 0 0 6px 1px white;*/
+    animation: star-flicker 2s linear infinite;
+}
+
+@keyframes star-flicker {
+    0% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+    100% {
+        opacity: 1;
+    }
+}
+
+@keyframes stars-opacity {
+    0% {
+        opacity: 0;
+    }
+    50% {
+        opacity: 0;
+    }
+    80% {
+        opacity: 1;
+    }
+    90% {
+        opacity: 1;
+    }
+    95% {
+        opacity: 0;
+    }
+}
+
+
+
+

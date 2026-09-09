@@ -35,7 +35,7 @@ test("the final reveal keeps the winner hidden, counts all scores, and supports 
       return node;
     };
   });
-  await page.goto("/ending-preview");
+  await page.goto("/ticket/ending-preview");
   await signIn(page, "Ending_QA");
   await page.getByRole("button", { name: "Create ending preview" }).click();
   await expect(page).toHaveURL(/\/room\//);
@@ -193,7 +193,7 @@ test("the finished scoreboard and chat remain usable on a phone", async ({
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.goto("/ending-preview");
+  await page.goto("/ticket/ending-preview");
   await signIn(page, "Mobile_ending_QA");
   await page.getByRole("button", { name: "Create ending preview" }).click();
   await page.getByRole("button", { name: "Draw from hidden deck" }).click();

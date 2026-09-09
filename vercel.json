@@ -3,7 +3,7 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
-      "source": "/((?!assets/|models/|favicon.svg).*)",
+      "source": "/((?!assets/|models/|favicon.svg|grams-assets/).*)",
       "destination": "/index.html"
     }
   ],
@@ -21,7 +21,7 @@
         },
         {
           "key": "X-Frame-Options",
-          "value": "DENY"
+          "value": "SAMEORIGIN"
         }
       ]
     },
@@ -33,6 +33,67 @@
           "value": "public, max-age=31536000, immutable"
         }
       ]
+    },
+    {
+      "source": "/grams-assets/v1/sounds/:path*",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/grams-assets/v1/images/:path*",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/grams-assets/v1/icons/:path*",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "ticket.bentsignal.com"
+        }
+      ],
+      "destination": "https://games.bentsignal.com/",
+      "permanent": true
+    },
+    {
+      "source": "/room/:code",
+      "destination": "/ticket/room/:code",
+      "permanent": true
+    },
+    {
+      "source": "/ending-preview",
+      "destination": "/ticket/ending-preview",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "ticket.bentsignal.com"
+        }
+      ],
+      "destination": "https://games.bentsignal.com/:path*",
+      "permanent": true
     }
   ]
 }

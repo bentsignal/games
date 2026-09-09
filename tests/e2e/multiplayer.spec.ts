@@ -15,7 +15,7 @@ test("two independent friends join, choose tickets, chat, draw, and reconnect", 
   const errors: string[] = [];
   a.on("pageerror", (e) => errors.push(e.message));
   b.on("pageerror", (e) => errors.push(e.message));
-  await a.goto(baseURL!);
+  await a.goto(baseURL! + "/ticket");
   await signIn(a, "Alice_QA");
   await a.getByRole("button", { name: "Create a game" }).click();
   await expect(a).toHaveURL(/\/room\/[A-Z2-9]{8}/);
@@ -210,7 +210,7 @@ test("two independent friends join, choose tickets, chat, draw, and reconnect", 
 test("the 2D atlas supports keyboard route selection, pan, zoom, and optional sound", async ({
   page,
 }) => {
-  await page.goto("/");
+  await page.goto("/ticket");
   await signIn(page, "Atlas_QA");
   await page.getByRole("button", { name: "Create a game" }).click();
   const map = page.getByRole("group", { name: "USA railway map" });
@@ -254,7 +254,7 @@ test("computer takeover finishes the game, reveals scores, and rematches", async
   test.setTimeout(240000);
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  await page.goto("/");
+  await page.goto("/ticket");
   await signIn(page, "Conductor_QA");
   await page.getByRole("button", { name: "Create a game" }).click();
   await page.getByRole("button", { name: "Add computer opponent" }).click();
@@ -270,7 +270,7 @@ test("computer takeover finishes the game, reveals scores, and rematches", async
   await page
     .getByRole("button", { name: "Hand over my seat", exact: true })
     .click();
-  await expect(page).toHaveURL(/\/$/);
+  await expect(page).toHaveURL(/\/ticket$/);
   await page.goto(gameUrl);
   await expect(
     page.getByRole("tab", { name: "Scoreboard", exact: true }),
@@ -298,7 +298,7 @@ test("computer takeover finishes the game, reveals scores, and rematches", async
 });
 test("mobile landing, catalog, and room remain usable", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/");
+  await page.goto("/ticket");
   await signIn(page, "Mobile_QA");
   await expect(
     page.getByRole("heading", { name: "Ticket to Ride" }),
@@ -425,7 +425,7 @@ test("music starts once, survives closing settings, and pauses without recreatin
   `,
     }),
   );
-  await page.goto("/");
+  await page.goto("/ticket");
   await signIn(page, "Music_QA");
   const pause = page.getByRole("button", { name: "Pause music", exact: true });
   await expect(pause).toBeVisible();
@@ -460,7 +460,7 @@ test("music starts once, survives closing settings, and pauses without recreatin
 test("lobby controls stay put as opponents join, and only chat is shown", async ({
   page,
 }) => {
-  await page.goto("/");
+  await page.goto("/ticket");
   await signIn(page, "Lobby_QA");
   await page.getByRole("button", { name: "Create a game" }).click();
   const add = page.getByRole("button", { name: "Add computer opponent" });
@@ -489,7 +489,7 @@ test("lobby controls stay put as opponents join, and only chat is shown", async 
 test("setup actions keep unrelated controls enabled and chat stays in place", async ({
   page,
 }) => {
-  await page.goto("/");
+  await page.goto("/ticket");
   await signIn(page, "Setup_QA");
   await expect(
     page.getByRole("heading", { name: "Ticket to Ride", exact: true }),
@@ -567,7 +567,7 @@ test("chat rate errors are private Server messages, never page toasts", async ({
     second = await browser.newContext();
   const a = await first.newPage(),
     b = await second.newPage();
-  await a.goto(baseURL!);
+  await a.goto(baseURL! + "/ticket");
   await signIn(a, "Chat_QA");
   await a.getByRole("button", { name: "Create a game" }).click();
   await expect(a).toHaveURL(/room/);
@@ -598,7 +598,7 @@ test("chat rate errors are private Server messages, never page toasts", async ({
 test("hovering either available lane highlights the whole connection", async ({
   page,
 }) => {
-  await page.goto("/");
+  await page.goto("/ticket");
   await signIn(page, "Hover_QA");
   await page.getByRole("button", { name: "Create a game" }).click();
   for (const id of ["r1", "r2"]) {

@@ -28,7 +28,7 @@ test("Google sign-in is centered and invitation links survive the gate", async (
 test("signed-in refresh has no temporary auth content and account menu signs out", async ({
   page,
 }) => {
-  await page.goto("/");
+  await page.goto("/ticket");
   await signIn(page, "AuthRefreshTest");
   await expect(
     page.getByRole("button", { name: "Create a game", exact: true }),

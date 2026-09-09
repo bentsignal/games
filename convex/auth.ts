@@ -28,6 +28,7 @@ const google: ReturnType<typeof setupOauth<"google", GoogleProfile, "users">> =
       allowedRedirectOrigins: [
         "http://localhost:5173",
         "https://ticket.bentsignal.com",
+        "https://games.bentsignal.com",
       ],
     },
   );

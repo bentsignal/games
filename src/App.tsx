@@ -101,7 +101,9 @@ function getToken() {
 }
 const token = getToken();
 const roomFromUrl = () =>
-  location.pathname.match(/^\/room\/([a-z0-9]+)\/?$/i)?.[1].toUpperCase() || "";
+  location.pathname
+    .match(/^\/(?:ticket\/)?room\/([a-z0-9]+)\/?$/i)?.[1]
+    .toUpperCase() || "";
 class BoardBoundary extends Component<
   { children: ReactNode },
   { error: boolean }
@@ -715,7 +717,11 @@ export default function App({ username }: { username: string }) {
         ? cardPayment(game, dragRoute, cardColor)
         : undefined;
   const visit = (roomCode: string) => {
-    history.pushState({}, "", roomCode ? "/room/" + roomCode : "/");
+    history.pushState(
+      {},
+      "",
+      roomCode ? "/ticket/room/" + roomCode : "/ticket",
+    );
     setCode(roomCode);
     setWatching(false);
     setSelected(null);
@@ -788,7 +794,9 @@ export default function App({ username }: { username: string }) {
   }
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(location.origin + "/room/" + code);
+      await navigator.clipboard.writeText(
+        location.origin + "/ticket/room/" + code,
+      );
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -914,6 +922,9 @@ export default function App({ username }: { username: string }) {
               <ChevronDown size={14} />
             </summary>
             <div className="account-menu-panel">
+              <a className="games-back" href="/">
+                Games
+              </a>
               <button onClick={() => void signOut()}>
                 <LogOut size={16} />
                 Sign out
@@ -941,7 +952,7 @@ export default function App({ username }: { username: string }) {
           </button>
         </div>
       )}
-      {!code && location.pathname === "/ending-preview" ? (
+      {!code && location.pathname.endsWith("/ending-preview") ? (
         <main className="ending-preview-page">
           <h1>Test the ending</h1>
           <p>
@@ -1103,7 +1114,7 @@ export default function App({ username }: { username: string }) {
           <button
             className="secondary"
             onClick={() => {
-              history.replaceState({}, "", `/room/${code}?watch=1`);
+              history.replaceState({}, "", `/ticket/room/${code}?watch=1`);
               setWatching(true);
               setTab("chat");
             }}

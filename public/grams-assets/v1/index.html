@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="main.css">
+    <link rel="stylesheet" href="world.css">
+    <link rel="icon" type="image/x-icon" href="images/favicon_2.png">
+    <title>Grams</title>
+</head>
+<body>
+    <div id="world">
+        <div id="fill">
+        </div>
+        <div id="sunrise" class="sky">
+        </div>
+        <div id="day" class="sky">
+        </div>
+        <div id="sunset" class="sky">
+        </div>
+        <div id="night" class="sky">
+        </div>
+        <div id="orbit-wrapper">
+            <div id="orbit">
+                <div id="sun" class="orbital">
+                </div>
+                <div id="moon" class="orbital">
+                </div>
+            </div>
+        </div>
+        <div id="mountains-wrapper">
+            <div id="mountains-container">
+                <div id="mountains-close" class="range">
+                    <div class="mountain" id="m-c-1"></div>
+                    <div class="mountain" id="m-c-2"></div>
+                    <div class="mountain" id="m-c-3"></div>
+                </div>
+                <div id="mountains-mid" class="range">
+                    <div class="mountain" id="m-m-1"></div>
+                    <div class="mountain" id="m-m-2"></div>
+                    <div class="mountain" id="m-m-3"></div>
+                    <div class="mountain" id="m-m-4"></div>
+                </div>
+                <div id="mountains-far" class="range">
+                    <div class="mountain" id="m-f-1"></div>
+                    <div class="mountain" id="m-f-2"></div>
+                    <div class="mountain" id="m-f-3"></div>
+                    <div class="mountain" id="m-f-4"></div>
+                    <div class="mountain" id="m-f-5"></div>
+                </div>
+                <div id="mountains-super-far" class="range">
+                    <div class="mountain" id="m-sf-1"></div>
+                    <div class="mountain" id="m-sf-2"></div>
+                    <div class="mountain" id="m-sf-3"></div>
+                    <div class="mountain" id="m-sf-4"></div>
+                </div>
+            </div>
+        </div>
+        <div id="stars-wrapper">
+        </div>
+    </div>
+    <div id="home-container">
+        <div id="home-wrapper">
+            <div id="home-header-wrapper">
+                <img id="home-logo" src="./images/logo_600.png">
+            </div>
+            <div id="connection-container">
+                <div id="connection-wrapper">
+                    <input id="name-input" placeholder="enter name, then hit enter" autocomplete="off"/>
+                    <div id="join-errors">
+                    </div>
+                </div>
+                
+            </div>
+        </div>
+    </div>
+    <div id="pre-game-container">
+        <div id="pre-game-wrapper">
+            <div id="pre-game-waiting">
+                waiting for host to start the game...
+            </div>
+            <div id="pre-game-countdown">
+            </div>
+        </div>
+    </div>
+    <div id="game-container">
+        <div id="game-wrapper">
+            <div id="game-info-container">
+                <div id="game-info-wrapper" class="wrapper">
+                    <div id="user-info-wrapper">
+                        <div id="pfp-wrapper">
+                            <img src="images/ben-face-1.jpg" class="pfp-player-card" id="my-pfp">
+                        </div>
+                        <div id="user-info">
+                            <p id="username">Username</p>
+                            <p id="wordCount">Words: 0</p>
+                            <p id="myScore">Score: 0</p>
+                        </div>
+                    </div>
+                    <div id="word-list-wrapper">
+                        <h2 id="word-list-header">Words</h2>
+                        <div id="words-container">
+                            <div id="words-wrapper">
+                                <div id="words-8" class="word-class">
+                                </div>
+                                <div id="words-7">
+                                </div>
+                                <div id="words-6">
+                                </div>
+                                <div id="words-5">
+                                </div>
+                                <div id="words-4">
+                                </div>
+                                <div id="words-3">
+                                </div>
+                                <div id="words-2">
+                                </div>
+                                <div id="words-1">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="letters-used-container">
+                <div id="letters-used-wrapper">
+                </div>
+            </div>
+            <div id="letters-available-container">
+                <div id="letters-available-wrapper">
+                </div>
+            </div>
+        </div>
+        <div id="results-wrapper">
+            <div id="results-container">
+            </div>
+        </div>
+    </div>
+    <div id="player-list-container">
+        <div id="player-list-wrapper">
+        </div>
+    </div>
+    <div id="keybinds-container">
+        <div id="keybinds-wrapper">
+            <p><span class="bind wrapper">;</span> or <span class="bind wrapper">:</span> to shuffle letters</p>
+            <p><span class="bind wrapper">Space</span> to clear letters</p>
+        </div>
+    </div>
+    <div id="chat-container" class="wrapper"">
+        <div id="chat-wrapper">
+            <div id="chat">
+            </div>
+        </div>
+        <div id="chat-input-wrapper">
+            <input id="chat-input" autocomplete="off" placeholder="type your message here">
+            <img src="icons/emote.svg" id="emote-button">
+        </div>
+    </div>
+    <div id="timer-container">
+        <div id="timer-wrapper" class="wrapper"">
+            <div id="timer">
+                1:00
+            </div>
+        </div>
+    </div>
+    <div id="controls-container">
+        <div id="controls-wrapper" class="wrapper">
+            <div id="controls">
+                <p>Host Controls</p>
+                <select id="select-word-size">
+                    <option>6 letters</option>
+                    <option>7 letters</option>
+                    <option>8 letters</option>
+                </select>
+                <button id="start">Start</button>
+            </div>
+        </div>
+    </div>
+    <div id="settings-wheel-container">
+        <div id="settings-wheel-wrapper">
+            <img src="icons/settings.svg" id="settings-wheel" class="icon">
+            <img src="icons/volume.svg" id="volume-button" class="icon">
+            <img src="icons/pfp.svg" id="pfp-button" class="icon">
+            <img src="icons/keyboard.svg" id="keybinds-button" class="icon">
+        </div>
+    </div>
+    <img src="icons/leave.svg" id="leave" class="icon">
+    <script src="./popup.min.js"></script>
+    <script type= "module" src="./index.js"></script>
+    <script type="text/javascript" src="world.js"></script>
+
+</body>
+</html>

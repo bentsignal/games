@@ -22,7 +22,7 @@ test("card movement stays off the React render loop and keeps the map stable", a
   });
   const a = await aContext.newPage(),
     b = await bContext.newPage();
-  await a.goto(baseURL!);
+  await a.goto(baseURL! + "/ticket");
   await signIn(a, "Drag_QA");
   await a.getByRole("button", { name: "Create a game" }).click();
   await expect(a).toHaveURL(/room/);
@@ -93,15 +93,13 @@ test("card movement stays off the React render loop and keeps the map stable", a
     const observer = new MutationObserver((records) => {
       (window as any).__trackMutations += records.length;
     });
-    document
-      .querySelectorAll(".map-route")
-      .forEach((route) =>
-        observer.observe(route, {
-          attributes: true,
-          childList: true,
-          subtree: true,
-        }),
-      );
+    document.querySelectorAll(".map-route").forEach((route) =>
+      observer.observe(route, {
+        attributes: true,
+        childList: true,
+        subtree: true,
+      }),
+    );
     (window as any).__trackObserver = observer;
   });
   await a.mouse.move(map.x + map.width * 0.15, map.y + map.height * 0.25, {

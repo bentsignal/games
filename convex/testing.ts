@@ -71,3 +71,16 @@ export const signIn = internalMutation({
         });
   },
 });
+
+export const resetGrams = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    devOnly();
+    for (const row of await ctx.db.query("grams").collect())
+      await ctx.db.delete(row._id);
+    for (const row of await ctx.db.query("gramsFeed").collect())
+      await ctx.db.delete(row._id);
+    for (const row of await ctx.db.query("gramsPresence").collect())
+      await ctx.db.delete(row._id);
+  },
+});
