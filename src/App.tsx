@@ -1,3 +1,4 @@
+import TurnPanel from "./components/TurnPanel";
 import GameEvents from "./components/GameEvents";
 import CardDrawFlight, { type DrawFlight } from "./components/CardDrawFlight";
 import DestinationFeedback, {
@@ -410,13 +411,18 @@ export default function App({ username }: { username: string }) {
     play = useMutation(api.rooms.play),
     manage = useMutation(api.rooms.manage).withOptimisticUpdate(
       (store, args) => {
-        if (args.operation !== "mode" || !args.mode) return;
+        if (args.operation !== "mode" && args.operation !== "timer") return;
         const queryArgs = { code: args.code, token: args.token };
         const current = store.getQuery(api.rooms.get, queryArgs);
         if (current?.game)
           store.setQuery(api.rooms.get, queryArgs, {
             ...current,
-            game: { ...current.game, mode: args.mode },
+            game: {
+              ...current.game,
+              ...(args.operation === "mode"
+                ? { mode: args.mode! }
+                : { turnSeconds: args.turnSeconds! }),
+            },
           });
       },
     ),
@@ -828,12 +834,17 @@ export default function App({ username }: { username: string }) {
     }
   };
   const setTable = async (
-    operation: "bot" | "remove" | "mode" | "rematch" | "leave" | "resign",
-    extra: { player?: string; mode?: Mode } = {},
+    operation:
+      "bot" | "remove" | "mode" | "timer" | "rematch" | "leave" | "resign",
+    extra: {
+      player?: string;
+      mode?: Mode;
+      turnSeconds?: 0 | 30 | 60 | 90 | 120;
+    } = {},
   ) => {
     const key =
-      operation === "mode"
-        ? "mode:" + crypto.randomUUID()
+      operation === "mode" || operation === "timer"
+        ? operation + ":" + crypto.randomUUID()
         : operation + (extra.player ?? "");
     if (pendingTableRef.current.has(key)) return;
     pendingTableRef.current.add(key);
@@ -1417,6 +1428,9 @@ export default function App({ username }: { username: string }) {
               </button>
             </div>
             {!me && <p className="spectator-status">SPECTATING</p>}
+            {game.phase !== "lobby" && game.phase !== "finished" && (
+              <TurnPanel game={game} mine={mine} serverNow={room!.serverNow} />
+            )}
             {me?.pending.length && !me.bot ? (
               <TicketChoice
                 game={game}
@@ -1430,24 +1444,51 @@ export default function App({ username }: { username: string }) {
               <>
                 {game.phase === "lobby" ? (
                   <>
-                    <label htmlFor="table-mode">GAME MODE</label>
-                    <select
-                      id="table-mode"
-                      value={game.mode}
-                      disabled={!host || busy}
-                      aria-busy={pendingTable.some((key) =>
-                        key.startsWith("mode"),
-                      )}
-                      onChange={(e) =>
-                        setTable("mode", { mode: e.target.value as Mode })
-                      }
-                    >
-                      {Object.entries(MODES).map(([k, m]) => (
-                        <option key={k} value={k}>
-                          {m.name}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="lobby-options">
+                      <div>
+                        {" "}
+                        <label htmlFor="table-mode">GAME MODE</label>
+                        <select
+                          id="table-mode"
+                          value={game.mode}
+                          disabled={!host || busy}
+                          aria-busy={pendingTable.some((key) =>
+                            key.startsWith("mode"),
+                          )}
+                          onChange={(e) =>
+                            setTable("mode", { mode: e.target.value as Mode })
+                          }
+                        >
+                          {Object.entries(MODES).map(([k, m]) => (
+                            <option key={k} value={k}>
+                              {m.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        {" "}
+                        <label htmlFor="turn-timer">TURN TIMER</label>
+                        <select
+                          id="turn-timer"
+                          title="At expiry, draw face-down cards to finish the turn."
+                          value={game.turnSeconds ?? 0}
+                          disabled={!host}
+                          onChange={(e) =>
+                            setTable("timer", {
+                              turnSeconds: Number(e.target.value) as
+                                0 | 30 | 60 | 90 | 120,
+                            })
+                          }
+                        >
+                          <option value={0}>Off</option>
+                          <option value={30}>30 seconds</option>
+                          <option value={60}>60 seconds</option>
+                          <option value={90}>90 seconds</option>
+                          <option value={120}>2 minutes</option>
+                        </select>
+                      </div>
+                    </div>{" "}
                     <p className="mode-description">
                       {MODES[game.mode].description}
                     </p>
@@ -1526,27 +1567,6 @@ export default function App({ username }: { username: string }) {
                   </>
                 ) : game.phase === "finished" ? null : (
                   <>
-                    <div className={`turn-banner ${mine ? "your-turn" : ""}`}>
-                      <span className="turn-light" />
-                      <div>
-                        <strong>
-                          {game.phase === "setup"
-                            ? "Choose tickets"
-                            : mine
-                              ? "Your turn"
-                              : `${game.players[game.turn]?.name}’s turn`}
-                        </strong>
-                        <small>
-                          {game.phase === "setup"
-                            ? "Everyone is choosing starting tickets."
-                            : mine
-                              ? game.drawn
-                                ? "Choose one more train card."
-                                : "Draw cards, claim a route, or take tickets."
-                              : ""}
-                        </small>
-                      </div>
-                    </div>
                     <div className="market-heading">
                       <h3>Cards</h3>
                       <span>{game.deckCount + game.discardCount} in deck</span>

@@ -35,6 +35,8 @@ export interface Result {
 }
 export interface Game {
   roundId?: number;
+  turnSeconds?: 0 | 30 | 60 | 90 | 120;
+  turnDeadline?: number;
   mode: Mode;
   phase: "lobby" | "setup" | "playing" | "finished";
   players: Player[];
@@ -585,4 +587,36 @@ export function botAction(g: Game, p: Player): Action {
   if (face.length) return { type: "draw", source: face[0].i };
   if (g.ticketDeck.length) return { type: "tickets" };
   return { type: "pass" };
+}
+
+// Timeout finishes only the current turn, preserving a partially taken action.
+export function expireTurn(original: Game): Game {
+  if (original.phase !== "playing") return original;
+  let g = structuredClone(original);
+  const p = g.players[g.turn],
+    turn = g.turnNumber;
+  log(g, `${p.name} ran out of time.`);
+  if (p.pending.length)
+    return applyAction(g, p.id, {
+      type: "keep",
+      tickets: p.pending.slice(0, 1),
+    });
+  for (
+    let i = 0;
+    i < 2 && g.phase === "playing" && g.turnNumber === turn;
+    i++
+  ) {
+    if (g.deck.length + g.discard.length) {
+      g = applyAction(g, p.id, { type: "draw", source: -1 });
+    } else {
+      // No hidden cards remain: finish with what was available, never choose a route.
+      g.passes++;
+      if (g.passes >= g.players.length * 2) {
+        g.phase = "finished";
+        g.results = scoreGame(g);
+      } else endTurn(g);
+      break;
+    }
+  }
+  return g;
 }

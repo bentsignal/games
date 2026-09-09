@@ -1,5 +1,7 @@
 import { paginationOptsValidator } from "convex/server";
 import { mutation, query, internalMutation } from "./_generated/server";
+import type { MutationCtx } from "./_generated/server";
+import type { Doc, Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import { v, ConvexError } from "convex/values";
 import { requirePlayer } from "./users";
@@ -7,6 +9,7 @@ import { saveResult } from "./results";
 import { endingPreview } from "../src/game/ending-preview";
 import {
   applyAction,
+  expireTurn,
   botAction,
   newGame,
   newPlayer,
@@ -128,6 +131,7 @@ export const get = query({
     return {
       code: room.code,
       revision: room.revision,
+      serverNow: Date.now(),
       game: playerView(game, id),
       seats: game.players.length,
       phase: game.phase,
@@ -171,6 +175,15 @@ export const play = mutation({
         .withIndex("by_code", (q) => q.eq("code", args.code))
         .unique();
     if (!room) throw new ConvexError("Room not found.");
+    const previous = room.game as Game;
+    if (
+      previous.phase === "playing" &&
+      previous.turnDeadline &&
+      Date.now() >= previous.turnDeadline
+    ) {
+      await finishTimeout(ctx, room);
+      return;
+    }
     // Starting choices affect only the actor's offered tickets. Let all players
     // choose concurrently; applyAction still rejects duplicate or invented keeps.
     const independentSetupChoice =
@@ -189,6 +202,7 @@ export const play = mutation({
           : "That move could not be completed.",
       );
     }
+    await scheduleTurn(ctx, room._id, room.game as Game, game);
     await ctx.db.patch(room._id, {
       game,
       revision: room.revision + 1,
@@ -210,12 +224,22 @@ export const manage = mutation({
       v.literal("bot"),
       v.literal("remove"),
       v.literal("mode"),
+      v.literal("timer"),
       v.literal("rematch"),
       v.literal("leave"),
       v.literal("resign"),
     ),
     player: v.optional(v.string()),
     mode: v.optional(mode),
+    turnSeconds: v.optional(
+      v.union(
+        v.literal(0),
+        v.literal(30),
+        v.literal(60),
+        v.literal(90),
+        v.literal(120),
+      ),
+    ),
   },
   handler: async (ctx, args) => {
     const { id } = await requirePlayer(ctx),
@@ -257,7 +281,9 @@ export const manage = mutation({
             p.id.startsWith("bot-"),
           ),
         );
+        const turnSeconds = g.turnSeconds;
         g = newGame(g.mode, players[0]);
+        if (turnSeconds !== undefined) g.turnSeconds = turnSeconds;
         g.players = players;
       } else {
         if (g.phase !== "lobby")
@@ -283,6 +309,8 @@ export const manage = mutation({
           g.players = g.players.filter((p) => p.id !== args.player);
         }
         if (args.operation === "mode" && args.mode) g.mode = args.mode;
+        if (args.operation === "timer" && args.turnSeconds !== undefined)
+          g.turnSeconds = args.turnSeconds;
       }
     }
     if (!g.players.length) {
@@ -317,9 +345,18 @@ export const advanceBot = internalMutation({
     const room = await ctx.db.get(args.roomId);
     if (!room || room.revision !== args.revision) return;
     const g = room.game as Game;
+    if (
+      g.phase === "playing" &&
+      g.turnDeadline &&
+      Date.now() >= g.turnDeadline
+    ) {
+      await finishTimeout(ctx, room);
+      return;
+    }
     const p = nextBot(g);
     if (!p) return;
     const game = applyAction(g, p.id, botAction(g, p));
+    await scheduleTurn(ctx, room._id, room.game as Game, game);
     await ctx.db.patch(room._id, {
       game,
       revision: room.revision + 1,
@@ -405,5 +442,69 @@ export const deleteRoomChat = internalMutation({
       await ctx.scheduler.runAfter(0, internal.rooms.deleteRoomChat, {
         roomId,
       });
+  },
+});
+
+async function scheduleTurn(
+  ctx: MutationCtx,
+  roomId: Id<"rooms">,
+  before: Game,
+  game: Game,
+) {
+  if (game.phase !== "playing" || !game.turnSeconds) {
+    delete game.turnDeadline;
+    return;
+  }
+  if (
+    before.phase === "playing" &&
+    before.turnNumber === game.turnNumber &&
+    before.roundId === game.roundId &&
+    before.turnDeadline
+  )
+    return;
+  game.turnDeadline = Date.now() + game.turnSeconds * 1000;
+  await ctx.scheduler.runAt(game.turnDeadline, internal.rooms.timeout, {
+    roomId,
+    deadline: game.turnDeadline,
+    turn: game.turnNumber,
+    round: game.roundId ?? 0,
+  });
+}
+async function finishTimeout(ctx: MutationCtx, room: Doc<"rooms">) {
+  const before = room.game as Game;
+  const game = expireTurn(before);
+  await scheduleTurn(ctx, room._id, before, game);
+  await ctx.db.patch(room._id, {
+    game,
+    revision: room.revision + 1,
+    updatedAt: Date.now(),
+  });
+  await saveResult(ctx, room, game);
+  if (nextBot(game))
+    await ctx.scheduler.runAfter(600, internal.rooms.advanceBot, {
+      roomId: room._id,
+      revision: room.revision + 1,
+    });
+}
+export const timeout = internalMutation({
+  args: {
+    roomId: v.id("rooms"),
+    deadline: v.number(),
+    turn: v.number(),
+    round: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const room = await ctx.db.get(args.roomId);
+    if (!room) return;
+    const g = room.game as Game;
+    if (
+      g.phase !== "playing" ||
+      g.turnDeadline !== args.deadline ||
+      g.turnNumber !== args.turn ||
+      (g.roundId ?? 0) !== args.round ||
+      Date.now() < args.deadline
+    )
+      return;
+    await finishTimeout(ctx, room);
   },
 });

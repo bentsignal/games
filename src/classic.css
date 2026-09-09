@@ -3482,3 +3482,36 @@ label {
     font-size: 13px;
   }
 }
+
+.turn-copy {
+  flex: 1;
+}
+.turn-countdown {
+  flex: 0 0 auto;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 23px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: #6d5437;
+}
+.your-turn .turn-countdown {
+  font-size: 30px;
+  color: #fff1b9;
+}
+.turn-countdown.urgent {
+  color: #ff8270;
+}
+.lobby-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.lobby-options > div {
+  min-width: 0;
+}
+.lobby-options label {
+  display: block;
+}
+.lobby-options select {
+  width: 100%;
+}
