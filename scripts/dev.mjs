@@ -15,7 +15,7 @@ try {
   run("convex", ["dev", "--once", "--env-file", envPath]);
   run(
     "portless",
-    ["proxy", "start", "--port", String(proxyPort), "--https", "--lan"],
+    ["proxy", "start", "--port", String(proxyPort), "--no-tls", "--lan"],
     { env: { ...process.env, ...proxyEnvironment } },
   );
   console.log(

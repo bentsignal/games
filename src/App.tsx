@@ -1,3 +1,4 @@
+import { clientId } from "./clientId";
 import TurnPanel from "./components/TurnPanel";
 import GameEvents from "./components/GameEvents";
 import CardDrawFlight, { type DrawFlight } from "./components/CardDrawFlight";
@@ -829,7 +830,7 @@ export default function App({ username }: { username: string }) {
       setChatNotices((current) => [
         ...current,
         {
-          _id: crypto.randomUUID(),
+          _id: clientId(),
           code,
           time: Date.now(),
           text: message,
@@ -852,7 +853,7 @@ export default function App({ username }: { username: string }) {
   ) => {
     const key =
       operation === "mode" || operation === "timer"
-        ? operation + ":" + crypto.randomUUID()
+        ? operation + ":" + clientId()
         : operation + (extra.player ?? "");
     if (pendingTableRef.current.has(key)) return;
     pendingTableRef.current.add(key);

@@ -15,10 +15,22 @@ test("agents can sign in locally, refresh, and sign out without Google", async (
   await expect(
     page.getByRole("button", { name: "Create a game", exact: true }),
   ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Create a game", exact: true })
+    .click();
+  await page.getByLabel("GAME MODE", { exact: true }).selectOption("classic");
+  await page.getByLabel("TURN TIMER", { exact: true }).selectOption("60");
+  await expect(page.getByLabel("GAME MODE", { exact: true })).toHaveAttribute(
+    "aria-busy",
+    "false",
+  );
   await page.reload();
-  await expect(
-    page.getByRole("button", { name: "Create a game", exact: true }),
-  ).toBeVisible();
+  await expect(page.getByLabel("GAME MODE", { exact: true })).toHaveValue(
+    "classic",
+  );
+  await expect(page.getByLabel("TURN TIMER", { exact: true })).toHaveValue(
+    "60",
+  );
   await page.locator(".account-menu summary").click();
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
   await expect(

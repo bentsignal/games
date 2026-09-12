@@ -6,8 +6,8 @@
   `services/convex` and `services/grams`. Root `convex.json` selects the functions.
 - `pnpm run setup` provisions an isolated, seven-day Convex dev deployment per
   checkout. `pnpm run dev` starts all three services. `pnpm run doctor` is local-only.
-- Development URLs use Portless LAN mode at `https://<checkout-id>.games.bentsignal.local`.
-  Read the NixOS forwarding and client certificate notes in `docs/development.md`.
+- Development URLs use Portless LAN mode at `http://<checkout-id>.games.bentsignal.local`.
+  Read the NixOS forwarding and HTTP development notes in `docs/development.md`.
 - Temporary deployments use local test sign-in; stable development/production use
   Google. Never configure `GAMES_DEV_SITE_URL` on production.
 - Agents can use Development sign-in with a test username, without Google. With

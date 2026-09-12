@@ -33,8 +33,8 @@ client is needed for local development.
 then starts three persistent Turbo tasks. Open the frontend URL it prints:
 
 ```text
-https://<checkout-id>.games.bentsignal.local
-https://<checkout-id>.grams.bentsignal.local
+http://<checkout-id>.games.bentsignal.local
+http://<checkout-id>.grams.bentsignal.local
 ```
 
 Each checkout has different URLs and a separate Convex database. Worker SQLite
@@ -42,41 +42,32 @@ state lives under `.dev/worker/<convex-deployment>/`, so replacing an expired
 backend also starts with separate Worker state. Do not copy `.env.local`, `.dev/`,
 or Worker secrets between worktrees. Run `pnpm install --frozen-lockfile` and `pnpm run setup` in each.
 
-Portless uses LAN mode and advertises these `.local` names through mDNS. The
-browser uses standard HTTPS port 443, so no port suffix is needed. Linux needs
-Avahi with user publishing enabled; other devices need mDNS support and access to
-the same LAN. The firewall must allow HTTPS on the LAN interface and mDNS.
-Ctrl-C stops the app processes; the shared proxy daemon stays available.
+Portless uses HTTP LAN mode and advertises these `.local` names through mDNS.
+The browser uses port 80, so no port suffix or certificate installation is needed.
+Linux needs Avahi with user publishing enabled; other devices need mDNS support
+and access to the same LAN. The firewall must allow HTTP on the LAN interface
+and mDNS. Ctrl-C stops the apps; the shared proxy daemon stays available.
 
-This machine also runs Tailscale Serve on its own address at port 443. To preserve
-that service, NixOS's `games-lan-https.socket` listens on `10.0.0.16:443` and
-`127.0.0.1:443`, forwarding TCP to Portless on 1355. The machine configuration
-`~/.config/games/network.json` contains `{"proxyPort":1355}` for this machine. Public app
-origins still use 443. Portless's own internal route logs will show 1355. Other
-machines default to Portless directly on 443 and need no forwarding service.
+This machine uses NixOS's `games-lan-http.socket` on `10.0.0.16:80` and
+`127.0.0.1:80`, forwarding TCP to Portless on 1355. The machine configuration
+`~/.config/games/network.json` contains `{"proxyPort":1355}`, shared by all
+worktrees. Browser origins use port 80; Portless's internal route logs show 1355.
+Other machines default to Portless directly on 80 and need no forwarding service.
 If this machine's LAN address changes, update the socket address in
 `/etc/nixos/configuration.nix` and run `sudo -n nixos-rebuild switch`.
+Tailscale Serve retains its separate HTTPS listener.
 
-Before switching an existing proxy between localhost and LAN modes, stop the
-apps and that proxy. Keep other projects using the shared proxy in mind. Then
-rerun `pnpm run setup` to update this checkout's URLs and allowed auth/Worker
-origins, and start it with `pnpm run dev`.
+When switching an existing checkout from HTTPS, stop its apps and the proxy,
+then rerun `pnpm run setup` and `pnpm run dev`. This updates frontend, auth, and
+Worker origins without replacing the database. Use the explicit `http://` URL.
+Browser sessions are origin-specific, so sign in again after switching schemes.
 
-### HTTPS on another computer
-
-Trust the serving machine's public Portless CA on each client computer. Copy it
-from this machine, for example with:
-
-```sh
-scp shawn@work.local:/home/shawn/.portless/ca.pem ./games-portless-ca.pem
-```
-
-On macOS, import it into the System keychain and set it to Always Trust. On
-Windows, import it into Trusted Root Certification Authorities. On Linux, add
-it to the system's CA store or the browser's certificate authorities. Restart
-the browser afterward. Copy only `ca.pem`, never `ca-key.pem`. This trust covers
-both the frontend and Grams Worker; it does not transfer automatically when you
-open the URL from another computer.
+HTTP is for this trusted-LAN setup with disposable test accounts. Production and
+stable Google sign-in deployments remain HTTPS. Cloud Convex connections also
+remain HTTPS. HTTP does not encrypt traffic between the browser and local server.
+Browser clipboard access may be unavailable; the app then asks you to copy the
+room link from the address bar. UI identifiers use `crypto.getRandomValues`,
+which works on HTTP origins.
 
 `pnpm run setup` reuses this checkout's deployment and repairs configuration; it
 does not extend expiration. After expiration, or to start with empty data:
@@ -92,7 +83,7 @@ reserved for shared integration and Google sign-in testing.
 
 Individual services: `pnpm run dev:web`, `pnpm run backend`, `pnpm run grams:dev`.
 Run setup first. `pnpm run dev:direct` remains bare Vite, but development sign-in
-requires the configured HTTPS origin.
+requires the configured app origin.
 
 ## Authentication
 
@@ -142,7 +133,7 @@ Only `VITE_*` variables are exposed to the browser. Never prefix a secret with
 files with owner-only permissions. Local tooling rejects production deploy-key
 and self-hosted overrides.
 
-## HTTPS and NixOS
+## NixOS runtime
 
 Portless generates a local CA at `~/.portless/ca.pem`. On supported systems it
 offers to trust it; `pnpm exec portless trust` retries. OpenSSL must be on PATH. Restart
@@ -167,19 +158,9 @@ The local Worker launcher passes NixOS's system certificate bundle to Miniflare
 via `NODE_EXTRA_CA_CERTS`, so result delivery to Convex can verify HTTPS. An
 explicit `NODE_EXTRA_CA_CERTS` value takes precedence.
 
-Apply with `sudo -n nixos-rebuild switch`. Generate the Portless CA and copy its
-public certificate into the NixOS configuration directory:
-
-```sh
-# On this machine, add --port 1355 because the LAN listener forwards 443.
-pnpm exec portless proxy start --https --lan
-sudo -n cp ~/.portless/ca.pem /etc/nixos/games-portless-ca.pem
-```
-
-Add `security.pki.certificateFiles = [ ./games-portless-ca.pem ];` and rebuild
-again. Copy only the public CA, never `ca-key.pem`; keep machine-specific
-certificates out of Git. Browsers with a separate trust store may also need that
-public CA imported there.
+Apply with `sudo -n nixos-rebuild switch`. No Portless CA or client certificate
+trust is needed for HTTP development. Keep system CA certificates available for
+the Worker's outbound HTTPS connection to Convex.
 
 ## Checks
 

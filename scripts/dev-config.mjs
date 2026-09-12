@@ -19,19 +19,20 @@ export const checkoutId = createHash("sha256")
   .slice(0, 8);
 export const webName = `${checkoutId}.games.bentsignal`;
 export const workerName = `${checkoutId}.grams.bentsignal`;
-export const webOrigin = `https://${webName}.local`;
-export const workerOrigin = `https://${workerName}.local`;
+export const webOrigin = `http://${webName}.local`;
+export const workerOrigin = `http://${workerName}.local`;
 const networkPath = join(
   process.env.XDG_CONFIG_HOME || join(homedir(), ".config"),
   "games/network.json",
 );
 export const proxyPort = existsSync(networkPath)
   ? JSON.parse(readFileSync(networkPath, "utf8")).proxyPort
-  : 443;
+  : 80;
 if (!Number.isInteger(proxyPort) || proxyPort < 1 || proxyPort > 65535)
   throw new Error(`Invalid proxyPort in ${networkPath}.`);
 export const proxyEnvironment = {
   PORTLESS_LAN: "1",
+  PORTLESS_HTTPS: "0",
   PORTLESS_PORT: String(proxyPort),
   PORTLESS_TLD: "local",
   // NixOS owns /etc/hosts; resolve LAN names through Avahi instead.
