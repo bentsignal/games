@@ -204,7 +204,6 @@ multiplayer. Existing game tests use the same internal session fixture through
 `tests/e2e/auth.ts`. These sessions are real Convex Auth sessions, not mocked
 frontend state. Google OAuth remains a separate check on stable development.
 
-
 ### NixOS LAN discovery
 
 Merge these with the existing Avahi configuration, then rebuild:

@@ -4,3 +4,7 @@ packages:
 onlyBuiltDependencies:
   - esbuild
   - workerd
+
+# CI installs with --frozen-lockfile first. Avoid concurrent pnpm run processes
+# rewriting the same dependency-status cache during local parallel checks.
+verifyDepsBeforeRun: false

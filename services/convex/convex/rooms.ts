@@ -120,7 +120,7 @@ export const create = mutation({
 });
 export const get = query({
   args: { code: v.string(), token: v.string() },
-  handler: async (ctx, { code, token }) => {
+  handler: async (ctx, { code }) => {
     const { id } = await requirePlayer(ctx),
       room = await ctx.db
         .query("rooms")
@@ -140,7 +140,7 @@ export const get = query({
 });
 export const join = mutation({
   args: { code: v.string(), token: v.string(), name: v.string() },
-  handler: async (ctx, { code, token, name }) => {
+  handler: async (ctx, { code }) => {
     const { id, name: accountName } = await requirePlayer(ctx);
     const room = await ctx.db
       .query("rooms")
@@ -377,11 +377,11 @@ export const chat = query({
     paginationOpts: paginationOptsValidator,
   },
   handler: async (ctx, { code, paginationOpts }) => {
-    const { id } = await requirePlayer(ctx),
-      room = await ctx.db
-        .query("rooms")
-        .withIndex("by_code", (q) => q.eq("code", code))
-        .unique();
+    await requirePlayer(ctx);
+    const room = await ctx.db
+      .query("rooms")
+      .withIndex("by_code", (q) => q.eq("code", code))
+      .unique();
     if (!room) return { page: [], isDone: true, continueCursor: "" };
     return await ctx.db
       .query("messages")
@@ -392,7 +392,7 @@ export const chat = query({
 });
 export const send = mutation({
   args: { code: v.string(), token: v.string(), text: v.string() },
-  handler: async (ctx, { code, token, text }) => {
+  handler: async (ctx, { code, text }) => {
     const { id, name: accountName } = await requirePlayer(ctx),
       room = await ctx.db
         .query("rooms")

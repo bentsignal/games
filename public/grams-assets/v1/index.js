@@ -26,7 +26,7 @@ import Popups from "./popups.js"
 import Binds from "./binds.js"
 
 import { socket } from "./transport.js"
-const game = new Game()
+let game = new Game()
 const sound = new Sound()
 const binds = new Binds()
 

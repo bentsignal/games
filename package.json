@@ -12,7 +12,7 @@
     "test:map": "tsx scripts/map-proof.tsx && tsx scripts/check-map.ts",
     "test:feedback": "tsx scripts/check-feedback.ts",
     "test:live": "tsx scripts/live-smoke.ts",
-    "format": "prettier --write src services shared tests scripts/*.{ts,mjs} *.ts *.json *.md docs",
+    "format": "prettier --write . --ignore-path .gitignore --ignore-path .prettierignore",
     "dev:direct": "vite",
     "grams:dev": "pnpm --filter @games/grams dev",
     "grams:deploy": "wrangler deploy --config services/grams/wrangler.jsonc --env \"\"",
@@ -24,7 +24,10 @@
     "build:web": "tsc --noEmit && vite build",
     "typecheck": "turbo run typecheck typecheck:web",
     "typecheck:web": "tsc --noEmit",
-    "test:e2e:smoke": "playwright test tests/e2e/development-signin.spec.ts tests/e2e/grams.spec.ts tests/e2e/multiplayer.spec.ts --grep \"agents can sign in|development sign-in preserves|Grams preserves|hub links|two independent friends\""
+    "test:e2e:smoke": "playwright test tests/e2e/development-signin.spec.ts tests/e2e/grams.spec.ts tests/e2e/multiplayer.spec.ts --grep \"agents can sign in|development sign-in preserves|Grams preserves|hub links|two independent friends\"",
+    "lint": "oxlint src services shared scripts tests public *.ts --max-warnings 0",
+    "format:check": "prettier --check . --ignore-path .gitignore --ignore-path .prettierignore",
+    "check": "node scripts/check.mjs"
   },
   "keywords": [],
   "author": "",
@@ -56,15 +59,16 @@
     "babel-plugin-react-compiler": "^1.0.0",
     "convex-test": "^0.0.56",
     "miniflare": "^5.20260908.0-alpha",
+    "oxlint": "^1.82.0",
     "portless": "^0.13.1",
     "prettier": "^3.9.6",
     "tsx": "^4.23.13",
+    "turbo": "2.10.12",
     "typescript": "^7.0.2",
     "vite": "^8.2.2",
     "vitest": "^5.0.0",
-    "wrangler": "^4.130.0",
-    "turbo": "2.10.12",
-    "workerd": "1.20260908.1"
+    "workerd": "1.20260908.1",
+    "wrangler": "^4.130.0"
   },
   "private": true,
   "engines": {

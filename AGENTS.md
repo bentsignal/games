@@ -14,10 +14,11 @@
   the dev server running, use `pnpm run test:e2e:smoke` to check auth and both games.
 - Keep secrets in ignored environment files and Convex. Never print env values,
   session tokens, or CLI credential files into logs or documentation.
-- Validate relevant changes with `pnpm test`, `pnpm run typecheck`, and
-  `pnpm run build`; use `pnpm run grams:test` for Worker/runtime changes.
-- Builds do not deploy. Automated releases are a later roadmap step; keep
-  production settings and release commands explicit and documented.
+- Run `pnpm run format` and `pnpm run check` before opening or updating a PR.
+  The six CI checks run in parallel; see `CONTRIBUTING.md` for their scope.
+- Local builds and CI do not deploy. Vercel already deploys GitHub PR previews
+  and main to production. Coordinated Convex/Worker/frontend releases are step 3.
 
 - Own the Git workflow: commit verified changes and push them without waiting for
-  reminders. Keep unrelated work out of commits and never force-push by default.
+  reminders. Push feature branches and open PRs to `main`; all six checks must pass
+  before merging. Keep unrelated work out of commits and never force-push by default.

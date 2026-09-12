@@ -6,7 +6,7 @@ class Binds {
         this.shuffle = ";"
         this.clear = " "
         this.emote = "2"
-        this.chat = "3",
+        this.chat = "3"
         this.popup = new Popup({
             id: "keybinds-popup",
             title: "Keybinds",

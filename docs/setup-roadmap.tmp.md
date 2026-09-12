@@ -15,7 +15,7 @@ permanent contributor/release documentation as the work lands.
 - Preserve existing builds, tests, and production deployment behavior.
 - Defer splitting individual game packages and Ruby's full lint rules until later.
 
-## 2. Reliable PR checks
+## 2. Reliable PR checks (complete)
 
 - Unified local check command; CI includes frontend/Convex and Worker checks.
 - Require checks on main and establish review/contribution guidance.
@@ -111,7 +111,6 @@ documentation and local test additions needed for stage 1.
 - Vendored Cursor's pstack unslop skill into .agents/skills/unslop, with its
   upstream commit and MIT license.
 
-
 ## LAN access follow-up
 
 - Switched generated app URLs to `.local` on standard HTTPS, with Portless LAN
@@ -127,7 +126,6 @@ documentation and local test additions needed for stage 1.
 - Verified mDNS resolves both names to `10.0.0.16`, HTTPS responds on LAN port
   443, and the five browser smoke tests pass at the new origins. All 66 unit/setup
   tests, type checks, and the production build pass.
-
 
 ## HTTP LAN follow-up
 
@@ -145,3 +143,24 @@ documentation and local test additions needed for stage 1.
   `crypto.randomUUID`. All five browser smoke tests pass, including mode/timer
   persistence and Grams result delivery. All 66 unit/setup tests, type checks,
   and the build pass.
+
+## PR checks implementation
+
+- Made `bentsignal/games` public after scanning all 46 existing commits with
+  Gitleaks; it reported no credentials. Local env and deployment keys stay ignored.
+- Added six parallel, credential-free CI jobs: Typecheck, Lint, Format, Tests,
+  Worker integration, and Build. Standard Linux runners, pnpm caching, 10-minute
+  limits, and cancellation of superseded PR runs keep resource use bounded.
+- Added `pnpm run check`, Oxlint correctness checks, Prettier check/fix commands,
+  contributor docs, and a PR template. React effect/compiler migration rules and
+  cloud-backed browser CI remain deferred explicitly in CONTRIBUTING.md.
+- Fixed unused bindings and a Grams reset handler that reassigned a `const`.
+- All six local checks and five browser smoke tests pass. PR #1 ran all six
+  independent GitHub jobs successfully. Main now requires those six GitHub Actions
+  checks, an up-to-date branch, and resolved conversations. PRs are mandatory,
+  rules include admins, force pushes/deletion are blocked, and approving reviews
+  remain optional for solo work.
+- Found an existing Vercel GitHub integration that deploys previews and production.
+  Earlier notes saying no automatic deployments were inaccurate. This CI adds no
+  deployment jobs; step three must coordinate the existing Vercel integration with
+  Convex and Cloudflare. Step two is complete once this verified PR is merged.

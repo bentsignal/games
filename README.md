@@ -32,3 +32,5 @@ Frontend code remains in `src/` and `public/`. Convex lives in `services/convex/
 Grams assets live in `public/grams-assets/v1`; source credits are in [docs/grams](docs/grams/). Hosting notes: [costs and retention](docs/costs-and-retention.md).
 
 Grams server setup and deployment: [docs/grams/realtime.md](docs/grams/realtime.md).
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for PR checks and the merge workflow.
