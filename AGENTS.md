@@ -8,6 +8,8 @@
   checkout. `pnpm run dev` starts all three services. `pnpm run doctor` is local-only.
 - Temporary deployments use local test sign-in; stable development/production use
   Google. Never configure `GAMES_DEV_SITE_URL` on production.
+- Agents can use Development sign-in with a test username, without Google. With
+  the dev server running, use `pnpm run test:e2e:smoke` to check auth and both games.
 - Keep secrets in ignored environment files and Convex. Never print env values,
   session tokens, or CLI credential files into logs or documentation.
 - Validate relevant changes with `pnpm test`, `pnpm run typecheck`, and

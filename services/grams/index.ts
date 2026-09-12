@@ -364,8 +364,8 @@ export class GramsRoom extends DurableObject<Env> {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             path: "realtime:saveResult",
-            args: { token },
-            format: "json",
+            args: [{ token }],
+            format: "convex_encoded_json",
           }),
           signal: AbortSignal.timeout(8000),
         });

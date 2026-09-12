@@ -28,6 +28,7 @@ const fs = require('node:fs');
 const args = process.argv.slice(2);
 let db = fs.existsSync('remote.json') ? JSON.parse(fs.readFileSync('remote.json')) : { creates: 0, env: {} };
 if (args[0] === 'deployment' && args[1] === 'create') {
+  if (!args[2].startsWith('BSX:ticket-to-ride:dev/')) process.exit(7);
   if (!args.includes('--type') || args[args.indexOf('--type') + 1] !== 'dev' || !args.includes('in 7 days')) process.exit(3);
   db.creates++;
   db.env = {};

@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { parseEnv } from "node:util";
 // Uses CLI admin authorization and real Auth v2 sessions on development only.
-export async function signIn(page: Page, username: string) {
+export function developmentEnvironment() {
   const env = parseEnv(readFileSync(".env.local", "utf8"));
   const deployment = env.CONVEX_DEPLOYMENT?.match(/^dev:([a-z0-9-]+)$/)?.[1];
   const base = process.env.PLAYWRIGHT_BASE_URL || env.GAMES_WEB_ORIGIN;
@@ -19,6 +19,11 @@ export async function signIn(page: Page, username: string) {
       "Browser fixtures require the configured local development app.",
     );
   }
+  return { deployment, url: env.VITE_CONVEX_URL };
+}
+
+export async function signIn(page: Page, username: string) {
+  const { deployment, url } = developmentEnvironment();
   const bundle = JSON.parse(
     execFileSync(
       "pnpm",
@@ -40,7 +45,7 @@ export async function signIn(page: Page, username: string) {
       localStorage.setItem("__convexAuthJWT_" + suffix, accessToken);
       localStorage.setItem("__convexAuthRefreshToken_" + suffix, refreshToken);
     },
-    { ...bundle, url: env.VITE_CONVEX_URL },
+    { ...bundle, url },
   );
   await page.reload();
 }

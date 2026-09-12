@@ -1,11 +1,13 @@
 import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { test, expect } from "@playwright/test";
-import { signIn } from "./auth";
+import { developmentEnvironment, signIn } from "./auth";
 test("Grams preserves its interface and plays a complete round with two accounts", async ({
   browser,
   baseURL,
 }) => {
   test.setTimeout(110000);
+  const { deployment } = developmentEnvironment();
   const ca = await browser.newContext(),
     cb = await browser.newContext();
   const a = await ca.newPage(),
@@ -38,6 +40,7 @@ test("Grams preserves its interface and plays a complete round with two accounts
     await expect(
       fb.locator('img.emote[src="images/ben-emote-1.jpg"]'),
     ).toHaveCount(1);
+    const roundStartedAfter = Date.now();
     await fa.locator("#start").click();
     await expect(fa.locator(".letter-available.filled")).toHaveCount(6, {
       timeout: 10000,
@@ -84,6 +87,45 @@ test("Grams preserves its interface and plays a complete round with two accounts
     await expect(fa.locator("#results-wrapper")).toContainText(word);
     await expect(fb.locator("#results-wrapper")).toContainText(word);
     await a.screenshot({ path: "/tmp/grams-results.png" });
+    await expect
+      .poll(
+        () => {
+          const output = execFileSync(
+            "pnpm",
+            [
+              "exec",
+              "convex",
+              "data",
+              "gramsRounds",
+              "--deployment",
+              deployment,
+              "--format",
+              "json",
+              "--limit",
+              "20",
+            ],
+            { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
+          );
+          const rounds = JSON.parse(output.trim() || "[]") as Array<{
+            startedAt: number;
+            players: Array<{ name: string; words: string[] }>;
+          }>;
+          return rounds.some(
+            (round) =>
+              round.startedAt >= roundStartedAfter &&
+              round.players.some(
+                (player) =>
+                  player.name === "Grams_A_QA" && player.words.includes(word),
+              ) &&
+              round.players.some((player) => player.name === "Grams_B_QA"),
+          );
+        },
+        {
+          timeout: 15000,
+          message: "Completed round reaches the isolated Convex database",
+        },
+      )
+      .toBe(true);
     expect(errors).toEqual([]);
     await fa.locator("#leave").click();
     await fb.locator("#leave").click();

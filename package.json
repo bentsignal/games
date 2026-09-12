@@ -23,7 +23,8 @@
     "dev:web": "node scripts/web-dev.mjs",
     "build:web": "tsc --noEmit && vite build",
     "typecheck": "turbo run typecheck typecheck:web",
-    "typecheck:web": "tsc --noEmit"
+    "typecheck:web": "tsc --noEmit",
+    "test:e2e:smoke": "playwright test tests/e2e/development-signin.spec.ts tests/e2e/grams.spec.ts tests/e2e/multiplayer.spec.ts --grep \"agents can sign in|development sign-in preserves|Grams preserves|hub links|two independent friends\""
   },
   "keywords": [],
   "author": "",

@@ -14,7 +14,7 @@ pnpm run setup
 pnpm run dev
 ```
 
-Use Node 24+. Choose the existing Games project when setup prompts. Setup creates an isolated Convex development deployment for this checkout, expiring in seven days, and configures local auth and the Grams Worker. No Google OAuth client or Cloudflare login is needed.
+Use Node 24+. Setup uses the existing `BSX:ticket-to-ride` project. Setup creates an isolated Convex development deployment for this checkout, expiring in seven days, and configures local auth and the Grams Worker. No Google OAuth client or Cloudflare login is needed.
 
 `pnpm run dev` starts all three services. Open the printed frontend URL and use **Development sign-in** with any test username. Production and stable development keep Google sign-in. Stop all three processes with Ctrl-C.
 

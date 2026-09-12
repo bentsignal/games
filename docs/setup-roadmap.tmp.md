@@ -3,7 +3,7 @@
 Working plan, 2026-09-12. Keep this file updated across sessions; fold it into
 permanent contributor/release documentation as the work lands.
 
-## 1. Fresh-clone local development (in progress)
+## 1. Fresh-clone local development (complete)
 
 - Introduce a minimal Turborepo workspace layout, using ../ruby as a reference.
 - One command starts the frontend, Convex watcher, and local Grams Worker.
@@ -69,25 +69,43 @@ Validation after a clean pnpm install --frozen-lockfile:
 - System certificate verification trusts the Portless CA; missing-setup commands
   fail early with setup instructions. No cloud credentials used in these checks.
 
-Outstanding to finish step 1:
+## Live verification (2026-09-12)
 
-- This machine has not completed Convex CLI login. The device flow expired.
-- Run pnpm exec convex login, then pnpm run setup and choose the existing BSX Games
-  project; verify the real project slugs and record them if useful.
-- Validate actual deployment creation/provisioning, the combined dev command,
-  browser development sign-in, and both games against that temporary backend.
-- Full live verification is pending; mocked CLI/HTTP tests do not substitute for it.
+- Convex CLI login works. Confirmed project `BSX:ticket-to-ride`; setup now uses
+  that default on a fresh clone. Other installations can override it.
+- Created the isolated seven-day deployment `neighborly-caribou-246`. Re-running
+  setup succeeds without replacing its auth keys or realtime secret.
+- All three services start together. This checkout's frontend is
+  `https://44e18c71.games.bentsignal.localhost:1355`; Grams uses
+  `https://44e18c71.grams.bentsignal.localhost:1355`.
+- Installed Chromium and its NixOS runtime libraries. Browser tests exercise the
+  actual Development sign-in form, refresh, sign-out, and invitation URLs with
+  real sessions in the isolated database. No Google account is involved.
+- Ticket to Ride multiplayer passes with two independent accounts, including
+  joining, ticket choices, chat, drawing cards, and reconnecting.
+- Found and fixed the Worker's Convex mutation HTTP encoding and NixOS outbound
+  certificate configuration while testing Grams. The full-round browser test now
+  checks database persistence as well as the UI.
+- Added `pnpm run test:e2e:smoke` and documented it for agents.
+- Current checks pass: 65 unit/setup tests, all TypeScript projects, Worker
+  runtime integration, and the frontend production build.
 
-No production deployments, project defaults, Google settings, or GitHub settings
-have been changed. Stages 2–4 remain planned, apart from shared documentation and
-local test additions needed for stage 1.
+Step 1 is complete. All five browser smoke tests pass, including completed-round
+persistence in Convex. The Worker also delivered the two previously queued rounds
+after the fix. Ctrl-C stops the app processes; `pnpm run dev` starts them again
+against the same isolated database and Worker storage. The shared Portless proxy
+keeps running. Next is step 2, reliable PR checks.
+
+No production deployments, shared deployment auth settings, Google settings, or
+GitHub settings have been changed. Stages 2–4 remain planned, apart from shared
+documentation and local test additions needed for stage 1.
 
 ## Follow-up changes
 
 - Switched to pnpm 10.34.5, imported the dependency lock, and updated workspace
   commands, CI, Vercel configuration, scripts, and setup documentation.
 - Clean frozen pnpm installation, all 65 tests, type checks, frontend build, and
-  Worker integration pass. Convex login remains pending for live verification.
+  Worker integration pass. Convex login and live verification followed above.
 - Added a short AGENTS.md instruction to commit verified work and push without
   reminders.
 - Vendored Cursor's pstack unslop skill into .agents/skills/unslop, with its

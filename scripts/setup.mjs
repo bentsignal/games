@@ -40,7 +40,7 @@ try {
     throw new Error("Usage: pnpm run setup [--new]");
   if (args.includes("--help")) {
     console.log(
-      "pnpm run setup: create/configure this checkout's isolated Convex development deployment.\npnpm run setup --new: select a fresh deployment (old deployments expire after seven days).\nOptional GAMES_CONVEX_PROJECT=team-slug:project-slug avoids the initial project picker.",
+      "pnpm run setup: create/configure this checkout's isolated Convex development deployment.\npnpm run setup --new: select a fresh deployment (old deployments expire after seven days).\nDefaults to BSX:ticket-to-ride. Set GAMES_CONVEX_PROJECT=team-slug:project-slug to use another project.",
     );
     process.exit(0);
   }
@@ -55,13 +55,11 @@ try {
     existing.checkoutId !== checkoutId ||
     args.includes("--new")
   ) {
-    const project = process.env.GAMES_CONVEX_PROJECT;
-    if (project && !/^[a-z0-9-]+:[a-z0-9-]+$/.test(project))
+    const project = process.env.GAMES_CONVEX_PROJECT ?? "BSX:ticket-to-ride";
+    if (project && !/^[a-zA-Z0-9-]+:[a-zA-Z0-9-]+$/.test(project))
       throw new Error("GAMES_CONVEX_PROJECT must be team-slug:project-slug.");
     const reference = `${project ? project + ":" : ""}${checkoutLabel()}-${randomBytes(3).toString("hex")}`;
-    console.log(
-      "Creating an isolated development deployment. Select the existing Games project if prompted.",
-    );
+    console.log(`Creating an isolated development deployment in ${project}.`);
     run("convex", [
       "deployment",
       "create",
