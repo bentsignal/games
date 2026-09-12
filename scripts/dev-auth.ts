@@ -41,7 +41,9 @@ export function developmentAuth(
           req.headers.origin !== env.GAMES_WEB_ORIGIN ||
           !req.headers["content-type"]?.startsWith("application/json") ||
           !isLoopback(req.socket.remoteAddress ?? "") ||
-          (forwarded && !forwarded.split(",").every(isLoopback))
+          (env.GAMES_DEV_LAN !== "1" &&
+            forwarded &&
+            !forwarded.split(",").every(isLoopback))
         ) {
           res.statusCode = 403;
           return res.end(

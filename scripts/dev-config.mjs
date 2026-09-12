@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync, chmodSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { join, basename } from "node:path";
+import { homedir } from "node:os";
 import { parseEnv } from "node:util";
 import { spawnSync, spawn } from "node:child_process";
 
@@ -18,8 +19,24 @@ export const checkoutId = createHash("sha256")
   .slice(0, 8);
 export const webName = `${checkoutId}.games.bentsignal`;
 export const workerName = `${checkoutId}.grams.bentsignal`;
-export const webOrigin = `https://${webName}.localhost:1355`;
-export const workerOrigin = `https://${workerName}.localhost:1355`;
+export const webOrigin = `https://${webName}.local`;
+export const workerOrigin = `https://${workerName}.local`;
+const networkPath = join(
+  process.env.XDG_CONFIG_HOME || join(homedir(), ".config"),
+  "games/network.json",
+);
+export const proxyPort = existsSync(networkPath)
+  ? JSON.parse(readFileSync(networkPath, "utf8")).proxyPort
+  : 443;
+if (!Number.isInteger(proxyPort) || proxyPort < 1 || proxyPort > 65535)
+  throw new Error(`Invalid proxyPort in ${networkPath}.`);
+export const proxyEnvironment = {
+  PORTLESS_LAN: "1",
+  PORTLESS_PORT: String(proxyPort),
+  PORTLESS_TLD: "local",
+  // NixOS owns /etc/hosts; resolve LAN names through Avahi instead.
+  ...(existsSync("/etc/NIXOS") ? { PORTLESS_SYNC_HOSTS: "0" } : {}),
+};
 
 export function readEnv(path) {
   return existsSync(path) ? parseEnv(readFileSync(path, "utf8")) : {};

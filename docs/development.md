@@ -33,8 +33,8 @@ client is needed for local development.
 then starts three persistent Turbo tasks. Open the frontend URL it prints:
 
 ```text
-https://<checkout-id>.games.bentsignal.localhost:1355
-https://<checkout-id>.grams.bentsignal.localhost:1355
+https://<checkout-id>.games.bentsignal.local
+https://<checkout-id>.grams.bentsignal.local
 ```
 
 Each checkout has different URLs and a separate Convex database. Worker SQLite
@@ -42,10 +42,41 @@ state lives under `.dev/worker/<convex-deployment>/`, so replacing an expired
 backend also starts with separate Worker state. Do not copy `.env.local`, `.dev/`,
 or Worker secrets between worktrees. Run `pnpm install --frozen-lockfile` and `pnpm run setup` in each.
 
-Portless uses port 1355 to avoid privileged ports and conflicts with services such
-as Tailscale on 443. Ctrl-C stops the app processes; the shared proxy daemon stays
-available. If another proxy has different settings, reconcile them before starting
-this app rather than stopping other running apps blindly.
+Portless uses LAN mode and advertises these `.local` names through mDNS. The
+browser uses standard HTTPS port 443, so no port suffix is needed. Linux needs
+Avahi with user publishing enabled; other devices need mDNS support and access to
+the same LAN. The firewall must allow HTTPS on the LAN interface and mDNS.
+Ctrl-C stops the app processes; the shared proxy daemon stays available.
+
+This machine also runs Tailscale Serve on its own address at port 443. To preserve
+that service, NixOS's `games-lan-https.socket` listens on `10.0.0.16:443` and
+`127.0.0.1:443`, forwarding TCP to Portless on 1355. The machine configuration
+`~/.config/games/network.json` contains `{"proxyPort":1355}` for this machine. Public app
+origins still use 443. Portless's own internal route logs will show 1355. Other
+machines default to Portless directly on 443 and need no forwarding service.
+If this machine's LAN address changes, update the socket address in
+`/etc/nixos/configuration.nix` and run `sudo -n nixos-rebuild switch`.
+
+Before switching an existing proxy between localhost and LAN modes, stop the
+apps and that proxy. Keep other projects using the shared proxy in mind. Then
+rerun `pnpm run setup` to update this checkout's URLs and allowed auth/Worker
+origins, and start it with `pnpm run dev`.
+
+### HTTPS on another computer
+
+Trust the serving machine's public Portless CA on each client computer. Copy it
+from this machine, for example with:
+
+```sh
+scp shawn@work.local:/home/shawn/.portless/ca.pem ./games-portless-ca.pem
+```
+
+On macOS, import it into the System keychain and set it to Always Trust. On
+Windows, import it into Trusted Root Certification Authorities. On Linux, add
+it to the system's CA store or the browser's certificate authorities. Restart
+the browser afterward. Copy only `ca.pem`, never `ca-key.pem`. This trust covers
+both the frontend and Grams Worker; it does not transfer automatically when you
+open the URL from another computer.
 
 `pnpm run setup` reuses this checkout's deployment and repairs configuration; it
 does not extend expiration. After expiration, or to start with empty data:
@@ -71,8 +102,11 @@ Convex CLI authorization to call the existing internal test-session fixture.
 Account lookup, session refresh, and game authorization work normally. This does
 not test Google's consent screen or OAuth callback.
 
-The helper only runs in Vite's development server and accepts local same-origin
-requests. The fixture remains an internal Convex mutation, not a public login
+The helper only runs in Vite's development server. Setup writes `GAMES_DEV_LAN=1`
+to allow same-origin login through the local proxy from other LAN devices. The
+Vite backend still binds loopback, and the helper checks the exact configured
+Origin, JSON content type, and username. Anyone who can reach this development
+app can choose a test username in its disposable database. The fixture remains an internal Convex mutation, not a public login
 endpoint. Setup opts in the temporary backend by setting `GAMES_DEV_SITE_URL` to
 its own site URL. Never configure this variable in production. Production builds
 always show Google sign-in, even if the local flag is present during the build.
@@ -98,7 +132,7 @@ Google defaults exist, because temporary deployments do not use Google.
 | Location                               | Values                                                                                                  | Managed by               |
 | -------------------------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------ |
 | Root `.env.local`                      | `CONVEX_DEPLOYMENT`, `VITE_CONVEX_URL`, `VITE_CONVEX_SITE_URL`                                          | Convex selection         |
-| Root `.env.local`                      | `VITE_GRAMS_URL`, `GAMES_WEB_ORIGIN`, `VITE_DEV_AUTH`                                                   | Setup                    |
+| Root `.env.local`                      | `VITE_GRAMS_URL`, `GAMES_WEB_ORIGIN`, `VITE_DEV_AUTH`, `GAMES_DEV_LAN`                                  | Setup                    |
 | `.dev/setup.json`                      | Checkout/deployment identity and creation reference                                                     | Setup                    |
 | `services/grams/.dev.vars.development` | `CONVEX_URL`, `ALLOWED_ORIGINS`, `GRAMS_REALTIME_SECRET`                                                | Setup                    |
 | Temporary Convex environment           | Signing keys, realtime secret, `GAMES_DEV_SITE_URL`, `GAMES_DEV_WEB_ORIGIN`, Google values/placeholders | Setup / project defaults |
@@ -137,7 +171,8 @@ Apply with `sudo -n nixos-rebuild switch`. Generate the Portless CA and copy its
 public certificate into the NixOS configuration directory:
 
 ```sh
-PORTLESS_LAN=0 pnpm exec portless proxy start --port 1355 --https --tld localhost
+# On this machine, add --port 1355 because the LAN listener forwards 443.
+pnpm exec portless proxy start --https --lan
 sudo -n cp ~/.portless/ca.pem /etc/nixos/games-portless-ca.pem
 ```
 
@@ -187,3 +222,24 @@ sign-out, invitation URLs, a full Grams round saved to Convex, and Ticket to Rid
 multiplayer. Existing game tests use the same internal session fixture through
 `tests/e2e/auth.ts`. These sessions are real Convex Auth sessions, not mocked
 frontend state. Google OAuth remains a separate check on stable development.
+
+
+### NixOS LAN discovery
+
+Merge these with the existing Avahi configuration, then rebuild:
+
+```nix
+services.avahi = {
+  enable = true;
+  nssmdns4 = true;
+  nssmdnsFull = true;
+  publish.enable = true;
+  publish.userServices = true;
+};
+environment.etc."mdns.allow".text = ".local\n.local.\n";
+```
+
+The full resolver and `mdns.allow` support checkout hostnames with multiple labels.
+On NixOS the launcher disables Portless's `/etc/hosts` sync, since NixOS manages
+that file. Avahi provides resolution on this machine and publishes names to LAN
+clients. See [Portless LAN mode](https://github.com/vercel-labs/portless#lan-mode).

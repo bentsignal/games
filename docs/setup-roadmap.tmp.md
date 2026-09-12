@@ -110,3 +110,20 @@ documentation and local test additions needed for stage 1.
   reminders.
 - Vendored Cursor's pstack unslop skill into .agents/skills/unslop, with its
   upstream commit and MIT license.
+
+
+## LAN access follow-up
+
+- Switched generated app URLs to `.local` on standard HTTPS, with Portless LAN
+  discovery. Setup updates the existing temporary backend's origins.
+- Development sign-in accepts same-origin LAN requests via the loopback proxy.
+- Enabled Avahi user publishing and full `.local` resolution on NixOS.
+- Preserved Tailscale Serve on its existing address. A declarative TCP forwarding
+  socket accepts LAN/loopback port 443 and passes it to Portless on 1355.
+- Machine-specific forwarding state lives in `~/.config/games/network.json`, shared
+  across worktrees; other
+  machines default to Portless directly on 443. See development docs for the
+  client CA trust step and the forwarding socket's LAN address dependency.
+- Verified mDNS resolves both names to `10.0.0.16`, HTTPS responds on LAN port
+  443, and the five browser smoke tests pass at the new origins. All 66 unit/setup
+  tests, type checks, and the production build pass.

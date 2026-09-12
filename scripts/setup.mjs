@@ -136,6 +136,7 @@ try {
     VITE_GRAMS_URL: workerOrigin,
     GAMES_WEB_ORIGIN: webOrigin,
     VITE_DEV_AUTH: "1",
+    GAMES_DEV_LAN: "1",
   });
   writeEnv(workerVarsPath, {
     CONVEX_URL: url,

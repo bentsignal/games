@@ -10,14 +10,14 @@ afterEach(async () => {
   for (const action of cleanup.splice(0).reverse()) await action();
 });
 
-async function serverFor(deployment = "dev:temporary-test") {
+async function serverFor(deployment = "dev:temporary-test", lan = false) {
   const dir = await mkdtemp(join(tmpdir(), "games-login-test-"));
   cleanup.push(() => rm(dir, { recursive: true, force: true }));
   await mkdir(join(dir, ".dev"));
   await mkdir(join(dir, "node_modules/.bin"), { recursive: true });
   await writeFile(
     join(dir, ".env.local"),
-    `VITE_DEV_AUTH=1\nCONVEX_DEPLOYMENT=${deployment}\nVITE_CONVEX_URL=https://temporary-test.convex.cloud\nGAMES_WEB_ORIGIN=https://games.localhost:1355\n`,
+    `VITE_DEV_AUTH=1\nCONVEX_DEPLOYMENT=${deployment}\nVITE_CONVEX_URL=https://temporary-test.convex.cloud\nGAMES_WEB_ORIGIN=https://games.local\nGAMES_DEV_LAN=${lan ? "1" : "0"}\n`,
   );
   await writeFile(
     join(dir, ".dev/setup.json"),
@@ -64,7 +64,7 @@ test("local login requires same-origin JSON POST and a valid username", async ()
     ).status,
   ).toBe(403);
   const headers = {
-    Origin: "https://games.localhost:1355",
+    Origin: "https://games.local",
     "Content-Type": "application/json",
   };
   expect(
@@ -102,4 +102,23 @@ test("local login refuses a production deployment", async () => {
   await expect(serverFor("prod:temporary-test")).rejects.toThrow(
     /isolated development deployment/,
   );
+});
+
+test("LAN login accepts proxied peers only with the configured origin", async () => {
+  const server = await serverFor("dev:temporary-test", true);
+  for (const [origin, status] of [
+    ["https://games.local", 200],
+    ["https://other.example", 403],
+  ] as const) {
+    const response = await fetch(url(server), {
+      method: "POST",
+      headers: {
+        Origin: origin,
+        "Content-Type": "application/json",
+        "X-Forwarded-For": "10.0.0.25",
+      },
+      body: JSON.stringify({ username: "LanTester" }),
+    });
+    expect(response.status).toBe(status);
+  }
 });

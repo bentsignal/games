@@ -5,6 +5,8 @@ import {
   envPath,
   webOrigin,
   workerOrigin,
+  proxyPort,
+  proxyEnvironment,
 } from "./dev-config.mjs";
 
 try {
@@ -13,8 +15,8 @@ try {
   run("convex", ["dev", "--once", "--env-file", envPath]);
   run(
     "portless",
-    ["proxy", "start", "--port", "1355", "--https", "--tld", "localhost"],
-    { env: { ...process.env, PORTLESS_LAN: "0" } },
+    ["proxy", "start", "--port", String(proxyPort), "--https", "--lan"],
+    { env: { ...process.env, ...proxyEnvironment } },
   );
   console.log(
     `Frontend: ${webOrigin}\nGrams: ${workerOrigin}\nCtrl-C stops all three development processes.`,
@@ -22,9 +24,7 @@ try {
   foreground("turbo", ["run", "dev", "dev:web"], {
     env: {
       ...process.env,
-      PORTLESS_LAN: "0",
-      PORTLESS_PORT: "1355",
-      PORTLESS_TLD: "localhost",
+      ...proxyEnvironment,
     },
   });
 } catch (error) {

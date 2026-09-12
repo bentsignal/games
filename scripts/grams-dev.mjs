@@ -1,4 +1,10 @@
-import { localConfig, foreground, workerName, root } from "./dev-config.mjs";
+import {
+  proxyEnvironment,
+  localConfig,
+  foreground,
+  workerName,
+  root,
+} from "./dev-config.mjs";
 import { join } from "node:path";
 import { existsSync } from "node:fs";
 try {
@@ -11,9 +17,7 @@ try {
   foreground("portless", [workerName, "node", "scripts/grams-runtime.mjs"], {
     env: {
       ...env,
-      PORTLESS_LAN: "0",
-      PORTLESS_PORT: "1355",
-      PORTLESS_TLD: "localhost",
+      ...proxyEnvironment,
       GAMES_WORKER_STORAGE: join(root, ".dev/worker", deployment),
     },
   });

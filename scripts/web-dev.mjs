@@ -1,12 +1,15 @@
-import { localConfig, foreground, webName } from "./dev-config.mjs";
+import {
+  proxyEnvironment,
+  localConfig,
+  foreground,
+  webName,
+} from "./dev-config.mjs";
 try {
   localConfig();
   foreground("portless", [webName, "vite"], {
     env: {
       ...process.env,
-      PORTLESS_LAN: "0",
-      PORTLESS_PORT: "1355",
-      PORTLESS_TLD: "localhost",
+      ...proxyEnvironment,
     },
   });
 } catch (error) {
