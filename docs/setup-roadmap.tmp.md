@@ -15,7 +15,7 @@ permanent contributor/release documentation as the work lands.
 - Preserve existing builds, tests, and production deployment behavior.
 - Defer splitting individual game packages and Ruby's full lint rules until later.
 
-## 2. Reliable PR checks
+## 2. Reliable PR checks (in progress)
 
 - Unified local check command; CI includes frontend/Convex and Worker checks.
 - Require checks on main and establish review/contribution guidance.
@@ -111,7 +111,6 @@ documentation and local test additions needed for stage 1.
 - Vendored Cursor's pstack unslop skill into .agents/skills/unslop, with its
   upstream commit and MIT license.
 
-
 ## LAN access follow-up
 
 - Switched generated app URLs to `.local` on standard HTTPS, with Portless LAN
@@ -127,7 +126,6 @@ documentation and local test additions needed for stage 1.
 - Verified mDNS resolves both names to `10.0.0.16`, HTTPS responds on LAN port
   443, and the five browser smoke tests pass at the new origins. All 66 unit/setup
   tests, type checks, and the production build pass.
-
 
 ## HTTP LAN follow-up
 
@@ -145,3 +143,17 @@ documentation and local test additions needed for stage 1.
   `crypto.randomUUID`. All five browser smoke tests pass, including mode/timer
   persistence and Grams result delivery. All 66 unit/setup tests, type checks,
   and the build pass.
+
+## PR checks implementation
+
+- Made `bentsignal/games` public after scanning all 46 existing commits with
+  Gitleaks; it reported no credentials. Local env and deployment keys stay ignored.
+- Added six parallel, credential-free CI jobs: Typecheck, Lint, Format, Tests,
+  Worker integration, and Build. Standard Linux runners, pnpm caching, 10-minute
+  limits, and cancellation of superseded PR runs keep resource use bounded.
+- Added `pnpm run check`, Oxlint correctness checks, Prettier check/fix commands,
+  contributor docs, and a PR template. React effect/compiler migration rules and
+  cloud-backed browser CI remain deferred explicitly in CONTRIBUTING.md.
+- Fixed unused bindings and a Grams reset handler that reassigned a `const`.
+- Local combined checks pass. Next verification is the real PR workflow and
+  required status checks on main, then merging this setup through that workflow.

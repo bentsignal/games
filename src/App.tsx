@@ -42,12 +42,10 @@ import {
   BookOpen,
   ChevronDown,
   Flag,
-  MapPin,
   LogOut,
   List,
   Compass,
   LoaderCircle,
-  Home,
   WifiOff,
 } from "lucide-react";
 import { api } from "../services/convex/convex/_generated/api";

@@ -16,11 +16,10 @@ try {
     const original = AudioContext.prototype.createBufferSource;
     AudioContext.prototype.createBufferSource = function () {
       const node = original.call(this),
-        start = node.start.bind(node),
-        context = this;
+        start = node.start.bind(node);
       node.start = (...args) => {
         if (node.buffer && node.buffer.duration > 4) {
-          const analyser = context.createAnalyser();
+          const analyser = this.createAnalyser();
           node.connect(analyser);
           (window as any).crowdAnalyser = analyser;
           (window as any).crowdPlayed.push(node.buffer.duration);

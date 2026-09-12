@@ -1,0 +1,8 @@
+# Generated code and data; format their generators instead.
+services/convex/convex/_generated/
+services/convex/convex/gramsData/
+src/game/*.json
+pnpm-lock.yaml
+# Imported game assets and vendored skill sources retain upstream formatting.
+public/grams-assets/
+.agents/skills/

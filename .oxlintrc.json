@@ -1,0 +1,23 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "oxc", "react"],
+  "categories": {
+    "correctness": "error"
+  },
+  "ignorePatterns": ["services/convex/convex/_generated/**"],
+  "overrides": [
+    {
+      "files": ["public/grams-assets/**/*.js"],
+      "rules": {
+        "no-unused-vars": "off"
+      }
+    }
+  ],
+  "rules": {
+    "react/exhaustive-deps": "off",
+    "react/purity": "off",
+    "react/refs": "off",
+    "react/immutability": "off",
+    "react/set-state-in-effect": "off"
+  }
+}
