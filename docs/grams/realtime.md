@@ -1,14 +1,18 @@
 # Grams realtime server
 
-The original Grams interface and assets run at `/grams`. Its live lobby, guesses, scoring, chat, and emotes run in the `GramsRoom` SQLite Durable Object in `workers/grams`. The existing singleton friends lobby and six-player limit are preserved.
+The original Grams interface and assets run at `/grams`. Its live lobby, guesses, scoring, chat, and emotes run in the `GramsRoom` SQLite Durable Object in `services/grams`. The existing singleton friends lobby and six-player limit are preserved.
 
 Convex handles Google accounts, usernames, short-lived connection tickets, and completed round summaries. Ticket to Ride remains on Convex. No Convex mutation or subscription is used for each Grams guess.
 
 ## Local development
 
-Run `npm run backend`, `npm run dev`, and `npm run grams:dev` in separate terminals. Portless exposes the app at `https://games.bentsignal.local` and the Worker at `https://grams.bentsignal.local`. The Worker uses local SQLite persistence under `.wrangler`; it is isolated from production.
+Run `pnpm run setup` once per checkout, then `pnpm run dev` to start the frontend,
+Convex watcher, and local Worker together. Setup provisions an isolated seven-day
+Convex deployment and writes the matching Worker secret and URLs automatically.
+The terminal prints checkout-specific HTTPS URLs. Local Worker persistence is
+separated by Convex deployment under `.dev/worker/`.
 
-Set `VITE_GRAMS_URL=https://grams.bentsignal.local` in `.env.local`. Set the same randomly generated `GRAMS_REALTIME_SECRET` in the development Convex environment and `workers/grams/.dev.vars.development`. Use a separate secret in production. Neither file belongs in Git.
+See [development setup](../development.md) for auth, worktrees, HTTPS, and NixOS.
 
 ## Production
 
@@ -17,7 +21,7 @@ Set `VITE_GRAMS_URL=https://grams.bentsignal.local` in `.env.local`. Set the sam
 - Convex result endpoint: `https://api.games.bentsignal.com`
 - Vercel production variable: `VITE_GRAMS_URL=https://games-grams.shawnrodgers266.workers.dev`
 
-Deploy the Worker with `npm run grams:deploy`. Install its secret with `npx wrangler secret put GRAMS_REALTIME_SECRET --config workers/grams/wrangler.jsonc --env ''`, and set the matching production Convex variable. Deploy Convex with `npx convex deploy`, then the frontend with `vercel --prod --scope bsx-sh`. The Worker origin list must explicitly include any additional frontend deployment used for testing.
+Deploy the Worker with `pnpm run grams:deploy`. Install its secret with `pnpm exec wrangler secret put GRAMS_REALTIME_SECRET --config services/grams/wrangler.jsonc --env ''`, and set the matching production Convex variable. Deploy Convex with `pnpm exec convex deploy`, then the frontend with `vercel --prod --scope bsx-sh`. The Worker origin list must explicitly include any additional frontend deployment used for testing.
 
 ## Persistence and reconnects
 
@@ -31,7 +35,7 @@ The old Convex Grams functions/tables remain for rollback and historical records
 
 ## Checks
 
-- `npm test`: game rules, tickets, account/result validation and idempotency.
-- `npm run grams:test`: actual Workers runtime, two sockets, host restriction, hibernation and persistent restart recovery.
-- `npm run grams:check`: Worker types.
-- `npx playwright test tests/e2e/grams.spec.ts`: two-account browser round, chat/emotes, score updates, refresh and results. Requires local servers and development Convex.
+- `pnpm test`: game rules, tickets, account/result validation and idempotency.
+- `pnpm run grams:test`: actual Workers runtime, two sockets, host restriction, hibernation and persistent restart recovery.
+- `pnpm run grams:check`: Worker types.
+- `pnpm exec playwright test tests/e2e/grams.spec.ts`: two-account browser round, chat/emotes, score updates, refresh and results. Requires local servers and development Convex.

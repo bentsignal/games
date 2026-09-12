@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { fresh, command, finish, view, leave } from "../workers/grams/engine";
+import { fresh, command, finish, view, leave } from "../services/grams/engine";
 import { signTicket, verifyTicket } from "../shared/realtimeAuth";
 const a = { id: "a", userId: "user-a", name: "Alice" },
   b = { id: "b", userId: "user-b", name: "Bob" };

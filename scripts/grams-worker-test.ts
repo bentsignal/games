@@ -6,12 +6,13 @@ import { execFileSync } from "node:child_process";
 import { signTicket } from "../shared/realtimeAuth";
 const dir = await mkdtemp(`${tmpdir()}/grams-worker-`);
 execFileSync(
-  "npx",
+  "pnpm",
   [
+    "exec",
     "wrangler",
     "deploy",
     "-c",
-    "workers/grams/wrangler.jsonc",
+    "services/grams/wrangler.jsonc",
     "--env",
     "",
     "--dry-run",

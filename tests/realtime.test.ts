@@ -1,9 +1,9 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { convexTest } from "convex-test";
-import schema from "../convex/schema";
-import { api } from "../convex/_generated/api";
+import schema from "../services/convex/convex/schema";
+import { api } from "../services/convex/convex/_generated/api";
 import { signTicket, verifyTicket } from "../shared/realtimeAuth";
-const modules = import.meta.glob("../convex/**/*.{ts,js}");
+const modules = import.meta.glob("../services/convex/convex/**/*.{ts,js}");
 afterEach(() => vi.unstubAllEnvs());
 it("requires accounts for connection and saves authenticated results exactly once", async () => {
   vi.stubEnv("GRAMS_REALTIME_SECRET", "test-only-secret");

@@ -1,11 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { convexTest } from "convex-test";
-import schema from "../convex/schema";
-import { api } from "../convex/_generated/api";
-import { saveResult } from "../convex/results";
+import schema from "../services/convex/convex/schema";
+import { api } from "../services/convex/convex/_generated/api";
+import { saveResult } from "../services/convex/convex/results";
 import { endingPreview } from "../src/game/ending-preview";
 import { applyAction } from "../src/game/engine";
-const modules = import.meta.glob("../convex/**/*.{ts,js}");
+const modules = import.meta.glob("../services/convex/convex/**/*.{ts,js}");
 const token = "a".repeat(64);
 describe("Google account game access", () => {
   it("requires authentication and onboarding even with a legacy session token", async () => {

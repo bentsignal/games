@@ -1,6 +1,6 @@
 import type { MutationCtx } from "./_generated/server";
 import type { Doc } from "./_generated/dataModel";
-import type { Game } from "../src/game/engine";
+import type { Game } from "../../../src/game/engine";
 
 // Completed rounds survive rematches. Preview games never enter real statistics.
 export async function saveResult(

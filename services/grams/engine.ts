@@ -1,5 +1,5 @@
-import chooseData from "../../convex/gramsData/choose.json";
-import allowData from "../../convex/gramsData/allow.json";
+import chooseData from "../convex/convex/gramsData/choose.json";
+import allowData from "../convex/convex/gramsData/allow.json";
 const choose = chooseData as Record<string, Record<string, string[]>>;
 const allow = allowData as Record<string, Record<string, string[]>>;
 const points: Record<number, number> = {

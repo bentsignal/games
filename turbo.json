@@ -1,0 +1,49 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "ui": "stream",
+  "globalDependencies": ["shared/**", "src/game/**", "tsconfig.json"],
+  "tasks": {
+    "dev": {
+      "cache": false,
+      "persistent": true,
+      "passThroughEnv": ["*"]
+    },
+    "//#dev:web": {
+      "cache": false,
+      "persistent": true,
+      "passThroughEnv": ["*"]
+    },
+    "typecheck": {
+      "dependsOn": ["^typecheck"]
+    },
+    "//#typecheck:web": {
+      "inputs": [
+        "src/**",
+        "services/convex/convex/**",
+        "tests/**",
+        "vite.config.ts",
+        "scripts/**"
+      ]
+    },
+    "build": {
+      "dependsOn": ["^build"]
+    },
+    "//#build:web": {
+      "inputs": [
+        "src/**",
+        "public/**",
+        "services/convex/convex/**",
+        "tests/**",
+        "index.html",
+        "vite.config.ts",
+        ".env*",
+        "scripts/**"
+      ],
+      "outputs": ["dist/**"],
+      "env": ["VITE_*"]
+    },
+    "test": {
+      "cache": false
+    }
+  }
+}

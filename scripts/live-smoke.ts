@@ -3,24 +3,33 @@ import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
-import { api } from "../convex/_generated/api";
+import { parseEnv } from "node:util";
+import { api } from "../services/convex/convex/_generated/api";
 import { botAction, type Game, type View } from "../src/game/engine";
-const url =
-  process.env.CONVEX_TEST_URL ||
-  readFileSync(".env.local", "utf8")
-    .match(/VITE_CONVEX_URL=(.+)/)![1]
-    .trim();
-if (url !== "https://sincere-jellyfish-682.convex.cloud")
-  throw new Error("Run account fixtures only on development.");
+const env = parseEnv(readFileSync(".env.local", "utf8"));
+const deployment = env.CONVEX_DEPLOYMENT?.match(/^dev:([a-z0-9-]+)$/)?.[1];
+const url = env.VITE_CONVEX_URL;
+if (
+  !deployment ||
+  url !== `https://${deployment}.convex.cloud` ||
+  process.env.CONVEX_DEPLOY_KEY ||
+  env.CONVEX_DEPLOY_KEY
+)
+  throw new Error(
+    "Run account fixtures only on the configured development deployment.",
+  );
 const clients = Array.from({ length: 3 }, (_, i) => {
   const bundle = JSON.parse(
     execFileSync(
-      "npx",
+      "pnpm",
       [
+        "exec",
         "convex",
         "run",
         "testing:signIn",
         JSON.stringify({ username: "Server_QA_" + i }),
+        "--deployment",
+        deployment,
       ],
       { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
     ),

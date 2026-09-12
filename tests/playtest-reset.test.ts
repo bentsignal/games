@@ -1,8 +1,8 @@
 import { it, expect } from "vitest";
 import { convexTest } from "convex-test";
-import schema from "../convex/schema";
-import { internal } from "../convex/_generated/api";
-const modules = import.meta.glob("../convex/**/*.{ts,js}");
+import schema from "../services/convex/convex/schema";
+import { internal } from "../services/convex/convex/_generated/api";
+const modules = import.meta.glob("../services/convex/convex/**/*.{ts,js}");
 it("resets only the requested owned preview and renews its round/revision", async () => {
   const t = convexTest(schema, modules);
   await t.run(async (ctx) => {

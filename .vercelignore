@@ -5,6 +5,10 @@ dist
 test-results
 playwright-report
 /assets
-scripts
 docs
 .github
+
+.dev
+.turbo
+**/.dev.vars*
+**/.wrangler

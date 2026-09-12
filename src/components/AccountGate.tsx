@@ -5,8 +5,9 @@ import {
   useOauth,
   useSignInWithGoogle,
 } from "@convex-dev/auth/providers/oauth/react";
-import { api } from "../../convex/_generated/api";
+import { api } from "../../services/convex/convex/_generated/api";
 import { ConvexError } from "convex/values";
+import DevelopmentSignIn from "./DevelopmentSignIn";
 
 export default function AccountGate({
   children,
@@ -82,6 +83,8 @@ export default function AccountGate({
               </button>
             </form>
           </>
+        ) : import.meta.env.DEV && import.meta.env.VITE_DEV_AUTH === "1" ? (
+          <DevelopmentSignIn />
         ) : (
           <button
             className="primary google-sign-in"

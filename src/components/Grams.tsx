@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useConvex } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { api } from "../../services/convex/convex/_generated/api";
 export default function Grams() {
   const frame = useRef<HTMLIFrameElement>(null);
   const client = useConvex();

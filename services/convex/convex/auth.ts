@@ -29,6 +29,9 @@ const google: ReturnType<typeof setupOauth<"google", GoogleProfile, "users">> =
         "https://games.bentsignal.local",
         "https://ticket.bentsignal.com",
         "https://games.bentsignal.com",
+        ...(process.env.GAMES_DEV_WEB_ORIGIN
+          ? [process.env.GAMES_DEV_WEB_ORIGIN]
+          : []),
       ],
     },
   );

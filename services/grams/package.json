@@ -1,0 +1,23 @@
+{
+  "name": "@games/grams",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "cd ../.. && node scripts/grams-dev.mjs",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "cd ../.. && tsx scripts/grams-worker-test.ts"
+  },
+  "dependencies": {
+    "@games/convex": "workspace:*",
+    "@noble/hashes": "^2.4.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260908.1",
+    "wrangler": "^4.130.0",
+    "miniflare": "^5.20260908.0-alpha",
+    "typescript": "^7.0.2",
+    "tsx": "^4.23.13",
+    "portless": "^0.13.1"
+  }
+}

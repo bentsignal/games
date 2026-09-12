@@ -1,9 +1,9 @@
 // Admin-only creation and explicit reset of isolated end-game previews.
 import { internalMutation } from "./_generated/server";
 import { v } from "convex/values";
-import fixtures from "../src/game/playtest-endings.json";
-import type { Game } from "../src/game/engine";
-import { ROUTES } from "../src/game/data";
+import fixtures from "../../../src/game/playtest-endings.json";
+import type { Game } from "../../../src/game/engine";
+import { ROUTES } from "../../../src/game/data";
 export const createEndings = internalMutation({
   args: { username: v.string() },
   handler: async (ctx, { username }) => {

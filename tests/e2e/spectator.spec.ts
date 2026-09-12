@@ -3,20 +3,21 @@ import { signIn } from "./auth";
 
 test("late spectators watch live play and scoring, chat, refresh, and leave without taking a seat", async ({
   browser,
+  baseURL,
 }) => {
-  const hostContext = await browser.newContext();
-  const watchContext = await browser.newContext();
+  const hostContext = await browser.newContext({ baseURL });
+  const watchContext = await browser.newContext({ baseURL });
   const host = await hostContext.newPage();
   const watcher = await watchContext.newPage();
   const errors: string[] = [];
   watcher.on("pageerror", (error) => errors.push(error.message));
   try {
-    await host.goto("http://localhost:5173/ending-preview");
+    await host.goto("/ticket/ending-preview");
     await signIn(host, "SpectatorHost_QA");
     await host.getByRole("button", { name: "Create ending preview" }).click();
     await expect(host).toHaveURL(/\/room\//);
     const roomCode = new URL(host.url()).pathname.split("/").pop()!;
-    await watcher.goto("http://localhost:5173/");
+    await watcher.goto("/ticket");
     await signIn(watcher, "Spectator_QA");
     await watcher.getByLabel("Room code").fill(roomCode);
     await watcher.getByRole("button", { name: "Open", exact: true }).click();

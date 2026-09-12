@@ -46,7 +46,7 @@ test("Grams preserves its interface and plays a complete round with two accounts
       .locator(".letter-available.filled")
       .allTextContents();
     const dict = JSON.parse(
-      readFileSync("convex/gramsData/allow.json", "utf8"),
+      readFileSync("services/convex/convex/gramsData/allow.json", "utf8"),
     ) as Record<string, Record<string, string[]>>;
     const words = Object.values(dict).flatMap((groups) =>
       Object.values(groups).flat(),

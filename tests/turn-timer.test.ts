@@ -1,10 +1,10 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { convexTest } from "convex-test";
-import schema from "../convex/schema";
-import { api, internal } from "../convex/_generated/api";
+import schema from "../services/convex/convex/schema";
+import { api, internal } from "../services/convex/convex/_generated/api";
 import { applyAction, expireTurn, type Game } from "../src/game/engine";
 import { endingPreview } from "../src/game/ending-preview";
-const modules = import.meta.glob("../convex/**/*.{ts,js}");
+const modules = import.meta.glob("../services/convex/convex/**/*.{ts,js}");
 afterEach(() => vi.useRealTimers());
 
 it("draws only the remaining cards, keeps pending tickets, and handles an empty deck", () => {

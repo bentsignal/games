@@ -49,7 +49,7 @@ import {
   Home,
   WifiOff,
 } from "lucide-react";
-import { api } from "../convex/_generated/api";
+import { api } from "../services/convex/convex/_generated/api";
 import { ConvexError } from "convex/values";
 import {
   COLORS,

@@ -1,0 +1,19 @@
+{
+  "name": "@games/convex",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node ../../scripts/backend-dev.mjs",
+    "typecheck": "tsc -p convex/tsconfig.json"
+  },
+  "dependencies": {
+    "convex": "^1.45.0",
+    "@convex-dev/auth": "2.0.0-alpha.1",
+    "@noble/hashes": "^2.4.0"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "@types/node": "^26.5.0"
+  }
+}

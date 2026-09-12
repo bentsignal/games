@@ -6,7 +6,7 @@ import { internal } from "./_generated/api";
 import { v, ConvexError } from "convex/values";
 import { requirePlayer } from "./users";
 import { saveResult } from "./results";
-import { endingPreview } from "../src/game/ending-preview";
+import { endingPreview } from "../../../src/game/ending-preview";
 import {
   applyAction,
   expireTurn,
@@ -15,7 +15,7 @@ import {
   newPlayer,
   playerView,
   type Game,
-} from "../src/game/engine";
+} from "../../../src/game/engine";
 const mode = v.union(
   v.literal("classic"),
   v.literal("1910"),

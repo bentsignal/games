@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm run build",
+  "buildCommand": "pnpm run build",
   "outputDirectory": "dist",
   "rewrites": [
     {
@@ -95,5 +95,6 @@
       "destination": "https://games.bentsignal.com/:path*",
       "permanent": true
     }
-  ]
+  ],
+  "installCommand": "pnpm install --frozen-lockfile"
 }

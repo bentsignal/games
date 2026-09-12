@@ -1,7 +1,7 @@
 import { mutation } from "./_generated/server";
 import { v, ConvexError } from "convex/values";
 import { requirePlayer } from "./users";
-import { signTicket, verifyTicket } from "../shared/realtimeAuth";
+import { signTicket, verifyTicket } from "../../../shared/realtimeAuth";
 function secret() {
   const value = process.env.GRAMS_REALTIME_SECRET;
   if (!value)

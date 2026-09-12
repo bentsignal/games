@@ -12,7 +12,7 @@ import "@fontsource/ibm-plex-mono/400.css";
 import Games from "./Games";
 import AccountGate from "./components/AccountGate";
 import { ConvexAuthProvider } from "@convex-dev/auth/react";
-import { api } from "../convex/_generated/api";
+import { api } from "../services/convex/convex/_generated/api";
 import "./styles.css";
 import "./classic.css";
 const url = import.meta.env.VITE_CONVEX_URL;

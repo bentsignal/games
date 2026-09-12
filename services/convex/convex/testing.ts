@@ -6,7 +6,10 @@ import { v } from "convex/values";
 import { vGoogleProfile } from "@convex-dev/auth/providers/oauth/google";
 function devOnly() {
   if (
-    process.env.CONVEX_SITE_URL !== "https://sincere-jellyfish-682.convex.site"
+    process.env.CONVEX_SITE_URL !==
+      "https://sincere-jellyfish-682.convex.site" &&
+    (!process.env.GAMES_DEV_SITE_URL ||
+      process.env.GAMES_DEV_SITE_URL !== process.env.CONVEX_SITE_URL)
   )
     throw new Error("Test accounts are disabled outside development.");
 }

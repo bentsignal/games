@@ -1,9 +1,9 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { convexTest } from "convex-test";
-import schema from "../convex/schema";
-import { api, internal } from "../convex/_generated/api";
-import allow from "../convex/gramsData/allow.json";
-const modules = import.meta.glob("../convex/**/*.{ts,js}");
+import schema from "../services/convex/convex/schema";
+import { api, internal } from "../services/convex/convex/_generated/api";
+import allow from "../services/convex/convex/gramsData/allow.json";
+const modules = import.meta.glob("../services/convex/convex/**/*.{ts,js}");
 afterEach(() => vi.useRealTimers());
 it("authenticates Grams, validates letters and duplicates, conceals words, scores ties and saves accounts", async () => {
   vi.useFakeTimers();
