@@ -3203,6 +3203,30 @@ label {
 .sign-in-page {
   position: relative;
 }
+.development-sign-in {
+  display: grid;
+  gap: 16px;
+  width: min(320px, calc(100vw - 48px));
+}
+.development-sign-in h1 {
+  margin: 0 0 8px;
+  color: #fff6dd;
+  font-size: 32px;
+  line-height: 1.2;
+}
+.development-sign-in input {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 16px;
+  color: #3f3028;
+  background: #fff6dd;
+  font-size: 16px;
+}
+.development-sign-in button {
+  min-height: 48px;
+  color: #fff6dd;
+  font-size: 18px;
+}
 .sign-in-page [role="alert"] {
   position: absolute;
   top: 100%;

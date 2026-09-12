@@ -6,6 +6,7 @@ export default function DevelopmentSignIn() {
   const [error, setError] = useState("");
   return (
     <form
+      className="development-sign-in"
       onSubmit={async (event) => {
         event.preventDefault();
         setBusy(true);
@@ -39,10 +40,10 @@ export default function DevelopmentSignIn() {
         }
       }}
     >
-      <h1>Development sign-in</h1>
-      <label htmlFor="dev-username">Test username</label>
+      <h1>Sign in (dev)</h1>
       <input
         id="dev-username"
+        aria-label="Username"
         required
         autoComplete="username"
         value={username}
@@ -51,9 +52,6 @@ export default function DevelopmentSignIn() {
         pattern="[a-zA-Z0-9_]{3,24}"
         onChange={(event) => setUsername(event.target.value)}
       />
-      <p className="muted">
-        Use any test username in this checkout’s temporary database.
-      </p>
       <button className="primary full" disabled={busy}>
         Sign in
       </button>

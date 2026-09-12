@@ -5,12 +5,12 @@ test("agents can sign in locally, refresh, and sign out without Google", async (
 }) => {
   await page.goto("/ticket");
   await expect(
-    page.getByRole("heading", { name: "Development sign-in" }),
+    page.getByRole("heading", { name: "Sign in (dev)" }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Sign in with Google" }),
   ).toHaveCount(0);
-  await page.getByLabel("Test username").fill("AgentBrowser_QA");
+  await page.getByLabel("Username", { exact: true }).fill("AgentBrowser_QA");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "Create a game", exact: true }),
@@ -34,16 +34,16 @@ test("agents can sign in locally, refresh, and sign out without Google", async (
   await page.locator(".account-menu summary").click();
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "Development sign-in" }),
+    page.getByRole("heading", { name: "Sign in (dev)" }),
   ).toBeVisible();
 });
 
 test("development sign-in preserves an invitation URL", async ({ page }) => {
   await page.goto("/ticket/room/ABCDEFGH");
-  await page.getByLabel("Test username").fill("AgentInvite_QA");
+  await page.getByLabel("Username", { exact: true }).fill("AgentInvite_QA");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "Development sign-in" }),
+    page.getByRole("heading", { name: "Sign in (dev)" }),
   ).toHaveCount(0);
   await expect(page.locator(".account-menu summary")).toBeVisible();
   await expect(page).toHaveURL(/\/ticket\/room\/ABCDEFGH$/);
