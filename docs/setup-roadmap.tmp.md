@@ -15,7 +15,7 @@ permanent contributor/release documentation as the work lands.
 - Preserve existing builds, tests, and production deployment behavior.
 - Defer splitting individual game packages and Ruby's full lint rules until later.
 
-## 2. Reliable PR checks (in progress)
+## 2. Reliable PR checks (complete)
 
 - Unified local check command; CI includes frontend/Convex and Worker checks.
 - Require checks on main and establish review/contribution guidance.
@@ -155,5 +155,12 @@ documentation and local test additions needed for stage 1.
   contributor docs, and a PR template. React effect/compiler migration rules and
   cloud-backed browser CI remain deferred explicitly in CONTRIBUTING.md.
 - Fixed unused bindings and a Grams reset handler that reassigned a `const`.
-- Local combined checks pass. Next verification is the real PR workflow and
-  required status checks on main, then merging this setup through that workflow.
+- All six local checks and five browser smoke tests pass. PR #1 ran all six
+  independent GitHub jobs successfully. Main now requires those six GitHub Actions
+  checks, an up-to-date branch, and resolved conversations. PRs are mandatory,
+  rules include admins, force pushes/deletion are blocked, and approving reviews
+  remain optional for solo work.
+- Found an existing Vercel GitHub integration that deploys previews and production.
+  Earlier notes saying no automatic deployments were inaccurate. This CI adds no
+  deployment jobs; step three must coordinate the existing Vercel integration with
+  Convex and Cloudflare. Step two is complete once this verified PR is merged.

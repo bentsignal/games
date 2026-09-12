@@ -16,8 +16,8 @@
   session tokens, or CLI credential files into logs or documentation.
 - Run `pnpm run format` and `pnpm run check` before opening or updating a PR.
   The six CI checks run in parallel; see `CONTRIBUTING.md` for their scope.
-- Builds do not deploy. Automated releases are a later roadmap step; keep
-  production settings and release commands explicit and documented.
+- Local builds and CI do not deploy. Vercel already deploys GitHub PR previews
+  and main to production. Coordinated Convex/Worker/frontend releases are step 3.
 
 - Own the Git workflow: commit verified changes and push them without waiting for
   reminders. Push feature branches and open PRs to `main`; all six checks must pass

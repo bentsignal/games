@@ -44,5 +44,7 @@ An approving review is welcome but not mandatory, so the owner can merge solo
 work. Keep PRs focused and describe the behavior changed and how you tested it.
 Merge through a PR; do not push directly to `main` or force-push it.
 
-Merging does not yet deploy production. Automated releases are step three in the
+The CI workflow does not deploy. Vercel already deploys previews from PRs and
+production from main through its GitHub integration. Coordinating Vercel with
+Convex and Cloudflare releases is step three in the
 [roadmap](docs/setup-roadmap.tmp.md).
