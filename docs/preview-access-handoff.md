@@ -1,8 +1,40 @@
 # Stable preview access handoff
 
 The stable preview infrastructure and pipeline are configured in `bentsignal/games`.
-The two access steps below are complete as of 2026-09-13.
+Google callback setup is complete. The stored Cloudflare token failed live CI
+authentication and needs correction before automatic deployment can be enabled.
 Do not deploy production or change its resources.
+
+## Required correction after CI verification
+
+The automatic main run [34781782265](https://github.com/bentsignal/games/actions/runs/34781782265)
+passed all six checks and Convex preflight, then Cloudflare returned HTTP 400,
+error code `9106`, for this request:
+
+```text
+GET https://api.cloudflare.com/client/v4/accounts/12f3bac77e8f2b140391cd4f79c766ad/pages/projects/bentsignal-games-preview
+Authorization: Bearer <API token>
+```
+
+This endpoint succeeds with the implementation machine's local OAuth login. The
+CI token is present and outer whitespace is trimmed, but Cloudflare rejects its
+authentication. No provider deployment was changed by the failed runs.
+
+Verify the actual token value and account scope. Replace the GitHub `Preview`
+environment secret `CLOUDFLARE_API_TOKEN` with a working token as needed. Use the
+API token value, not its name, ID, global API key, or a full Authorization header.
+Before saving it, make the GET request above with that exact token and require
+HTTP 200 with `success: true`. Also verify GET on the same account's
+`/workers/scripts/games-grams-preview/settings`. Never print the token or the
+settings response, which can contain binding values; report only status/success.
+
+Retain the original account-scoped Pages Write, Workers Scripts Write, and
+Account Settings Read permissions. Do not broaden permissions without evidence
+that they are needed. Google needs no further changes.
+
+`STABLE_PREVIEW_ENABLED` is paused at `false` to avoid repeated failed deployments.
+After the secret is corrected and verified, report completion without credentials.
+The implementation agent will re-enable preview and verify a complete main run.
 
 ## Completion evidence
 
