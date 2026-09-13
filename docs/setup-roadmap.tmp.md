@@ -25,9 +25,18 @@ permanent contributor/release documentation as the work lands.
 ## 3. Automated production releases
 
 - GitHub Actions coordinates verified main commits: Convex, Worker, frontend.
+- Move the frontend from Vercel to Cloudflare Workers Static Assets in this stage.
+  Defer Ticket to Ride live-state migration until after the infrastructure work.
 - Configure production credentials, serialized releases, and smoke checks.
 - Reconcile provider auto-deploy settings to avoid duplicate releases.
 - Document compatible backend rollouts and recovery after partial releases.
+
+Access checkpoint, 2026-09-13: local provider logins verified. GitHub's existing
+`Production` environment is restricted to protected branches and contains the
+Convex production deploy key and Cloudflare account ID variable. Cloudflare's CI
+token still needs dashboard creation. See [deployment access handoff](deployment-access-handoff.md)
+for the computer-use agent's task. Production code, domains, and Vercel deployment
+integration remain unchanged. Stage 3 is not complete.
 
 ## 4. Staging and incremental refactoring
 
