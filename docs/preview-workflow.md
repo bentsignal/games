@@ -108,10 +108,11 @@ round with two accounts and stored results, plus Ticket to Ride joining, ticket
 selection, chat, drawing cards, and reconnecting.
 The preview Worker namespace is `c9b91ebdaeb4497dbbb8b64f3e3e3763`.
 
-Automatic deployment is disabled pending the persistent GitHub Preview Cloudflare
-credential. Google sign-in currently returns `redirect_uri_mismatch` until its
-callback is registered. Complete [preview access handoff](preview-access-handoff.md),
-then enable and verify a main CI deployment. Production is unchanged.
+The persistent GitHub Preview Cloudflare credential is saved, and the Google
+callback is registered. Real Google sign-in in Helium successfully returned to the
+authenticated preview username setup screen on 2026-09-13. See the completed
+[preview access handoff](preview-access-handoff.md), then enable and verify a main
+CI deployment. Automatic deployment activation is still pending. Production is unchanged.
 
 For authenticated browser checks using admin-created preview sessions:
 
