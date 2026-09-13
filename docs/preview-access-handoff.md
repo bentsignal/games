@@ -1,8 +1,28 @@
 # Stable preview access handoff
 
 The stable preview infrastructure and pipeline are configured in `bentsignal/games`.
-Complete these two access steps using the existing signed-in provider sessions.
+The two access steps below are complete as of 2026-09-13.
 Do not deploy production or change its resources.
+
+## Completion evidence
+
+- Created account-owned token `games-github-actions-preview` in the specified
+  Cloudflare account, with no expiration and exactly Pages Write, Workers Scripts
+  Write, and Account Settings Read. No DNS or token-management permissions.
+- Copied the token directly from Cloudflare into GitHub's `Preview` environment
+  secret `CLOUDFLARE_API_TOKEN`. GitHub confirmed the saved secret on 2026-09-13.
+  No credential values were written to the repository or logs.
+- Verified Preview remains restricted to protected branches, currently `main`,
+  with required reviewers and the wait timer disabled.
+- Added the exact preview callback below to the existing Google OAuth `web`
+  client in project `ticket-to-ride-507915`, preserving all three existing URIs.
+  Google confirmed the OAuth client was saved. No client credentials were rotated.
+- Tested real Google sign-in in Helium at `https://preview.games.bentsignal.com`.
+  Google returned successfully to the preview's authenticated username setup
+  screen. The previous `redirect_uri_mismatch` is resolved.
+
+The implementation agent can now perform the activation and CI verification in
+the final section. Production resources and approval rules were not changed.
 
 ## Cloudflare credential for GitHub Preview
 

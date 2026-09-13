@@ -68,8 +68,10 @@ The project is now `games` in BSX, with its existing databases preserved. Create
 stable preview deployment `chatty-okapi-416` without selecting it locally. Automatic
 production releases are disabled, and owner approval is enforced. The stable preview
 pipeline is implemented and its separate services are provisioned. Local deployment
-smoke checks pass. Automatic CI deployment is disabled until the Preview environment
-has a persistent Cloudflare token; Google also needs its callback registered. See
+smoke checks pass. The Preview environment now has its persistent Cloudflare token,
+and the Google callback is registered. Real Google sign-in in Helium reached the
+authenticated preview username setup screen. Automatic CI deployment activation
+and verification remain with the implementation agent. See
 [workflow design](preview-workflow.md) and [access handoff](preview-access-handoff.md).
 The release review command and skill are implemented. Tested-commit promotion
 and durable release publication remain pending with the preview automation.
