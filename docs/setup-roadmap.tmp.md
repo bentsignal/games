@@ -33,10 +33,15 @@ permanent contributor/release documentation as the work lands.
 
 Access checkpoint, 2026-09-13: local provider logins verified. GitHub's existing
 `Production` environment is restricted to protected branches and contains the
-Convex production deploy key and Cloudflare account ID variable. Cloudflare's CI
-token still needs dashboard creation. See [deployment access handoff](deployment-access-handoff.md)
-for the computer-use agent's task. Production code, domains, and Vercel deployment
-integration remain unchanged. Stage 3 is not complete.
+Convex production deploy key, Cloudflare account ID variable, and Cloudflare CI
+token. The account-owned Workers token has no expiration; read-only verification
+confirmed it is active and belongs to the expected account. It has account
+permissions only. `bentsignal.com` is managed at Vercel and must remain registered
+there; it is not a zone in this Cloudflare account. Confirm supported domain
+routing before cutover. See [deployment access handoff](deployment-access-handoff.md)
+for the permission list and completion evidence. Production code, domains, and
+Vercel deployment integration remain unchanged. Release validation is pending;
+stage 3 is not complete.
 
 ## 4. Staging and incremental refactoring
 
