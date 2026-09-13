@@ -1,6 +1,6 @@
 ---
 name: production-release
-description: Prepare a production release with a preview testing checklist, then release the reviewed commit after Shawn tests and approves it.
+description: Use when the user asks for help preparing or cutting a production release.
 ---
 
 # Production release
