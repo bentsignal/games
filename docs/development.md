@@ -169,7 +169,8 @@ the Worker's outbound HTTPS connection to Convex.
 - `pnpm test`: unit and setup regression tests, without cloud credentials.
 - `pnpm run typecheck`: all current TypeScript projects through Turbo.
 - `pnpm run grams:test`: local sockets, hibernation, and persistence.
-- `pnpm run build`: root `dist/` output for Vercel; does not deploy.
+- `pnpm run build`: root `dist/` static output; does not deploy. GitHub Actions
+  publishes production to Cloudflare Pages; see [releases](releases.md).
 - `pnpm run test:e2e`: requires `pnpm run dev`, Playwright browser dependencies,
   and Convex CLI login. URLs/auth storage derive from `.env.local`.
 

@@ -1,7 +1,8 @@
 # Deployment access handoff
 
-Status as of 2026-09-13. This handoff prepares credentials for stage 3. The release
-workflow and frontend migration are still pending.
+Completed handoff, 2026-09-13. The credentials are configured and the frontend
+migration has since completed. This file retains the setup history. Current
+deployment status and recovery instructions are in [releases](releases.md).
 
 ## Already done
 
@@ -100,18 +101,14 @@ workflow still needs end-to-end validation.
   in these notes.
 - No production code or domain changes were made during credential preparation.
 
-## Next implementation
+## Subsequent implementation
 
-GitHub Actions will coordinate Convex and Cloudflare releases after the required
-checks. Move the Vite frontend to Cloudflare Workers Static Assets, preserve the
-existing Grams Durable Object state, and test routing, Google auth, and both games
-before cutting over the domain and disabling Vercel's automatic deployments.
-Keep `bentsignal.com` registered at Vercel. Confirm a supported Cloudflare hosting
-and domain-routing configuration before changing DNS; the domain is not currently
-a zone in this Cloudflare account. Credential preparation did not validate that
-configuration.
-Ticket to Ride's live-state migration remains deferred. Backend changes must stay
-compatible across partial releases; reverting code does not revert database data.
+GitHub Actions now coordinates Convex, Grams, and Cloudflare Pages releases.
+Pages supports the games subdomain with DNS and registration at Vercel, so no
+Cloudflare zone or zone permissions were needed. The domain cutover is complete,
+the Grams namespace was preserved, and Vercel Git deployments are disabled.
+No further dashboard handoff is pending. Ticket to Ride's live-state migration
+remains deferred.
 
 References: [Cloudflare GitHub Actions authentication](https://developers.cloudflare.com/workers/ci-cd/external-cicd/github-actions/),
 [Cloudflare token creation prerequisites](https://developers.cloudflare.com/fundamentals/api/how-to/create-via-api/),

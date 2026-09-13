@@ -22,7 +22,7 @@ permanent contributor/release documentation as the work lands.
 - Add reproducible browser tests with a development-only environment.
 - Keep architecture, commands, and release rules in repository AGENTS.md.
 
-## 3. Automated production releases
+## 3. Automated production releases (complete)
 
 - GitHub Actions coordinates verified main commits: Convex, Worker, frontend.
 - Move the frontend from Vercel to Cloudflare Pages in this stage.
@@ -43,9 +43,14 @@ for the permission list and completion evidence. Production code, domains, and
 Vercel deployment integration remain unchanged. Release validation is pending;
 stage 3 is not complete.
 
-Hosting decision: use Cloudflare Pages direct upload so registration and DNS stay
-at Vercel. Only the games hostname changes. A coordinated release job and recovery
-documentation are being implemented; see [releases](releases.md).
+Completion checkpoint, 2026-09-13: Cloudflare Pages direct upload keeps registration
+and DNS at Vercel. Only the games hostname changed; all 19 other DNS records were
+verified unchanged. GitHub release 34768640127 passed the complete coordinated
+rollout. The custom domain certificate is active, live smoke checks pass, and
+Google authorization initiation works. Vercel Git deployments are disabled;
+automatic main releases and final custom-domain checks are enabled. See
+[releases](releases.md) for the manifest, exact resources, recovery, and validation
+limits. PR previews and authenticated cloud browser CI remain stage 4 work.
 
 ## 4. Staging and incremental refactoring
 

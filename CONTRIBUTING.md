@@ -44,7 +44,9 @@ An approving review is welcome but not mandatory, so the owner can merge solo
 work. Keep PRs focused and describe the behavior changed and how you tested it.
 Merge through a PR; do not push directly to `main` or force-push it.
 
-The CI workflow does not deploy. Vercel already deploys previews from PRs and
-production from main through its GitHub integration. Coordinating Vercel with
-Convex and Cloudflare releases is step three in the
-[roadmap](docs/setup-roadmap.tmp.md).
+After merging to main, the same workflow waits for the six checks and releases
+Convex, the Grams Worker, and the Cloudflare Pages frontend. Vercel Git deployments
+are disabled. PR previews on Cloudflare are future work; use the isolated local
+environment for now. See [production releases](docs/releases.md) for release
+status, credentials, smoke checks, and recovery. Release manifests are retained
+for 30 days; PR checks do not upload artifacts or receive production secrets.
