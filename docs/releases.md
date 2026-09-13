@@ -97,10 +97,25 @@ cutover fails; never change the zone's nameservers or other applications' record
 
 ## Migration checkpoint
 
-- Pages project created with production branch `main` and no Git integration.
-- Pipeline and Pages candidate validation are in progress.
-- DNS cutover, Vercel auto-deploy shutdown, and automatic release enablement are
-  pending. Update this section after live verification.
+- Completed 2026-09-13. Pages project uses production branch `main`, direct upload,
+  and no Git integration. `games.bentsignal.com` has an active Cloudflare certificate.
+- The first coordinated [GitHub release](https://github.com/bentsignal/games/actions/runs/34768640127)
+  passed every stage for commit `f0482eb0233baf6d3a100d6c0aa420c84e1d1774`.
+  Pages deployment: `d8112f7e-4c50-4025-bf5b-663dcca398ae`. Worker version:
+  `e60b0155-c780-458f-8e04-7fcc28698c78`. The original Durable Object namespace
+  and existing application secrets were preserved.
+- Vercel required replacing the A record instead of changing its type. The new
+  CNAME record ID is `rec_7bedc34f7df946ece586ac6b`, TTL 60. All 19 other DNS
+  records were compared before/after and remained unchanged. Nameservers and
+  registration remain at Vercel. Certificate activation briefly interrupted HTTPS
+  during the initial cutover; it is now active.
+- `vercel.json` sets `git.deploymentEnabled=false`. Both automatic GitHub releases
+  and the custom-domain smoke check are enabled.
+- Live checks passed for the expected release SHA, deep links, legacy redirects,
+  JavaScript and image assets, response headers, Worker health, and anonymous
+  Convex access. Browser verification reached Google authorization through the
+  existing `auth.games.bentsignal.com` callback without browser errors. Full Google
+  login and authenticated production gameplay still require a real user session.
 
 Sources: [Pages direct upload from CI](https://developers.cloudflare.com/pages/how-to/use-direct-upload-with-continuous-integration/),
 [Pages external DNS](https://developers.cloudflare.com/pages/configuration/custom-domains/),
