@@ -1,0 +1,2 @@
+/room/:code /ticket/room/:code 301
+/ending-preview /ticket/ending-preview 301

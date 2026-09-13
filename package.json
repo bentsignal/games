@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Games for friends",
   "scripts": {
-    "test": "vitest run && node --test scripts/setup.test.mjs",
+    "test": "vitest run && node --test scripts/*.test.mjs",
     "dev": "node scripts/dev.mjs",
     "build": "turbo run build:web",
     "preview": "vite preview",

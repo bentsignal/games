@@ -16,8 +16,10 @@
   session tokens, or CLI credential files into logs or documentation.
 - Run `pnpm run format` and `pnpm run check` before opening or updating a PR.
   The six CI checks run in parallel; see `CONTRIBUTING.md` for their scope.
-- Local builds and CI do not deploy. Vercel already deploys GitHub PR previews
-  and main to production. Coordinated Convex/Worker/frontend releases are step 3.
+- Local builds and PR checks do not deploy. Main releases use GitHub Actions to
+  coordinate Convex, the Grams Worker, and Cloudflare Pages. Read `docs/releases.md`
+  for rollout order, activation status, and recovery. Keep DNS at Vercel and
+  preserve the existing Grams Durable Object namespace.
 
 - Own the Git workflow: commit verified changes and push them without waiting for
   reminders. Push feature branches and open PRs to `main`; all six checks must pass
