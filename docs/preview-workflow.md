@@ -44,6 +44,38 @@ when Shawn authorizes it. A skill should guide the operation; GitHub enforces it
 Pin production promotion to the commit tested on stable preview. Do not silently
 release a newer main commit that arrived after Shawn tested the preview.
 
+## Review before production
+
+When Shawn asks for a production release, the agent first prepares a review of
+everything since the last successful production deployment. Use the
+`production-release` skill and `pnpm run release:review --preview-url PREVIEW_URL`.
+The command writes an ignored `.release/review-SHA/` inventory with the deployed
+production frontend SHA, candidate SHA, every intervening Git commit, associated
+merged PRs, and changed files. It does not deploy or grant approval.
+
+The agent must verify coordinated backend deployment evidence as well as frontend
+markers, inspect the code changes, and turn the inventory into a testing checklist.
+Show linked PR titles with short summaries, specific actions and expected results,
+and automated checks already completed. Include changes without PRs, merge
+resolutions, reverted changes, and configuration or database changes that a title
+list might miss. Explain when a change needs no manual testing.
+
+Shawn tests the pinned preview candidate and then approves that exact release.
+Main may continue advancing, but promotion must use the tested SHA. If the shared
+preview updates during testing, testing must continue on a matching isolated
+deployment or the restored candidate, including its backends.
+
+Publish a GitHub Release only after the coordinated deployment and smoke checks
+succeed. Tag the deployed SHA and retain the reviewed changelog, PR links,
+comparison, deployment run, review, and manifest there. These records must survive
+the current 30-day Actions artifact retention. A partial failure must not advance
+the successful production baseline; investigate actual service state before retrying.
+
+[T3 Code's release workflow](https://github.com/pingdotgg/t3code/blob/main/.github/workflows/release.yml)
+uses the published preview commit for stable releases and generates notes against
+the previous release in the same channel. We use the same comparison principle,
+with an agent-written testing checklist based on the actual Git changes.
+
 ## Authentication
 
 PR previews should support test-username sign-in with real sessions in their own
@@ -62,13 +94,15 @@ fixed callback. Production retains its existing Google configuration.
 - Paused automatic production releases, changed the release job to explicit
   owner dispatch, and configured the Production environment's owner approval.
 - Updated local setup's default project reference to `BSX:games`.
+- Added a read-only release inventory command and an agent skill for code review,
+  testing, approval, and release records. Exact-commit deployment remains pending.
 
 ## Remaining implementation
 
 - Preview-scoped credentials and the trusted-contributor gate.
 - Stable preview frontend, Grams Worker, auth configuration, and main deployment.
 - PR provisioning, status links, deployed test sign-in, and cleanup.
-- Promotion of a tested preview commit, plus a short production-release skill.
+- Promotion of a tested preview commit and durable GitHub Release publication.
 - Live verification with a trusted PR, an untrusted PR, and a manual promotion.
 
 No PR previews or automatic main-to-preview deployment are active yet. The existing
