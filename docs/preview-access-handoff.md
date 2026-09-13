@@ -1,11 +1,32 @@
 # Stable preview access handoff
 
 The stable preview infrastructure and pipeline are configured in `bentsignal/games`.
-Google callback setup is complete. The stored Cloudflare token failed live CI
-authentication and needs correction before automatic deployment can be enabled.
+Google callback setup and Cloudflare credential correction are complete. The
+implementation agent can re-enable automatic preview deployment and verify CI.
 Do not deploy production or change its resources.
 
 ## Required correction after CI verification
+
+Completed 2026-09-13. Rolled the existing account-owned
+`games-github-actions-preview` token without changing its account scope or
+permissions. Before replacing the GitHub secret, verified the exact new token:
+
+| API GET endpoint within the specified account   | HTTP status | success |
+| ----------------------------------------------- | ----------- | ------- |
+| `/pages/projects/bentsignal-games-preview`      | 200         | true    |
+| `/workers/scripts/games-grams-preview/settings` | 200         | true    |
+
+Saved the verified token value in GitHub's `Preview` environment after passkey
+reauthentication. GitHub's secret metadata confirms `CLOUDFLARE_API_TOKEN` was
+updated at `2026-09-13T22:38:08Z`. The prior transfer appears to have used
+Cloudflare's token ID copy control instead of its separate token value control.
+Use the actual bearer token value for future transfers.
+
+Preview remains restricted to protected branches with no required reviewers.
+`STABLE_PREVIEW_ENABLED` remains `false`; the implementation agent should now
+re-enable it and verify a complete main run. Google and production were unchanged.
+
+### Failure and correction requirements
 
 The automatic main run [34781782265](https://github.com/bentsignal/games/actions/runs/34781782265)
 passed all six checks and Convex preflight, then Cloudflare returned HTTP 400,

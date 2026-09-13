@@ -112,10 +112,12 @@ The persistent GitHub Preview Cloudflare credential is saved, and the Google
 callback is registered. Real Google sign-in in Helium successfully returned to the
 authenticated preview username setup screen on 2026-09-13. See the completed
 [preview access handoff](preview-access-handoff.md), then enable and verify a main
-CI deployment. Live CI verification found that the stored Cloudflare token is
-rejected with HTTP 400 and authentication code `9106`; Convex preflight passes.
-Automatic deployment is paused until the token is corrected and verified as
-specified in the handoff. Production is unchanged.
+CI deployment. After CI rejected the original stored credential with code `9106`,
+the preview token was rolled and verified against both the Pages project and
+Worker settings APIs. Both returned HTTP 200 with `success: true`. GitHub confirms
+the replacement secret was saved at `2026-09-13T22:38:08Z`. Automatic deployment
+remains paused for the implementation agent to re-enable and verify. Production
+is unchanged.
 
 For authenticated browser checks using admin-created preview sessions:
 
