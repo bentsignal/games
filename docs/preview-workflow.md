@@ -1,48 +1,31 @@
 # Preview and release workflow
 
 Stage 4 is workflow infrastructure only. Package extraction and code refactoring
-are a separate follow-up, after we can test changes through deployed PRs.
+are a separate follow-up, after stable preview and production promotion work.
 
 ## Desired behavior
 
-| Event                               | Result                                                                 |
-| ----------------------------------- | ---------------------------------------------------------------------- |
-| Any PR to main                      | Six ordinary checks, without deployment credentials                    |
-| PR from a trusted contributor       | Deployed frontend, isolated Convex database, and isolated Grams Worker |
-| New commits on that PR              | Check the new commit, then update its preview URL                      |
-| PR closed or merged                 | Remove preview resources; database expiration is a backstop            |
-| Merge to main                       | Update the stable preview environment, without deploying production    |
-| Shawn explicitly requests a release | Promote the commit verified on stable preview to production            |
+| Event                               | Result                                                           |
+| ----------------------------------- | ---------------------------------------------------------------- |
+| Any PR to main                      | Six ordinary checks, without deployment credentials              |
+| Merge to main                       | Deploy Convex, Grams Worker, and frontend to stable preview      |
+| Shawn explicitly requests a release | Review and test the candidate, then approve production promotion |
 
-Use `main` as the integration branch. The stable preview is an environment, not
-another branch that needs merge management. Its database persists between builds.
-PR databases are disposable and should expire after seven days. Production data
-is never copied from, or overwritten with, preview data.
+Use `main` as the integration branch. Stable preview is one environment whose
+backend, database, and Worker storage persist between builds. Contributors use
+local development and isolated Convex deployments when needed. Review PRs and
+require passing CI before merging; test the deployed changes on stable preview.
+Production data is never copied from, or overwritten with, preview data.
 
-## Trust and production authority
+## Production authority
 
-[T3 Code's PR vouch workflow](https://github.com/pingdotgg/t3code/blob/main/.github/workflows/pr-vouch.yml)
-checks contributor trust separately from PR code. Follow that separation here.
-Maintain an explicit owner-controlled contributor allowlist, initially just
-`bentsignal`. A label can display the decision but must not grant access by itself.
-
-Evaluate trust from the default branch or owner-controlled repository settings.
-Recheck the PR's current head commit and CI result before provisioning. A PR must
-not be able to change its own trust decision. All PRs retain the ordinary checks;
-only preview provisioning depends on trust.
-
-Keep preview credentials separate from production. Run contributor build code
-without Cloudflare account credentials. A trusted deployment job can upload its
-artifacts. Any Convex credential needed while bundling/deploying PR code must be
-scoped to preview resources. Never use the production key for PR builds.
-
-Production requires both an explicit owner-triggered workflow and the GitHub
+Production requires an explicit owner-triggered workflow and the GitHub
 `Production` environment's approval from `bentsignal`. Admin bypass is disabled.
 An agent acting through Shawn's GitHub CLI can request and approve that release
-when Shawn authorizes it. A skill should guide the operation; GitHub enforces it.
+when Shawn authorizes it. A skill guides the operation; GitHub enforces it.
 
-Pin production promotion to the commit tested on stable preview. Do not silently
-release a newer main commit that arrived after Shawn tested the preview.
+Pin promotion to the commit tested on stable preview. Do not silently release a
+newer main commit that arrived after Shawn tested the preview.
 
 ## Review before production
 
@@ -62,8 +45,8 @@ list might miss. Explain when a change needs no manual testing.
 
 Shawn tests the pinned preview candidate and then approves that exact release.
 Main may continue advancing, but promotion must use the tested SHA. If the shared
-preview updates during testing, testing must continue on a matching isolated
-deployment or the restored candidate, including its backends.
+preview updates during testing, restart testing for the new candidate or restore
+the reviewed candidate, including its backends.
 
 Publish a GitHub Release only after the coordinated deployment and smoke checks
 succeed. Tag the deployed SHA and retain the reviewed changelog, PR links,
@@ -76,35 +59,72 @@ uses the published preview commit for stable releases and generates notes agains
 the previous release in the same channel. We use the same comparison principle,
 with an agent-written testing checklist based on the actual Git changes.
 
+## Stable preview resources
+
+| Resource                 | Target                                                          |
+| ------------------------ | --------------------------------------------------------------- |
+| Frontend                 | `https://preview.games.bentsignal.com`                          |
+| Cloudflare Pages project | `bentsignal-games-preview`, direct uploads to its `main` branch |
+| Convex                   | `BSX:games:preview/preview`, deployment `chatty-okapi-416`      |
+| Grams Worker             | `games-grams-preview`                                           |
+| GitHub environment       | `Preview`, restricted to protected branches                     |
+
+The Preview environment needs its deployment-scoped `CONVEX_DEPLOY_KEY`,
+`CLOUDFLARE_API_TOKEN`, and `CLOUDFLARE_ACCOUNT_ID` variable. The Cloudflare token
+requires Pages and Workers deployment access. Account-scoped Cloudflare permissions
+are broader than a single Worker; PR jobs receive no credentials. Production's
+Convex key and approval gate stay in the Production environment.
+
+The CI workflow waits for all six checks, then runs `scripts/deploy-preview.mjs`
+on main pushes or a manual CI dispatch with `release=false`. Deployments are
+serialized and running deployments are not cancelled. A queued superseded commit
+is skipped. The script validates preview targets, builds first, deploys Convex and
+the Worker, then publishes the frontend. Smoke checks verify both service URLs,
+backend reachability, frontend SHA, deep links, redirects, and assets. The Actions
+summary links to stable preview; the manifest records deployment IDs and stages.
+A partial failure may change backend state, so inspect the manifest before retrying.
+
+`STABLE_PREVIEW_ENABLED=true` enables the job after access setup. The environment
+has no manual approval requirement. Production remains a separate manual job.
+
 ## Authentication
 
-PR previews should support test-username sign-in with real sessions in their own
-database, without registering Google callbacks for every temporary deployment.
-The current development sign-in endpoint is Vite-only; deployed preview sign-in
-still needs implementation. Stable preview should support Google testing with a
-fixed callback. Production retains its existing Google configuration.
+Stable preview uses Google sign-in with a fixed callback URL. Its OAuth client
+must allow `https://chatty-okapi-416.convex.site/oauth/google/callback`.
+The Google client configuration is shared with production, but session signing
+keys, accounts, game data, and the Grams realtime secret are separate.
 
-## Foundation completed
+Preview also enables admin-only test fixtures through `GAMES_DEV_SITE_URL` matching
+its exact Convex site URL. These fixtures are not public sign-in endpoints. Agents
+can create test sessions through the authenticated Convex CLI for browser testing;
+website users use Google. Local development retains its test-username sign-in UI.
 
-- Renamed Convex project ID `2945745` to `games`, slug `games`, in team `BSX`,
-  team ID `185568`. Existing production and development deployments were retained.
-- Verified preview provisioning by creating the stable, non-expiring preview
-  deployment `chatty-okapi-416`, reference `BSX:games:preview/preview`.
-  This backend has not yet been populated or connected to a frontend.
-- Paused automatic production releases, changed the release job to explicit
-  owner dispatch, and configured the Production environment's owner approval.
-- Updated local setup's default project reference to `BSX:games`.
-- Added a read-only release inventory command and an agent skill for code review,
-  testing, approval, and release records. Exact-commit deployment remains pending.
+## Current checkpoint
 
-## Remaining implementation
+The preview resources are provisioned and the frontend is reachable over HTTPS.
+Convex, Worker health, frontend service URLs, deep links, redirects, assets, and
+release markers pass smoke checks. The initial deployment used local CLI logins. Browser tests passed a complete Grams
+round with two accounts and stored results, plus Ticket to Ride joining, ticket
+selection, chat, drawing cards, and reconnecting.
+The preview Worker namespace is `c9b91ebdaeb4497dbbb8b64f3e3e3763`.
 
-- Preview-scoped credentials and the trusted-contributor gate.
-- Stable preview frontend, Grams Worker, auth configuration, and main deployment.
-- PR provisioning, status links, deployed test sign-in, and cleanup.
-- Promotion of a tested preview commit and durable GitHub Release publication.
-- Live verification with a trusted PR, an untrusted PR, and a manual promotion.
+Automatic deployment is disabled pending the persistent GitHub Preview Cloudflare
+credential. Google sign-in currently returns `redirect_uri_mismatch` until its
+callback is registered. Complete [preview access handoff](preview-access-handoff.md),
+then enable and verify a main CI deployment. Production is unchanged.
 
-No PR previews or automatic main-to-preview deployment are active yet. The existing
-manual production command still targets current main; tested-commit promotion
-must be implemented before calling the new workflow complete.
+For authenticated browser checks using admin-created preview sessions:
+
+```sh
+PLAYWRIGHT_PREVIEW=1 PLAYWRIGHT_BASE_URL=https://preview.games.bentsignal.com pnpm exec playwright test tests/e2e/grams.spec.ts tests/e2e/multiplayer.spec.ts --grep 'Grams preserves|two independent friends'
+```
+
+These checks exercise real sessions and gameplay, but do not replace a human
+Google sign-in check after callback registration.
+
+## Next after stable preview
+
+Implement promotion of the exact tested preview commit and durable GitHub Release
+publication. The review command and production-release skill already exist, but
+legacy manual production dispatch still targets current main. It must not substitute
+for the tested-commit workflow.

@@ -42,6 +42,33 @@ test("release smoke follows lazy game chunks", async (t) => {
   serve(t);
   await smokeFrontend("https://candidate.example", sha);
 });
+test("preview smoke validates preview URLs instead of production URLs", async (t) => {
+  const target = {
+    convexUrl: "https://chatty-okapi-416.convex.cloud",
+    workerUrl: "https://games-grams-preview.shawnrodgers266.workers.dev",
+  };
+  serve(t, {
+    "/assets/main.js": [
+      `const url="${target.convexUrl}"; import('./Grams.js')`,
+      "application/javascript",
+    ],
+    "/assets/Grams.js": [
+      `const url="${target.workerUrl}";`,
+      "application/javascript",
+    ],
+  });
+  await smokeFrontend("https://preview.example", sha, target);
+  await assert.rejects(smokeFrontend("https://preview.example", sha));
+});
+test("deployed build excludes the actual local development login endpoint", async (t) => {
+  serve(t, {
+    "/assets/Grams.js": [
+      'const url="https://games-grams.shawnrodgers266.workers.dev"; fetch("/__games/dev-login")',
+      "application/javascript",
+    ],
+  });
+  await assert.rejects(smokeFrontend("https://candidate.example", sha));
+});
 test("release smoke rejects a stale deployment", async (t) => {
   serve(t, {
     "/release.json": [JSON.stringify({ sha: "old" }), "application/json"],

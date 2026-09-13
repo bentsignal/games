@@ -46,8 +46,8 @@ Merge through a PR; do not push directly to `main` or force-push it.
 
 Merging to main no longer deploys production. Production requires an explicit
 release and environment approval from the owner. Vercel Git deployments remain
-disabled. Trusted PR previews and main-to-preview deployments are the next work;
+disabled. Main-to-preview deployment is configured separately from production;
 see [preview workflow](docs/preview-workflow.md). Use the isolated local
-environment until those are active. See [production releases](docs/releases.md) for release
+environment while preview access setup is completed. See [production releases](docs/releases.md) for release
 status, credentials, smoke checks, and recovery. Release manifests are retained
 for 30 days; PR checks do not upload artifacts or receive production secrets.

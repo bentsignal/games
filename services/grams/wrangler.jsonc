@@ -14,6 +14,16 @@
     "ALLOWED_ORIGINS": "https://games.bentsignal.com",
   },
   "env": {
+    "preview": {
+      "name": "games-grams-preview",
+      "durable_objects": {
+        "bindings": [{ "name": "GRAMS", "class_name": "GramsRoom" }],
+      },
+      "vars": {
+        "CONVEX_URL": "https://chatty-okapi-416.convex.cloud",
+        "ALLOWED_ORIGINS": "https://preview.games.bentsignal.com,https://bentsignal-games-preview.pages.dev",
+      },
+    },
     "development": {
       "name": "games-grams-development",
       "durable_objects": {

@@ -3,8 +3,8 @@
 GitHub Actions coordinates releases from `main`. The six CI checks remain parallel
 and credential-free. The Production release job waits for all six to pass.
 
-Production is now manual and owner-approved. Main-to-preview deployment and
-promotion of a tested preview commit are the next workflow changes; see
+Production is manual and owner-approved. The stable preview pipeline is implemented
+and awaiting access setup; tested-commit production promotion remains next. See
 [preview workflow](preview-workflow.md) for the design and implementation status.
 
 ## Preparing a release review
@@ -21,7 +21,7 @@ The agent then reviews the code and creates the testing checklist for Shawn.
 The inventory alone is not evidence that the backends deployed successfully or
 that the release has been tested or approved.
 
-Until stable preview is deployed, `pnpm run release:review` can inventory current
+Without a verified stable preview deployment, `pnpm run release:review` can inventory current
 main against the live production frontend. It labels the result as planning only.
 It does not deploy, and a planning inventory cannot authorize production.
 

@@ -27,8 +27,8 @@ it does not approve deployment before Shawn has tested the candidate.
   Distinguish automated checks already passed from tests Shawn still needs to run.
 - Pin the review to its production baseline, candidate SHA, and preview deployment.
   Show the checklist in the conversation and help Shawn test. If preview changes while
-  testing, restore the candidate or use an isolated deployment with matching backends
-  before continuing. A frontend URL with newer backend code is not the same candidate.
+  testing, restore the candidate with matching backends or restart testing for the new
+  candidate. A frontend URL with newer backend code is not the same candidate.
 - After testing, ask Shawn to approve that exact candidate and review. Recheck the
   production baseline, deployment evidence, and required checks before dispatch.
   If the scope changes, update the review and obtain approval for the new scope.
