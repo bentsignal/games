@@ -12,7 +12,7 @@ deployment status and recovery instructions are in [releases](releases.md).
 - Existing GitHub environment `Production` now allows protected branches only.
   `main` is protected. Future release jobs must use `environment: Production`.
 - Created Convex key `games-github-actions-production`, scoped to
-  `BSX:ticket-to-ride:prod`, and stored it as the `Production` environment secret
+  `BSX:games:prod`, and stored it as the `Production` environment secret
   `CONVEX_DEPLOY_KEY`. The temporary local key file was removed.
 - Stored `CLOUDFLARE_ACCOUNT_ID` as a `Production` environment **variable**.
   Workflows must read `vars.CLOUDFLARE_ACCOUNT_ID`.

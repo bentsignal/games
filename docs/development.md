@@ -15,7 +15,7 @@ pnpm run dev
 ```
 
 Log into an account with access to the BSX team. Setup defaults to the existing
-`BSX:ticket-to-ride` project, so a fresh clone needs no project selection. For a
+`BSX:games` project, so a fresh clone needs no project selection. For a
 separate installation, set `GAMES_CONVEX_PROJECT=team-slug:project-slug` before
 running setup. Slugs are case-sensitive; the team's actual slug is `BSX`.
 

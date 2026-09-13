@@ -52,10 +52,23 @@ automatic main releases and final custom-domain checks are enabled. See
 [releases](releases.md) for the manifest, exact resources, recovery, and validation
 limits. PR previews and authenticated cloud browser CI remain stage 4 work.
 
-## 4. Staging and incremental refactoring
+## 4. Preview and release workflow
 
-- Stable staging environment for frontend, Convex, and Grams, then PR previews.
-- Environment-aware OAuth origins, Worker origins, and secrets.
+- Ordinary CI for every PR; disposable deployments for trusted contributors.
+- Main deploys to stable preview; Shawn explicitly promotes a tested commit to production.
+- Separate preview credentials, test sign-in, fixed Google callback for stable preview,
+  PR status links, expiration, and resource cleanup.
+- A concise production-release skill, backed by GitHub owner approval.
+
+The project is now `games` in BSX, with its existing databases preserved. Created
+stable preview deployment `chatty-okapi-416` without selecting it locally. Automatic
+production releases are disabled, and owner approval is enforced. Preview deployment
+automation is not active yet. See [workflow design](preview-workflow.md).
+
+## Later: code refactoring
+
+Keep this separate until the preview/release workflow is verified end to end.
+
 - Extract game packages and shared code so Turbo can check affected packages.
 - Adopt useful TypeScript/lint/tooling conventions from Ruby incrementally.
 
@@ -94,7 +107,7 @@ Validation after a clean pnpm install --frozen-lockfile:
 
 ## Live verification (2026-09-12)
 
-- Convex CLI login works. Confirmed project `BSX:ticket-to-ride`; setup now uses
+- Convex CLI login works. Confirmed project `BSX:games`; setup now uses
   that default on a fresh clone. Other installations can override it.
 - Created the isolated seven-day deployment `neighborly-caribou-246`. Re-running
   setup succeeds without replacing its auth keys or realtime secret.

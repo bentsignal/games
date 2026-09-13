@@ -61,8 +61,8 @@ jobs:
     needs: check
     if: >-
       github.ref == 'refs/heads/main' &&
-      ((github.event_name == 'push' && vars.PRODUCTION_RELEASES_ENABLED == 'true') ||
-       (github.event_name == 'workflow_dispatch' && inputs.release))
+      github.event_name == 'workflow_dispatch' && inputs.release &&
+      github.actor == 'bentsignal' && github.triggering_actor == 'bentsignal'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     environment:

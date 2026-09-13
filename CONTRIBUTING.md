@@ -44,9 +44,10 @@ An approving review is welcome but not mandatory, so the owner can merge solo
 work. Keep PRs focused and describe the behavior changed and how you tested it.
 Merge through a PR; do not push directly to `main` or force-push it.
 
-After merging to main, the same workflow waits for the six checks and releases
-Convex, the Grams Worker, and the Cloudflare Pages frontend. Vercel Git deployments
-are disabled. PR previews on Cloudflare are future work; use the isolated local
-environment for now. See [production releases](docs/releases.md) for release
+Merging to main no longer deploys production. Production requires an explicit
+release and environment approval from the owner. Vercel Git deployments remain
+disabled. Trusted PR previews and main-to-preview deployments are the next work;
+see [preview workflow](docs/preview-workflow.md). Use the isolated local
+environment until those are active. See [production releases](docs/releases.md) for release
 status, credentials, smoke checks, and recovery. Release manifests are retained
 for 30 days; PR checks do not upload artifacts or receive production secrets.
