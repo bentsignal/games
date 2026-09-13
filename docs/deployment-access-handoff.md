@@ -31,7 +31,9 @@ GitHub dashboard to store it. No credential needs to appear in chat.
    environment. If it does, inspect the completion notes before creating another.
 2. In the Cloudflare account above, open Account API tokens. Create a token named
    `games-github-actions-production` using the **Edit Cloudflare Workers** policy
-   template. Scope it to this account and the `bentsignal.com` zone. Record the
+   template. Scope it to this account. The original request also named the
+   `bentsignal.com` zone; the completion notes below explain why zone permissions
+   were omitted. Record the
    actual permission names and expiration below. If account-owned tokens are
    unavailable to this login, use a user-owned token with the same scope.
 3. Transfer the token directly into GitHub repository `bentsignal/games`,
@@ -72,8 +74,30 @@ workflow still needs end-to-end validation.
 
 ## Completion notes
 
-- Cloudflare CI token: pending dashboard creation and transfer.
-- Token ownership, permissions, expiration, read-only verification: pending.
+- Completed 2026-09-13 using Computer Use in Helium. Created account-owned token
+  `games-github-actions-production` in account
+  `12f3bac77e8f2b140391cd4f79c766ad` and stored it through GitHub CLI standard input
+  as `Production` secret `CLOUDFLARE_API_TOKEN`.
+- Used the Edit Cloudflare Workers template with its zone policy removed. Actual
+  account permissions: Workers KV Storage Write, Workers Scripts Write, Account
+  Settings Read, Workers Tail Read, Workers R2 Storage Write, Pages Write, Workers
+  CI Write, CF Agents Write, Workers Observability Write, Workers Containers Write.
+- Expiration: none. No client IP restriction. No zone, DNS editing, or token
+  creation permissions.
+- The account's domain selector listed only `bsx.sh`; searching `bentsignal.com`
+  returned no zones. Shawn clarified that `bentsignal.com` is registered and
+  managed at Vercel and must remain registered there. The deployment token is
+  account-only; domain routing and any needed permissions await the cutover plan.
+- Read-only `GET /accounts/12f3bac77e8f2b140391cd4f79c766ad/tokens/verify`
+  succeeded with status `active`. A read-only account request confirmed the same
+  account ID and Shawn's account identity.
+- GitHub lists both expected environment secrets and the account ID variable.
+  `Production` still permits protected branches only. Saved secret listings do
+  not prove deployment permission; release validation remains pending.
+- Transferred the token in memory without a credential file or shell argument.
+  Removed transient Computer Use captures of the creation dialog, closed that
+  dialog, and cleared the clipboard after transfer. No credential value appears
+  in these notes.
 - No production code or domain changes were made during credential preparation.
 
 ## Next implementation
@@ -82,6 +106,10 @@ GitHub Actions will coordinate Convex and Cloudflare releases after the required
 checks. Move the Vite frontend to Cloudflare Workers Static Assets, preserve the
 existing Grams Durable Object state, and test routing, Google auth, and both games
 before cutting over the domain and disabling Vercel's automatic deployments.
+Keep `bentsignal.com` registered at Vercel. Confirm a supported Cloudflare hosting
+and domain-routing configuration before changing DNS; the domain is not currently
+a zone in this Cloudflare account. Credential preparation did not validate that
+configuration.
 Ticket to Ride's live-state migration remains deferred. Backend changes must stay
 compatible across partial releases; reverting code does not revert database data.
 
