@@ -59,11 +59,17 @@ limits. PR previews and authenticated cloud browser CI remain stage 4 work.
 - Separate preview credentials, test sign-in, fixed Google callback for stable preview,
   PR status links, expiration, and resource cleanup.
 - A concise production-release skill, backed by GitHub owner approval.
+- Before release, inventory all Git changes since successful production, review
+  the code, and give Shawn a complete testing checklist with linked PR summaries.
+  After his testing and approval, release the pinned candidate and preserve the
+  changelog and deployment evidence in a GitHub Release.
 
 The project is now `games` in BSX, with its existing databases preserved. Created
 stable preview deployment `chatty-okapi-416` without selecting it locally. Automatic
 production releases are disabled, and owner approval is enforced. Preview deployment
 automation is not active yet. See [workflow design](preview-workflow.md).
+The release review command and skill are implemented. Tested-commit promotion
+and durable release publication remain pending with the preview automation.
 
 ## Later: code refactoring
 

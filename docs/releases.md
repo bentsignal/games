@@ -7,6 +7,27 @@ Production is now manual and owner-approved. Main-to-preview deployment and
 promotion of a tested preview commit are the next workflow changes; see
 [preview workflow](preview-workflow.md) for the design and implementation status.
 
+## Preparing a release review
+
+Use the `production-release` skill when Shawn asks to cut a release. First run:
+
+```sh
+pnpm run release:review --preview-url PREVIEW_URL
+```
+
+This reads deployment markers, fetches full Git history, and gathers every commit
+and associated merged PR into `.release/review-SHA/`. GitHub CLI must be logged in.
+The agent then reviews the code and creates the testing checklist for Shawn.
+The inventory alone is not evidence that the backends deployed successfully or
+that the release has been tested or approved.
+
+Until stable preview is deployed, `pnpm run release:review` can inventory current
+main against the live production frontend. It labels the result as planning only.
+It does not deploy, and a planning inventory cannot authorize production.
+
+Exact-commit promotion is not implemented yet. Do not use the legacy current-main
+dispatch below to substitute for the preview testing and approval workflow.
+
 ## Hosting
 
 | Resource                                | Provider                                    |
