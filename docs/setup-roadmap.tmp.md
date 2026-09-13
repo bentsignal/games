@@ -70,8 +70,9 @@ production releases are disabled, and owner approval is enforced. The stable pre
 pipeline is implemented and its separate services are provisioned. Local deployment
 smoke checks pass. The Preview environment now has its persistent Cloudflare token,
 and the Google callback is registered. Real Google sign-in in Helium reached the
-authenticated preview username setup screen. Automatic CI deployment activation
-and verification remain with the implementation agent. See
+authenticated preview username setup screen. Live CI verification passed all checks
+and Convex preflight but the saved Cloudflare token returned authentication code
+`9106`. Automatic preview deployment is paused pending credential correction. See
 [workflow design](preview-workflow.md) and [access handoff](preview-access-handoff.md).
 The release review command and skill are implemented. Tested-commit promotion
 and durable release publication remain pending with the preview automation.
