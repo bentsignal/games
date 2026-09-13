@@ -61,7 +61,7 @@ async function cf(path) {
   );
   assert.ok(
     response.ok,
-    `Cloudflare metadata request failed: ${response.status}`,
+    `Cloudflare metadata request failed for ${path}: HTTP ${response.status}`,
   );
   const data = await response.json();
   assert.ok(data.success, "Cloudflare metadata request failed");
@@ -75,8 +75,15 @@ async function stage(name, action) {
   try {
     await action();
     entry.status = "passed";
-  } catch {
+  } catch (error) {
     entry.status = "failed";
+    // Assertions only compare public deployment metadata. CLI error objects can
+    // contain captured output, so report their exit status without dumping them.
+    console.error(
+      error.code === "ERR_ASSERTION"
+        ? error.message
+        : `Command failed with exit status ${error.status ?? "unknown"}`,
+    );
     throw new Error(
       `Preview stopped at ${name}; see the manifest and step logs`,
     );
@@ -100,6 +107,7 @@ try {
       "GAMES_DEV_WEB_ORIGIN",
     ])
       assert.ok(names.includes(name), `Missing preview ${name}`);
+    console.log("Preview: Convex environment verified");
     const pages = await cf(`/pages/projects/${project}`);
     assert.equal(pages.production_branch, "main");
     report.previousPages = pages.canonical_deployment
