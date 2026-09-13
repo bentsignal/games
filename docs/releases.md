@@ -17,6 +17,12 @@ Only `games.bentsignal.com` moves to Pages. Keep the existing `api.games` and
 where they are. The old Vercel project is retained for recovery and legacy
 `ticket.bentsignal.com` redirects; its Git auto-deploy must be disabled at cutover.
 
+The legacy Ticket homepage redirects to `https://games.bentsignal.com/ticket`.
+Its host-scoped Vercel project route is `85220d42-f651-4735-a501-bf05be8d8522`,
+published in routing version `d2944c2e-e223-408d-a4e3-69849732ece5` through the
+Vercel API. `vercel.json` mirrors this destination for any future fallback deploy.
+This rule matches only `/`; legacy room paths retain their existing redirects.
+
 Pages uses direct uploads, without a second Git build pipeline. It supports a
 custom subdomain with Vercel DNS. Its built-in SPA fallback serves the app's deep
 links; `public/_redirects` preserves legacy room URLs and `public/_headers`
