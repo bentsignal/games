@@ -25,7 +25,7 @@ permanent contributor/release documentation as the work lands.
 ## 3. Automated production releases
 
 - GitHub Actions coordinates verified main commits: Convex, Worker, frontend.
-- Move the frontend from Vercel to Cloudflare Workers Static Assets in this stage.
+- Move the frontend from Vercel to Cloudflare Pages in this stage.
   Defer Ticket to Ride live-state migration until after the infrastructure work.
 - Configure production credentials, serialized releases, and smoke checks.
 - Reconcile provider auto-deploy settings to avoid duplicate releases.
@@ -42,6 +42,10 @@ routing before cutover. See [deployment access handoff](deployment-access-handof
 for the permission list and completion evidence. Production code, domains, and
 Vercel deployment integration remain unchanged. Release validation is pending;
 stage 3 is not complete.
+
+Hosting decision: use Cloudflare Pages direct upload so registration and DNS stay
+at Vercel. Only the games hostname changes. A coordinated release job and recovery
+documentation are being implemented; see [releases](releases.md).
 
 ## 4. Staging and incremental refactoring
 
