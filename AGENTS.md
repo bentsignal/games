@@ -9,5 +9,5 @@
   Merge only after required checks pass. Keep unrelated work out of commits.
 - Agents can use Development sign-in with a test username, without Google.
   Run `pnpm run test:e2e:smoke` for sign-in, gameplay, or networking changes.
-- GitHub Actions handles production releases after merging to `main`. Ordinary
-  development should not require manual provider deployments.
+- GitHub Actions handles deployments. Production requires an explicit release
+  request from Shawn; ordinary development should not require provider deployments.

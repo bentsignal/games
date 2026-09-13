@@ -3,13 +3,17 @@
 GitHub Actions coordinates releases from `main`. The six CI checks remain parallel
 and credential-free. The Production release job waits for all six to pass.
 
+Production is now manual and owner-approved. Main-to-preview deployment and
+promotion of a tested preview commit are the next workflow changes; see
+[preview workflow](preview-workflow.md) for the design and implementation status.
+
 ## Hosting
 
 | Resource                                | Provider                                    |
 | --------------------------------------- | ------------------------------------------- |
 | Frontend                                | Cloudflare Pages project `bentsignal-games` |
 | Grams live room                         | Cloudflare Worker `games-grams`             |
-| Auth, accounts, records, Ticket to Ride | Convex `BSX:ticket-to-ride:prod`            |
+| Auth, accounts, records, Ticket to Ride | Convex `BSX:games:prod`                     |
 | Registration and authoritative DNS      | Vercel, unchanged                           |
 
 Only `games.bentsignal.com` moves to Pages. Keep the existing `api.games` and
@@ -58,8 +62,9 @@ The `Production` environment allows protected branches only. It holds secrets
 `CONVEX_DEPLOY_KEY` and `CLOUDFLARE_API_TOKEN`, plus variable
 `CLOUDFLARE_ACCOUNT_ID`. No provider secret is available to PR checks.
 
-Repository variable `PRODUCTION_RELEASES_ENABLED=true` enables releases on main
-pushes. Set it to `false` to pause automatic releases. Environment variable
+Only `bentsignal` can dispatch a production release or rerun it. The environment
+also requires approval from `bentsignal`, with admin bypass disabled. The former
+`PRODUCTION_RELEASES_ENABLED` switch no longer enables deployment on main pushes.
 `CHECK_PRODUCTION_DOMAIN=true` enables the final custom-domain smoke check.
 
 For an intentional release of current main, including recovery after a provider
@@ -69,14 +74,14 @@ outage, run:
 gh workflow run ci.yml --ref main -f release=true
 ```
 
-This reruns the six checks before deployment. The manual release input works even
-when automatic releases are paused. Use the Actions run's logs and manifest to
+This reruns the six checks, then waits for the owner's environment approval before
+deployment. Use the Actions run's logs and manifest to
 diagnose failure before retrying. The release script refuses local execution and
 non-main refs. Normal local builds and checks never deploy.
 
 ## Recovery
 
-First pause automatic releases. Do not blindly retry schema or Durable Object
+Do not approve another release while diagnosing a failure. Do not blindly retry schema or Durable Object
 migrations. Inspect the failed stage and its manifest, then prefer a compatible
 fix through a PR. No automatic database or Worker rollback is attempted because
 reverting code cannot undo stored data or migrations.

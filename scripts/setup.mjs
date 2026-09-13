@@ -40,7 +40,7 @@ try {
     throw new Error("Usage: pnpm run setup [--new]");
   if (args.includes("--help")) {
     console.log(
-      "pnpm run setup: create/configure this checkout's isolated Convex development deployment.\npnpm run setup --new: select a fresh deployment (old deployments expire after seven days).\nDefaults to BSX:ticket-to-ride. Set GAMES_CONVEX_PROJECT=team-slug:project-slug to use another project.",
+      "pnpm run setup: create/configure this checkout's isolated Convex development deployment.\npnpm run setup --new: select a fresh deployment (old deployments expire after seven days).\nDefaults to BSX:games. Set GAMES_CONVEX_PROJECT=team-slug:project-slug to use another project.",
     );
     process.exit(0);
   }
@@ -55,7 +55,7 @@ try {
     existing.checkoutId !== checkoutId ||
     args.includes("--new")
   ) {
-    const project = process.env.GAMES_CONVEX_PROJECT ?? "BSX:ticket-to-ride";
+    const project = process.env.GAMES_CONVEX_PROJECT ?? "BSX:games";
     if (project && !/^[a-zA-Z0-9-]+:[a-zA-Z0-9-]+$/.test(project))
       throw new Error("GAMES_CONVEX_PROJECT must be team-slug:project-slug.");
     const reference = `${project ? project + ":" : ""}${checkoutLabel()}-${randomBytes(3).toString("hex")}`;
