@@ -72,7 +72,7 @@
           "value": "ticket.bentsignal.com"
         }
       ],
-      "destination": "https://games.bentsignal.com/",
+      "destination": "https://games.bentsignal.com/ticket",
       "permanent": true
     },
     {
