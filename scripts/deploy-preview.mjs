@@ -14,6 +14,9 @@ assert.match(sha ?? "", /^[a-f0-9]{40}$/);
 const account = "12f3bac77e8f2b140391cd4f79c766ad";
 assert.equal(process.env.CLOUDFLARE_ACCOUNT_ID, account);
 assert.ok(process.env.CLOUDFLARE_API_TOKEN);
+// Clipboard whitespace is not part of the token. Normalize before passing it
+// to either the metadata requests or Wrangler.
+process.env.CLOUDFLARE_API_TOKEN = process.env.CLOUDFLARE_API_TOKEN.trim();
 // Deployment keys, unlike project preview keys, select one persistent database.
 assert.ok(
   process.env.CONVEX_DEPLOY_KEY?.split("|")[0].endsWith(":chatty-okapi-416"),
@@ -59,11 +62,17 @@ async function cf(path) {
       signal: AbortSignal.timeout(30000),
     },
   );
+  const data = await response.json();
+  const codes = (data.errors ?? [])
+    .flatMap((error) => [
+      error.code,
+      ...(error.error_chain ?? []).map((cause) => cause.code),
+    ])
+    .filter(Number.isInteger);
   assert.ok(
     response.ok,
-    `Cloudflare metadata request failed for ${path}: HTTP ${response.status}`,
+    `Cloudflare metadata request failed for ${path}: HTTP ${response.status}; error codes ${codes.join(", ")}`,
   );
-  const data = await response.json();
   assert.ok(data.success, "Cloudflare metadata request failed");
   return data.result;
 }
