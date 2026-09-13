@@ -72,7 +72,10 @@ smoke checks pass. The Preview environment now has its persistent Cloudflare tok
 and the Google callback is registered. Real Google sign-in in Helium reached the
 authenticated preview username setup screen. Live CI verification passed all checks
 and Convex preflight but the saved Cloudflare token returned authentication code
-`9106`. Automatic preview deployment is paused pending credential correction. See
+`9106`. The token was subsequently rolled, verified with HTTP 200 and
+`success: true` from both required Cloudflare APIs, and saved in GitHub Preview at
+`2026-09-13T22:38:08Z`. Automatic preview deployment remains paused pending the
+implementation agent's activation and complete CI verification. See
 [workflow design](preview-workflow.md) and [access handoff](preview-access-handoff.md).
 The release review command and skill are implemented. Tested-commit promotion
 and durable release publication remain pending with the preview automation.
