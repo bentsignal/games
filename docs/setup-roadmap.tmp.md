@@ -50,14 +50,14 @@ rollout. The custom domain certificate is active, live smoke checks pass, and
 Google authorization initiation works. Vercel Git deployments are disabled;
 automatic main releases and final custom-domain checks are enabled. See
 [releases](releases.md) for the manifest, exact resources, recovery, and validation
-limits. PR previews and authenticated cloud browser CI remain stage 4 work.
+limits. Stable preview and tested-commit production promotion remain stage 4 work.
 
 ## 4. Preview and release workflow
 
-- Ordinary CI for every PR; disposable deployments for trusted contributors.
+- Ordinary CI for every PR; one shared stable preview after merging to main.
 - Main deploys to stable preview; Shawn explicitly promotes a tested commit to production.
-- Separate preview credentials, test sign-in, fixed Google callback for stable preview,
-  PR status links, expiration, and resource cleanup.
+- Separate preview resources and credentials, a fixed Google callback, deployment
+  evidence, and smoke checks.
 - A concise production-release skill, backed by GitHub owner approval.
 - Before release, inventory all Git changes since successful production, review
   the code, and give Shawn a complete testing checklist with linked PR summaries.
@@ -66,8 +66,11 @@ limits. PR previews and authenticated cloud browser CI remain stage 4 work.
 
 The project is now `games` in BSX, with its existing databases preserved. Created
 stable preview deployment `chatty-okapi-416` without selecting it locally. Automatic
-production releases are disabled, and owner approval is enforced. Preview deployment
-automation is not active yet. See [workflow design](preview-workflow.md).
+production releases are disabled, and owner approval is enforced. The stable preview
+pipeline is implemented and its separate services are provisioned. Local deployment
+smoke checks pass. Automatic CI deployment is disabled until the Preview environment
+has a persistent Cloudflare token; Google also needs its callback registered. See
+[workflow design](preview-workflow.md) and [access handoff](preview-access-handoff.md).
 The release review command and skill are implemented. Tested-commit promotion
 and durable release publication remain pending with the preview automation.
 
@@ -202,7 +205,7 @@ documentation and local test additions needed for stage 1.
   checks, an up-to-date branch, and resolved conversations. PRs are mandatory,
   rules include admins, force pushes/deletion are blocked, and approving reviews
   remain optional for solo work.
-- Found an existing Vercel GitHub integration that deploys previews and production.
+- Found an existing Vercel GitHub deployment integration, since disabled.
   Earlier notes saying no automatic deployments were inaccurate. This CI adds no
   deployment jobs; step three must coordinate the existing Vercel integration with
   Convex and Cloudflare. Step two is complete once this verified PR is merged.

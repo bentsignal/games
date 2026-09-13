@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 
-export async function smokeFrontend(origin, sha) {
+const production = {
+  convexUrl: "https://api.games.bentsignal.com",
+  workerUrl: "https://games-grams.shawnrodgers266.workers.dev",
+};
+
+export async function smokeFrontend(origin, sha, target = production) {
   const get = (path, options = {}) =>
     fetch(new URL(path, origin), {
       signal: AbortSignal.timeout(15000),
@@ -31,9 +36,16 @@ export async function smokeFrontend(origin, sha) {
       assert.match(chunk.headers.get("content-type"), /javascript/);
       js += await chunk.text();
     }
-    assert.ok(js.includes("https://api.games.bentsignal.com"));
-    assert.ok(js.includes("https://games-grams.shawnrodgers266.workers.dev"));
-    assert.ok(!js.includes("/__dev/sign-in"), "Development auth in production");
+    assert.ok(js.includes(target.convexUrl));
+    assert.ok(js.includes(target.workerUrl));
+    assert.ok(
+      !js.includes("/__dev/sign-in"),
+      "Development auth in deployed build",
+    );
+    assert.ok(
+      !js.includes("/__games/dev-login"),
+      "Development auth in deployed build",
+    );
   }
   for (const [path, target] of [
     ["/room/SMOKE", "/ticket/room/SMOKE"],
@@ -51,18 +63,17 @@ export async function smokeFrontend(origin, sha) {
   assert.match(asset.headers.get("content-type"), /image/);
 }
 
-export async function smokeBackends() {
-  const health = await fetch(
-    "https://games-grams.shawnrodgers266.workers.dev/health",
-    { signal: AbortSignal.timeout(15000) },
-  );
+export async function smokeBackends(target = production) {
+  const health = await fetch(`${target.workerUrl}/health`, {
+    signal: AbortSignal.timeout(15000),
+  });
   assert.equal(health.status, 200);
   assert.deepEqual(await health.json(), {
     ok: true,
     game: "grams",
     transport: "durable-object",
   });
-  const query = await fetch("https://api.games.bentsignal.com/api/query", {
+  const query = await fetch(`${target.convexUrl}/api/query`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
