@@ -20,14 +20,7 @@ function previewAccessAllowed(user: Doc<"users">) {
   if (!restricted) return true;
   // Only admin-only development fixtures can set this flag.
   if (user.testAccount && process.env.GAMES_DEV_SITE_URL === site) return true;
-  const emails = (process.env.GAMES_PREVIEW_ALLOWED_EMAILS ?? "")
-    .split(",")
-    .map((email) => email.trim().toLowerCase())
-    .filter(Boolean);
-  return (
-    !!user.verifiedGoogleEmail &&
-    emails.includes(user.verifiedGoogleEmail.toLowerCase())
-  );
+  return user.previewApproved === true;
 }
 
 function requirePreviewAccess(user: Doc<"users">) {
@@ -85,6 +78,12 @@ export const me = query({
     return user
       ? { ...user, previewAccessDenied: !previewAccessAllowed(user) }
       : null;
+  },
+});
+export const setPreviewApproval = internalMutation({
+  args: { userId: v.id("users"), approved: v.boolean() },
+  handler: async (ctx, { userId, approved }) => {
+    await ctx.db.patch(userId, { previewApproved: approved });
   },
 });
 export const onboard = mutation({

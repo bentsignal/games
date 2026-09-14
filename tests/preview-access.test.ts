@@ -8,7 +8,6 @@ const site = "https://chatty-okapi-416.convex.site";
 afterEach(() => vi.unstubAllEnvs());
 function preview() {
   vi.stubEnv("CONVEX_SITE_URL", site);
-  vi.stubEnv("GAMES_PREVIEW_ALLOWED_EMAILS", "Owner@example.com");
   vi.stubEnv("GRAMS_REALTIME_SECRET", "test-only-secret");
   return convexTest(schema, modules);
 }
@@ -46,7 +45,7 @@ test("preview denies existing players and onboarding without a verified invitati
   );
 });
 
-test("Google verified email grants access and changing the allowlist revokes it", async () => {
+test("Google sign-in creates an identifiable account but only database approval grants access", async () => {
   const t = preview();
   const id = await t.run((ctx) => ctx.db.insert("users", {}));
   const args = {
@@ -61,6 +60,14 @@ test("Google verified email grants access and changing the allowlist revokes it"
   };
   await t.mutation(internal.users.onGoogleSignIn, args);
   const user = t.withIdentity({ subject: id });
+  expect((await user.query(api.users.me, {}))?.previewAccessDenied).toBe(true);
+  expect((await user.query(api.users.me, {}))?.verifiedGoogleEmail).toBe(
+    "owner@example.com",
+  );
+  await t.mutation(internal.users.setPreviewApproval, {
+    userId: id,
+    approved: true,
+  });
   expect((await user.query(api.users.me, {}))?.previewAccessDenied).toBe(false);
   await user.mutation(api.users.onboard, { username: "Owner" });
   await expect(
@@ -71,17 +78,16 @@ test("Google verified email grants access and changing the allowlist revokes it"
     }),
   ).resolves.toBeTruthy();
   await expect(user.mutation(api.realtime.connect, {})).resolves.toBeTruthy();
-  vi.stubEnv("GAMES_PREVIEW_ALLOWED_EMAILS", "someone-else@example.com");
+  // A later sign-in must preserve the administrator's approval.
+  await t.mutation(internal.users.onGoogleSignIn, args);
+  expect((await user.query(api.users.me, {}))?.previewAccessDenied).toBe(false);
+  await t.mutation(internal.users.setPreviewApproval, {
+    userId: id,
+    approved: false,
+  });
   await expect(user.mutation(api.realtime.connect, {})).rejects.toThrow(
     "Preview access",
   );
-  vi.stubEnv("GAMES_PREVIEW_ALLOWED_EMAILS", "");
-  expect((await user.query(api.users.me, {}))?.previewAccessDenied).toBe(true);
-  vi.stubEnv("GAMES_PREVIEW_ALLOWED_EMAILS", "owner@example.com");
-  await t.mutation(internal.users.onGoogleSignIn, {
-    ...args,
-    profile: { ...args.profile, emailVerified: false },
-  });
   expect((await user.query(api.users.me, {}))?.previewAccessDenied).toBe(true);
 });
 

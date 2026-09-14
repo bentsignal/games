@@ -37,8 +37,7 @@ export default function AccountGate({
           <h1 id="preview-access-title">Preview access is limited</h1>
           <p>This account isn’t on the preview list.</p>
           <p className="muted">
-            Already invited? Sign out and sign in again with your invited Google
-            account.
+            Your account is ready. Access will open here once it is approved.
           </p>
           <button className="primary full" onClick={() => void signOut()}>
             Sign out

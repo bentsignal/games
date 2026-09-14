@@ -114,7 +114,6 @@ try {
       "AUTH_GOOGLE_CLIENT_SECRET",
       "GRAMS_REALTIME_SECRET",
       "GAMES_DEV_WEB_ORIGIN",
-      "GAMES_PREVIEW_ALLOWED_EMAILS",
     ])
       assert.ok(names.includes(name), `Missing preview ${name}`);
     console.log("Preview: Convex environment verified");
