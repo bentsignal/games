@@ -142,13 +142,37 @@ test("hub links to both games with one account", async ({ page }) => {
   ).toBeVisible();
   await page.screenshot({ path: "/tmp/games-hub.png" });
   await page.getByRole("link", { name: /Ticket to Ride/ }).click();
+  await expect(page.locator(".platform-header")).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Create a game", exact: true }),
   ).toBeVisible();
-  await page.locator(".account-menu summary").click();
-  await page.getByRole("link", { name: "Games", exact: true }).click();
-  await page.getByRole("link", { name: /Grams/ }).click();
+  await page.getByLabel("Find games", { exact: true }).click();
+  await page.getByRole("searchbox", { name: "Search games" }).fill("missing");
+  await expect(page.getByRole("status")).toHaveText("No games found.");
+  await page.getByRole("searchbox", { name: "Search games" }).fill("gRaM");
+  await expect(
+    page.getByRole("navigation", { name: "Choose a game" }).getByRole("link"),
+  ).toHaveCount(1);
+  await page.getByRole("link", { name: "Grams", exact: true }).click();
   await expect(page.frameLocator("iframe").locator("#name-input")).toHaveValue(
     "Hub_QA",
   );
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator(".platform-header .brand")).toHaveText("Grams");
+  const header = await page.locator(".platform-header").boundingBox();
+  const frame = await page.locator("iframe").boundingBox();
+  expect(frame!.y).toBeGreaterThanOrEqual(header!.y + header!.height);
+  await page.getByLabel("Find games", { exact: true }).click();
+  await page.getByRole("searchbox").press("Escape");
+  await expect(page.getByRole("searchbox")).toBeHidden();
+  await page.getByLabel("Find games", { exact: true }).click();
+  await page.getByRole("link", { name: "All games", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Games", exact: true }),
+  ).toBeVisible();
+  await page.locator(".platform-actions .account-menu summary").click();
+  await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Sign in (dev)" }),
+  ).toBeVisible();
 });

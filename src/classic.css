@@ -3278,11 +3278,13 @@ label {
     opacity: 1;
   }
 }
-.account-menu {
+.account-menu,
+.game-switcher {
   position: relative;
   margin-left: 8px;
 }
-.account-menu summary {
+.account-menu summary,
+.game-switcher summary {
   display: flex;
   align-items: center;
   gap: 7px;
@@ -3292,7 +3294,8 @@ label {
   font-size: 13px;
   padding: 10px 4px;
 }
-.account-menu summary::-webkit-details-marker {
+.account-menu summary::-webkit-details-marker,
+.game-switcher summary::-webkit-details-marker {
   display: none;
 }
 .account-menu-panel {
@@ -3559,32 +3562,6 @@ label {
   margin: 0 auto;
   padding: 48px 32px;
 }
-.games-hub header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 64px;
-}
-.games-hub h1 {
-  font:
-    36px "Bree Serif",
-    serif;
-  color: #f5e6c6;
-  margin: 0;
-}
-.games-hub header div {
-  display: flex;
-  gap: 20px;
-  align-items: center;
-  color: #d3baa1;
-  font-size: 14px;
-}
-.games-hub header button {
-  background: none;
-  border: 0;
-  color: inherit;
-  padding: 8px 0;
-}
 .games-hub nav {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3655,9 +3632,14 @@ label {
   background: #d1a23d;
   box-shadow: 0 3px 0 #8c6925;
 }
+.grams-page {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
 .grams-shell {
-  position: fixed;
-  inset: 0;
+  flex: 1;
+  min-height: 0;
   background: #202b29;
 }
 .grams-shell iframe {
@@ -3665,19 +3647,6 @@ label {
   width: 100%;
   height: 100%;
   display: block;
-}
-.grams-home {
-  position: fixed;
-  left: 12px;
-  top: 10px;
-  color: white;
-  font:
-    13px "Manrope",
-    sans-serif;
-  text-decoration: none;
-  background: #20352b99;
-  padding: 6px 10px;
-  border-radius: 4px;
 }
 .games-back {
   color: inherit;
@@ -3687,9 +3656,6 @@ label {
 @media (max-width: 600px) {
   .games-hub {
     padding: 28px 22px;
-  }
-  .games-hub header {
-    margin-bottom: 32px;
   }
   .games-hub nav {
     gap: 24px;
@@ -3708,9 +3674,100 @@ label {
 .account-menu-panel .games-back {
   display: block;
   padding: 10px 12px;
-  color: inherit;
+  color: #593c2d;
   text-decoration: none;
 }
 .account-menu-panel .games-back:hover {
-  background: #ffffff14;
+  background: #70533f12;
+}
+
+.platform-header,
+.at-table .platform-header {
+  position: sticky;
+  top: 0;
+  flex-shrink: 0;
+  gap: 12px;
+}
+.platform-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.platform-header .brand {
+  margin: 0;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.platform-header .brand a {
+  color: inherit;
+  text-decoration: none;
+}
+.game-switcher {
+  margin: 0;
+}
+.game-switcher-panel {
+  left: 0;
+  right: auto;
+  width: 240px;
+}
+.game-switcher-panel a {
+  display: block;
+  padding: 10px 12px;
+  color: #593c2d;
+  text-decoration: none;
+  border-radius: 3px;
+  font-size: 13px;
+}
+.game-switcher-panel a:hover,
+.game-switcher-panel a[aria-current] {
+  background: #70533f12;
+}
+.game-switcher-panel input {
+  width: 100%;
+  margin: 4px 0;
+  font-size: 13px;
+}
+.platform-header .game-switcher-panel nav {
+  display: block;
+  margin: 0;
+}
+.game-switcher-panel p {
+  margin: 12px;
+  color: #593c2d;
+  font-size: 13px;
+}
+.account-name {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 700px) {
+  .platform-header,
+  .at-table .platform-header {
+    height: auto;
+    min-height: 52px;
+    flex-wrap: wrap;
+    padding: 6px 14px;
+    gap: 0 12px;
+  }
+  .platform-header .brand {
+    font-size: 18px;
+  }
+  .platform-brand {
+    gap: 8px;
+  }
+  .platform-header .platform-actions {
+    gap: 10px;
+  }
+  .account-name {
+    max-width: 100px;
+  }
+  .game-switcher-panel {
+    position: fixed;
+    top: auto;
+    left: 14px;
+    width: min(280px, calc(100vw - 28px));
+  }
 }
