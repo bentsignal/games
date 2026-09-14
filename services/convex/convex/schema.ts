@@ -32,14 +32,18 @@ export default defineSchema({
     .index("by_username", ["usernameKey"])
     .index("by_player", ["playerId"]),
   results: defineTable({
-    room: v.id("rooms"),
+    room: v.optional(v.id("rooms")),
+    externalId: v.optional(v.string()),
+    roomCode: v.optional(v.string()),
     roundId: v.number(),
     mode: v.string(),
     finishedAt: v.number(),
     preview: v.boolean(),
     players: v.any(),
     scores: v.any(),
-  }).index("by_round", ["room", "roundId"]),
+  })
+    .index("by_round", ["room", "roundId"])
+    .index("by_external", ["externalId"]),
   playerResults: defineTable({
     user: v.id("users"),
     result: v.id("results"),

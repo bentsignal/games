@@ -72,3 +72,17 @@ For six players submitting 30 guesses each, the gameplay traffic is 180 incoming
 Accepted guesses persist one bounded room snapshot; invalid/duplicate guesses do not write or broadcast. Server countdown ticks do not exist. Round-end results are queued durably and delivered to Convex with idempotent retries. Live chat/emote history retains the latest 60 events with no lifetime message cap. Empty lobbies retain only a small state record, and completed summaries remain in Convex for future stats.
 
 Sources: [Durable Objects pricing](https://developers.cloudflare.com/durable-objects/platform/pricing/) and [WebSocket hibernation](https://developers.cloudflare.com/durable-objects/best-practices/websockets/). Setup: [Grams realtime server](grams/realtime.md).
+
+## Ticket to Ride Durable Objects migration (2026-09-14)
+
+Ticket to Ride now uses one SQLite Durable Object per room in the existing Grams
+Worker. The earlier Convex gameplay estimates are historical. Auth, room-creation
+limits, and completed-round statistics remain in Convex. Live moves and chat use
+HTTP commands to the Worker; updates use hibernating WebSockets. Browser countdowns
+remain local. Bot moves, turn expiry, chat cleanup, and result-delivery retries use
+alarms. New gameplay is not written to the old Convex room or message tables.
+
+Chat remains paginated, with a 750ms per-account cooldown within each room. Empty
+lobbies remove their chat in batches and retain a small tombstone. Active and
+completed rooms have no automatic expiry. No pricing plan or budget setting was
+changed. See [Ticket realtime server](ticket-realtime.md) for deployment and checks.

@@ -1,5 +1,6 @@
+// Legacy room fixtures and scheduled jobs. Live rooms use the TicketRoom Durable Object.
 import { paginationOptsValidator } from "convex/server";
-import { mutation, query, internalMutation } from "./_generated/server";
+import { internalQuery, internalMutation } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
@@ -54,7 +55,7 @@ const action = v.union(
   }),
   v.object({ type: v.literal("pass") }),
 );
-export const create = mutation({
+export const create = internalMutation({
   args: {
     token: v.string(),
     name: v.string(),
@@ -118,7 +119,7 @@ export const create = mutation({
     return code;
   },
 });
-export const get = query({
+export const get = internalQuery({
   args: { code: v.string(), token: v.string() },
   handler: async (ctx, { code }) => {
     const { id } = await requirePlayer(ctx),
@@ -138,7 +139,7 @@ export const get = query({
     };
   },
 });
-export const join = mutation({
+export const join = internalMutation({
   args: { code: v.string(), token: v.string(), name: v.string() },
   handler: async (ctx, { code }) => {
     const { id, name: accountName } = await requirePlayer(ctx);
@@ -166,7 +167,7 @@ export const join = mutation({
     return room.code;
   },
 });
-export const play = mutation({
+export const play = internalMutation({
   args: { code: v.string(), token: v.string(), revision: v.number(), action },
   handler: async (ctx, args) => {
     const { id } = await requirePlayer(ctx),
@@ -216,7 +217,7 @@ export const play = mutation({
       });
   },
 });
-export const manage = mutation({
+export const manage = internalMutation({
   args: {
     code: v.string(),
     token: v.string(),
@@ -370,7 +371,7 @@ export const advanceBot = internalMutation({
       });
   },
 });
-export const chat = query({
+export const chat = internalQuery({
   args: {
     code: v.string(),
     token: v.string(),
@@ -390,7 +391,7 @@ export const chat = query({
       .paginate(paginationOpts);
   },
 });
-export const send = mutation({
+export const send = internalMutation({
   args: { code: v.string(), token: v.string(), text: v.string() },
   handler: async (ctx, { code, text }) => {
     const { id, name: accountName } = await requirePlayer(ctx),

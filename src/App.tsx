@@ -19,13 +19,7 @@ import {
   type ReactNode,
   type FormEvent,
 } from "react";
-import {
-  usePaginatedQuery,
-  useConvex,
-  useConvexConnectionState,
-  useMutation,
-  useQuery,
-} from "convex/react";
+import { useTicketRoom } from "./game/useTicketRoom";
 import {
   TrainFront,
   ArrowRight,
@@ -48,7 +42,6 @@ import {
   LoaderCircle,
   WifiOff,
 } from "lucide-react";
-import { api } from "../services/convex/convex/_generated/api";
 import { ConvexError } from "convex/values";
 import {
   COLORS,
@@ -88,17 +81,6 @@ import { TrainArtwork, ConductorPortrait } from "./components/TrainArtwork";
 import { cue } from "./audio";
 import { useAuthActions } from "@convex-dev/auth/react";
 const Board = lazy(() => import("./components/Board"));
-function getToken() {
-  let t = localStorage.getItem("railbound-session");
-  if (!t) {
-    t = Array.from(crypto.getRandomValues(new Uint8Array(32)), (v) =>
-      v.toString(16).padStart(2, "0"),
-    ).join("");
-    localStorage.setItem("railbound-session", t);
-  }
-  return t;
-}
-const token = getToken();
 const roomFromUrl = () =>
   location.pathname
     .match(/^\/(?:ticket\/)?room\/([a-z0-9]+)\/?$/i)?.[1]
@@ -403,32 +385,22 @@ export default function App({ username }: { username: string }) {
   const [ticketSelection, setTicketSelection] = useState<string[]>([]),
     [pinnedTickets, setPinnedTickets] = useState<string[]>([]),
     [hoveredTicket, setHoveredTicket] = useState<string>();
-  const client = useConvex();
   const tableQueue = useRef<Promise<unknown>>(Promise.resolve());
   const pendingTableRef = useRef(new Set<string>());
   const [pendingTable, setPendingTable] = useState<string[]>([]);
-  const create = useMutation(api.rooms.create),
-    join = useMutation(api.rooms.join),
-    play = useMutation(api.rooms.play),
-    manage = useMutation(api.rooms.manage).withOptimisticUpdate(
-      (store, args) => {
-        if (args.operation !== "mode" && args.operation !== "timer") return;
-        const queryArgs = { code: args.code, token: args.token };
-        const current = store.getQuery(api.rooms.get, queryArgs);
-        if (current?.game)
-          store.setQuery(api.rooms.get, queryArgs, {
-            ...current,
-            game: {
-              ...current.game,
-              ...(args.operation === "mode"
-                ? { mode: args.mode! }
-                : { turnSeconds: args.turnSeconds! }),
-            },
-          });
-      },
-    ),
-    send = useMutation(api.rooms.send);
-  const room = useQuery(api.rooms.get, code ? { code, token } : "skip");
+  const {
+    create,
+    join,
+    play,
+    manage,
+    send,
+    get,
+    room,
+    connectedServer,
+    messages,
+    chatStatus,
+    loadMoreChat,
+  } = useTicketRoom(code);
   const game = room?.game as View | null | undefined;
   const me = game?.me;
   const playerColors = useMemo(
@@ -443,17 +415,6 @@ export default function App({ username }: { username: string }) {
       setSelected(null);
     } else if (game?.phase === "lobby") setTab("tickets");
   }, [game?.phase, code]);
-  const connection = useConvexConnectionState();
-  const connectedServer = connection.isWebSocketConnected;
-  const {
-    results: messages,
-    status: chatStatus,
-    loadMore: loadMoreChat,
-  } = usePaginatedQuery(
-    api.rooms.chat,
-    code && game ? { code, token } : "skip",
-    { initialNumItems: 50 },
-  );
   const [chatText, setChatText] = useState("");
   const [sendingChat, setSendingChat] = useState(false);
   const [chatNotices, setChatNotices] = useState<
@@ -751,7 +712,7 @@ export default function App({ username }: { username: string }) {
       let revision = room.revision;
       if (a.type === "start") {
         await tableQueue.current;
-        const latest = await client.query(api.rooms.get, { code, token });
+        const latest = await get({ code });
         if (!latest?.game) return;
         revision = latest.revision;
       }
@@ -775,7 +736,7 @@ export default function App({ username }: { username: string }) {
           };
       }
       try {
-        await play({ code, token, revision, action: a });
+        await play({ code, revision, action: a });
       } catch (error) {
         if (a.type === "draw") pendingDraw.current = null;
         throw error;
@@ -818,13 +779,15 @@ export default function App({ username }: { username: string }) {
     if (!text || sendingChat) return;
     setSendingChat(true);
     try {
-      await send({ code, token, text });
+      await send({ code, text });
       setChatText((current) => (current.trim() === text ? "" : current));
     } catch (e) {
       const message =
         e instanceof ConvexError && typeof e.data === "string"
           ? e.data
-          : "Message could not be sent. Please try again.";
+          : e instanceof Error
+            ? e.message
+            : "Message could not be sent. Please try again.";
       setChatNotices((current) => [
         ...current,
         {
@@ -856,9 +819,9 @@ export default function App({ username }: { username: string }) {
     if (pendingTableRef.current.has(key)) return;
     pendingTableRef.current.add(key);
     setPendingTable([...pendingTableRef.current]);
-    // Send immediately so optimistic mode changes appear on the same click.
+    // Send each setup change immediately.
     // Start awaits this barrier; unrelated controls have no shared pending state.
-    const task = manage({ code, token, operation, ...extra });
+    const task = manage({ code, operation, ...extra });
     tableQueue.current = Promise.all([
       tableQueue.current.catch(() => {}),
       task.catch(() => {}),
@@ -874,7 +837,9 @@ export default function App({ username }: { username: string }) {
       setError(
         e instanceof ConvexError && typeof e.data === "string"
           ? e.data
-          : "Could not update the game. Please try again.",
+          : e instanceof Error
+            ? e.message
+            : "Could not update the game. Please try again.",
       );
     } finally {
       pendingTableRef.current.delete(key);
@@ -965,8 +930,6 @@ export default function App({ username }: { username: string }) {
               void run(async () =>
                 visit(
                   await create({
-                    token,
-                    name,
                     mode: "mega",
                     endingPreview: true,
                   }),
@@ -988,9 +951,7 @@ export default function App({ username }: { username: string }) {
               onSubmit={(e) => {
                 e.preventDefault();
                 saveName();
-                void run(async () =>
-                  visit(await create({ token, name, mode })),
-                );
+                void run(async () => visit(await create({ mode })));
               }}
             >
               <div className="mode-label">
@@ -1095,7 +1056,7 @@ export default function App({ username }: { username: string }) {
                 e.preventDefault();
                 saveName();
                 void run(async () => {
-                  await join({ code, token, name });
+                  await join({ code });
                 });
               }}
             >
@@ -1389,7 +1350,7 @@ export default function App({ username }: { username: string }) {
                 <button
                   className="primary full"
                   disabled={busy}
-                  onClick={() => void run(() => join({ code, token, name }))}
+                  onClick={() => void run(() => join({ code }))}
                 >
                   Join game
                 </button>

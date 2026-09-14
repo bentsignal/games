@@ -1,7 +1,7 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { convexTest } from "convex-test";
 import schema from "../services/convex/convex/schema";
-import { api, internal } from "../services/convex/convex/_generated/api";
+import { internal } from "../services/convex/convex/_generated/api";
 import { applyAction, expireTurn } from "../src/game/engine";
 import { endingPreview } from "../src/game/ending-preview";
 const modules = import.meta.glob("../services/convex/convex/**/*.{ts,js}");
@@ -41,12 +41,12 @@ it("enforces host-only setup, preserves deadlines across draws, rejects stale jo
   const host = t.withIdentity({ subject: hostId }),
     friend = t.withIdentity({ subject: friendId });
   const token = "";
-  const code = await host.mutation(api.rooms.create, {
+  const code = await host.mutation(internal.rooms.create, {
     token,
     name: "Host",
     mode: "classic",
   });
-  await friend.mutation(api.rooms.join, { token, code, name: "Friend" });
+  await friend.mutation(internal.rooms.join, { token, code, name: "Friend" });
   const read = () =>
     t.run((ctx) =>
       ctx.db
@@ -56,21 +56,21 @@ it("enforces host-only setup, preserves deadlines across draws, rejects stale jo
     );
   expect((await read())!.game.turnSeconds ?? 0).toBe(0);
   await expect(
-    friend.mutation(api.rooms.manage, {
+    friend.mutation(internal.rooms.manage, {
       token,
       code,
       operation: "timer",
       turnSeconds: 30,
     }),
   ).rejects.toThrow("host");
-  await host.mutation(api.rooms.manage, {
+  await host.mutation(internal.rooms.manage, {
     token,
     code,
     operation: "timer",
     turnSeconds: 30,
   });
   const play = async (user: typeof host, action: any) =>
-    user.mutation(api.rooms.play, {
+    user.mutation(internal.rooms.play, {
       token,
       code,
       revision: (await read())!.revision,
@@ -92,7 +92,7 @@ it("enforces host-only setup, preserves deadlines across draws, rejects stale jo
   const deadline = room.game.turnDeadline;
   expect(deadline).toBe(Date.now() + 30000);
   await expect(
-    host.mutation(api.rooms.manage, {
+    host.mutation(internal.rooms.manage, {
       token,
       code,
       operation: "timer",
@@ -127,7 +127,11 @@ it("enforces host-only setup, preserves deadlines across draws, rejects stale jo
   expect(final.game.phase).toBe("finished");
   expect(final.game.turnDeadline).toBeUndefined();
   expect(final.game.results).toHaveLength(2);
-  await host.mutation(api.rooms.manage, { token, code, operation: "rematch" });
+  await host.mutation(internal.rooms.manage, {
+    token,
+    code,
+    operation: "rematch",
+  });
   expect((await read())!.game.turnSeconds).toBe(30);
   expect((await read())!.game.turnDeadline).toBeUndefined();
 });
