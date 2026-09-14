@@ -28,10 +28,14 @@ export const createUser = internalMutation({
         q.eq("usernameKey", username.toLowerCase()),
       )
       .unique();
-    if (existing) return existing._id;
+    if (existing) {
+      await ctx.db.patch(existing._id, { testAccount: true });
+      return existing._id;
+    }
     const id = await ctx.db.insert("users", {
       username,
       usernameKey: username.toLowerCase(),
+      testAccount: true,
     });
     await ctx.db.patch(id, { playerId: id });
     return id;
@@ -64,6 +68,11 @@ export const signIn = internalMutation({
       issuer: process.env.CONVEX_SITE_URL!,
       accessTokenTtlSeconds: 3600,
     };
+    if (user) {
+      const id = ctx.db.normalizeId("users", user);
+      if (!id) throw new Error("Invalid test account");
+      await ctx.db.patch(id, { testAccount: true });
+    }
     return user
       ? await ctx.runMutation(components.auth.public.signIn, args)
       : await ctx.runMutation(components.auth.public.signUp, {

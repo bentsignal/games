@@ -89,6 +89,32 @@ has no manual approval requirement. Production remains a separate manual job.
 
 ## Authentication
 
+Stable preview game access requires approval. Google sign-in creates the account;
+set `previewApproved` to `true` on its `users` record in the stable preview database
+`BSX:games:preview/preview` to grant access. Missing or false means access is denied.
+The Google callback records `verifiedGoogleEmail` to help identify the account.
+Existing accounts populate that email on their next Google sign-in. Approval is
+stored in the database, with no email list or deployment configuration to maintain.
+
+An administrator can edit the record in Convex or use the internal CLI mutation:
+
+```sh
+pnpm exec convex run users:setPreviewApproval '{"userId":"USER_ID","approved":true}' --deployment chatty-okapi-416
+```
+
+Use `false` to revoke approval. This mutation is unavailable to website clients.
+
+Unapproved accounts see a limited-access screen. The shared backend player check
+blocks onboarding, Ticket to Ride requests, and new Grams connection tickets.
+Approval updates the screen through the existing user subscription without another
+sign-in. Existing Grams sockets finish their current session before revocation
+takes effect on reconnect. Production and ordinary local development are unaffected.
+
+Admin-created test accounts remain available through the existing internal fixtures.
+Website clients cannot approve accounts or set their test-account flag. To test the
+gate in an isolated database, set `GAMES_PREVIEW_SITE_URL` to its site URL, with its
+matching `GAMES_DEV_SITE_URL`. Remove the override afterward.
+
 Stable preview uses Google sign-in with a fixed callback URL. Its OAuth client
 must allow `https://chatty-okapi-416.convex.site/oauth/google/callback`.
 The Google client configuration is shared with production, but session signing

@@ -3177,6 +3177,20 @@ label {
   font-size: 28px;
   margin: 0 0 24px;
 }
+.preview-access {
+  color: #3f3028;
+}
+.preview-access h1 {
+  color: #3f3028;
+  margin-bottom: 16px;
+}
+.preview-access p {
+  line-height: 1.5;
+  margin: 0 0 16px;
+}
+.preview-access .muted {
+  color: #59483b;
+}
 .account-page form {
   display: grid;
   gap: 12px;
