@@ -1,32 +1,78 @@
 # Production releases
 
-GitHub Actions coordinates releases from `main`. The six CI checks remain parallel
-and credential-free. The Production release job waits for all six to pass.
+GitHub Actions deploys main to stable preview. Production is a separate manual
+promotion of the exact reviewed commit, with owner approval. The workflow never
+substitutes newer main code for the candidate.
 
-Production is manual and owner-approved. Stable preview now deploys
-automatically from main; tested-commit production promotion remains next. See
-[preview workflow](preview-workflow.md) for the design and implementation status.
+## Review, test, and promote
 
-## Preparing a release review
-
-Use the `production-release` skill when Shawn asks to cut a release. First run:
+Use the `production-release` skill when Shawn asks to prepare or cut a release.
+A request to prepare does not authorize deployment. Start with:
 
 ```sh
-pnpm run release:review --preview-url PREVIEW_URL
+pnpm run release:review --preview-url https://preview.games.bentsignal.com
 ```
 
-This reads deployment markers, fetches full Git history, and gathers every commit
-and associated merged PR into `.release/review-SHA/`. GitHub CLI must be logged in.
-The agent then reviews the code and creates the testing checklist for Shawn.
-The inventory alone is not evidence that the backends deployed successfully or
-that the release has been tested or approved.
+The command verifies live frontend markers, successful coordinated deployment
+manifests and CI jobs, then collects every intervening commit, associated merged
+PR, and changed file into `.release/review-SHA/inventory.json`. It checks for later
+deployment attempts, including failed backend rollouts that left the frontend
+unchanged. Published production release assets provide the durable baseline;
+older releases fall back to retained Actions artifacts. Expired or missing evidence
+requires investigation, never an invented baseline.
 
-Without a verified stable preview deployment, `pnpm run release:review` can inventory current
-main against the live production frontend. It labels the result as planning only.
-It does not deploy, and a planning inventory cannot authorize production.
+Read the Git diff, commits, and PR descriptions. Write `review.md` in that directory
+with both full SHAs, linked PR summaries, concrete tests and expected results for
+every affected behavior, and automated results. Account for direct commits,
+reverts, merge resolutions, schema/configuration changes, and changes absent from
+PR titles. Explain which changes need no manual test. Then stage the review:
 
-Exact-commit promotion is not implemented yet. Do not use the legacy current-main
-dispatch below to substitute for the preview testing and approval workflow.
+```sh
+pnpm run release:stage --inventory .release/review-SHA/inventory.json --review .release/review-SHA/review.md
+```
+
+This creates a draft GitHub Release with a `review-bundle.json` asset containing the
+inventory, deployment evidence, and review. It prints the release ID, SHA256 digest,
+and dispatch command, and saves them in `promotion.json`. Staging does not deploy.
+If the review changes, delete the obsolete draft and stage a new one; do not reuse
+its approval or digest. Do not publish the draft manually.
+
+Show Shawn the checklist and help him test the pinned preview. After he approves
+that exact review and candidate, run the printed command:
+
+```sh
+gh workflow run promote.yml --ref main -f release_id=RELEASE_ID -f review_sha256=REVIEW_DIGEST
+```
+
+The workflow verifies the digest, complete Git inventory, candidate ancestry,
+recorded deployment evidence, and current preview and production versions. It
+reruns all six checks on the candidate. Then it waits for the Production environment
+review. With Shawn's approval already recorded in the conversation, use the GitHub
+CLI to approve the pending environment on his behalf:
+
+```sh
+gh api repos/bentsignal/games/actions/runs/RUN_ID/pending_deployments
+# Write approval.json with the returned Production environment ID:
+# {"environment_ids":[ID],"state":"approved","comment":"Shawn approved candidate SHA and review digest DIGEST after testing."}
+gh api --method POST repos/bentsignal/games/actions/runs/RUN_ID/pending_deployments --input approval.json
+```
+
+The job rechecks evidence after approval and deploys from a checkout of the
+candidate SHA. Release orchestration comes from the workflow's main commit, while
+all application code, dependencies, Convex functions, and Worker configuration
+come from the candidate. Main may advance, but if the shared preview redeploys
+before promotion starts, the check stops and a new review/test cycle is required.
+Preview data and its approval flags are never copied to production.
+
+After all services deploy and smoke checks pass, a separate job publishes the draft
+at tag `production-FULL_SHA`. The release retains the reviewed notes, comparison,
+deployment link, `review.md`, review bundle, and production manifest. GitHub Release
+assets outlive the 90-day Actions artifacts. A publication failure leaves the draft
+unpublished; rerun only failed jobs to retry publication without redeployment.
+
+Without `--preview-url`, the inventory command can make a planning inventory, but
+it cannot be staged for production. Ordinary CI dispatch only refreshes preview;
+the old `ci.yml -f release=true` production path has been removed.
 
 ## Hosting
 
@@ -55,8 +101,9 @@ preserves security and immutable asset headers.
 
 ## Release sequence
 
-1. Wait for all six checks and the production release lock. Skip the run if a
-   newer `main` commit already exists. Running releases are never auto-cancelled.
+1. Verify the pinned review and deployment evidence, rerun all six candidate checks,
+   and wait for owner approval under the production release lock. Recheck evidence
+   after approval. Running releases are never auto-cancelled.
 2. Verify credentials, required production auth settings, and the existing Grams
    namespace `594d285208dd4519ba392e4c0d941548`. Record current Cloudflare versions.
 3. Build the frontend with production URLs and bundle the Worker without deploying.
@@ -68,7 +115,7 @@ preserves security and immutable asset headers.
 
 The release manifest artifact records the commit, completed stages, candidate and
 production Pages IDs, and old/new Worker versions. It contains no credentials.
-Artifacts expire after 30 days. Health checks cover anonymous Convex access and
+Actions artifacts expire after 90 days; successful release assets are retained. Health checks cover anonymous Convex access and
 Worker health; they do not replace authenticated multiplayer or Google sign-in
 testing. Run the local browser smoke suite for gameplay changes.
 
@@ -88,17 +135,9 @@ also requires approval from `bentsignal`, with admin bypass disabled. The former
 `PRODUCTION_RELEASES_ENABLED` switch no longer enables deployment on main pushes.
 `CHECK_PRODUCTION_DOMAIN=true` enables the final custom-domain smoke check.
 
-For an intentional release of current main, including recovery after a provider
-outage, run:
-
-```sh
-gh workflow run ci.yml --ref main -f release=true
-```
-
-This reruns the six checks, then waits for the owner's environment approval before
-deployment. Use the Actions run's logs and manifest to
-diagnose failure before retrying. The release script refuses local execution and
-non-main refs. Normal local builds and checks never deploy.
+Use `promote.yml` with the reviewed draft ID and digest as described above. The
+release script refuses local execution and non-main workflow refs. Local builds,
+checks, and review inventory commands never deploy.
 
 ## Recovery
 

@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 
+import { findEvidence, assertNoLaterDeployment } from "./release-evidence.mjs";
 const repository = "bentsignal/games";
 const productionUrl = "https://games.bentsignal.com";
 function command(binary, args, cwd) {
@@ -104,6 +105,10 @@ async function main() {
       "Preview changed; review its deployed commit",
     );
   git(["merge-base", "--is-ancestor", candidate, "origin/main"]);
+  const production = findEvidence(base, "production");
+  assertNoLaterDeployment(production, "production");
+  const preview = previewSha ? findEvidence(candidate, "preview") : null;
+  if (preview) assertNoLaterDeployment(preview, "preview");
   const changes = collectChanges(base, candidate);
   const prs = new Map();
   for (const commit of changes.commits) {
@@ -140,6 +145,8 @@ async function main() {
     repository,
     generatedAt: new Date().toISOString(),
     productionUrl,
+    production,
+    preview,
     base,
     candidate,
     previewUrl: previewUrl ?? null,

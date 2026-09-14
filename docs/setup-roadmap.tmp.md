@@ -72,14 +72,19 @@ complete deployment; the live preview SHA matches its commit. Google callback
 setup and real sign-in were verified. Production is unchanged and owner-approved.
 See [workflow design](preview-workflow.md) for deployment evidence.
 
-Preview approval gate: a `previewApproved` flag on each user record controls access,
-with a shared backend check and a limited-access screen. Google sign-in creates
-the account before approval. After deployment, approve Shawn's account in the
-preview database and have him test the gate and games.
+Preview approval gate is deployed. Shawn's `bentsignal` account is approved and
+he confirmed access works.
 
-Next after that testing: implement promotion of the exact tested preview commit and durable GitHub
-Release publication. The release review command and skill already exist. Code
-refactoring remains separate until this production-promotion workflow is verified.
+Production promotion implementation: `promote.yml` pins a reviewed candidate,
+checks its coordinated deployment evidence and Git inventory, reruns six checks,
+and requires owner approval. A draft review bundle becomes a published GitHub
+Release only after deployment succeeds. Publication can retry separately.
+
+Next: after this workflow change lands and preview deploys, prepare the complete
+production review, help Shawn test its candidate, and obtain approval for that
+exact SHA and review digest. Then run the first promotion and verify the published
+release and live services. No production deployment is authorized by implementation
+work alone. Code refactoring follows that live validation.
 
 ## Later: code refactoring
 

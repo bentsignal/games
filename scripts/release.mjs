@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { retry, smokeBackends, smokeFrontend } from "./release-smoke.mjs";
 
 // Run only in the protected GitHub Production environment. Local commands stay
@@ -11,7 +11,13 @@ assert.equal(process.env.GITHUB_REPOSITORY, "bentsignal/games");
 assert.equal(process.env.GITHUB_EVENT_NAME, "workflow_dispatch");
 assert.equal(process.env.GITHUB_ACTOR, "bentsignal");
 assert.equal(process.env.GITHUB_TRIGGERING_ACTOR, "bentsignal");
-const sha = process.env.GITHUB_SHA;
+const sha = process.env.RELEASE_SHA;
+assert.equal(
+  execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(),
+  sha,
+);
+const bundle = JSON.parse(readFileSync(".release/review-bundle.json", "utf8"));
+assert.equal(bundle.inventory.candidate, sha);
 assert.match(sha ?? "", /^[a-f0-9]{40}$/);
 const account = process.env.CLOUDFLARE_ACCOUNT_ID;
 assert.equal(account, "12f3bac77e8f2b140391cd4f79c766ad");
@@ -25,7 +31,18 @@ assert.ok(
 const project = "bentsignal-games";
 const worker = "games-grams";
 const config = "services/grams/wrangler.jsonc";
-const report = { sha, startedAt: new Date().toISOString(), stages: [] };
+const report = {
+  sha,
+  workflowSha: process.env.GITHUB_SHA,
+  runId: Number(process.env.GITHUB_RUN_ID),
+  runAttempt: Number(process.env.GITHUB_RUN_ATTEMPT),
+  base: bundle.inventory.base,
+  previewRunId: bundle.inventory.preview.runId,
+  reviewDigest: process.env.REVIEW_SHA256,
+  releaseId: Number(process.env.RELEASE_ID),
+  startedAt: new Date().toISOString(),
+  stages: [],
+};
 mkdirSync(".release", { recursive: true });
 function save() {
   writeFileSync(".release/manifest.json", JSON.stringify(report, null, 2));
