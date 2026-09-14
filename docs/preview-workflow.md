@@ -108,16 +108,18 @@ round with two accounts and stored results, plus Ticket to Ride joining, ticket
 selection, chat, drawing cards, and reconnecting.
 The preview Worker namespace is `c9b91ebdaeb4497dbbb8b64f3e3e3763`.
 
-The persistent GitHub Preview Cloudflare credential is saved, and the Google
-callback is registered. Real Google sign-in in Helium successfully returned to the
-authenticated preview username setup screen on 2026-09-13. See the completed
-[preview access handoff](preview-access-handoff.md), then enable and verify a main
-CI deployment. After CI rejected the original stored credential with code `9106`,
-the preview token was rolled and verified against both the Pages project and
-Worker settings APIs. Both returned HTTP 200 with `success: true`. GitHub confirms
-the replacement secret was saved at `2026-09-13T22:38:08Z`. Automatic deployment
-remains paused for the implementation agent to re-enable and verify. Production
-is unchanged.
+Stable preview is enabled with `STABLE_PREVIEW_ENABLED=true`. GitHub Actions run
+[34796077885](https://github.com/bentsignal/games/actions/runs/34796077885) passed all
+six checks and every deployment stage for commit
+`85c656184be91bbca50439369858e31acc297975`. The live custom-domain release marker
+matches that commit. The manifest records Pages deployment
+`d3052bcc-ee5e-4bcb-80f9-e0fdf080b5f3`, Worker version
+`4fb74f88-c16d-4003-b54a-bc01c4ebd1ac`, and the preserved preview namespace.
+
+Main pushes now deploy automatically after checks pass. Google callback setup is
+complete; the setup agent verified real Google sign-in through username setup.
+The initial token-copy problem was corrected and the replacement credential has
+now passed a complete CI deployment. Production remains manual and unchanged.
 
 For authenticated browser checks using admin-created preview sessions:
 

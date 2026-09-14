@@ -3,8 +3,8 @@
 GitHub Actions coordinates releases from `main`. The six CI checks remain parallel
 and credential-free. The Production release job waits for all six to pass.
 
-Production is manual and owner-approved. The stable preview pipeline is implemented
-and awaiting access setup; tested-commit production promotion remains next. See
+Production is manual and owner-approved. Stable preview now deploys
+automatically from main; tested-commit production promotion remains next. See
 [preview workflow](preview-workflow.md) for the design and implementation status.
 
 ## Preparing a release review

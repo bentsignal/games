@@ -2,8 +2,17 @@
 
 The stable preview infrastructure and pipeline are configured in `bentsignal/games`.
 Google callback setup and Cloudflare credential correction are complete. The
-implementation agent can re-enable automatic preview deployment and verify CI.
+implementation agent has enabled automatic preview deployment and verified CI.
 Do not deploy production or change its resources.
+
+## Activation verified
+
+`STABLE_PREVIEW_ENABLED=true`. Run
+[34796077885](https://github.com/bentsignal/games/actions/runs/34796077885) passed all
+six checks and deployed Convex, the Worker, and the frontend successfully. The
+live preview release marker matches commit `85c656184be91bbca50439369858e31acc297975`.
+No further access setup is required. The notes below preserve the setup history;
+references to paused deployment describe the earlier failed-token checkpoint.
 
 ## Required correction after CI verification
 
@@ -107,10 +116,7 @@ The frontend returns to `https://preview.games.bentsignal.com`, which is already
 allowed by the preview backend. Test Google sign-in there with a real account.
 If the OAuth consent screen is in testing mode, use an existing permitted tester.
 
-## Return to this agent
+## Next work
 
-Report that the GitHub Preview secret is saved and the Google callback is added.
-Do not report credential values. The implementation agent will enable repository
-variable `STABLE_PREVIEW_ENABLED=true`, dispatch CI on `main` with `release=false`,
-watch all checks and deployment stages, and verify the resulting preview SHA.
-Normal main pushes then deploy automatically. Production remains manual.
+Access setup is complete. Continue with exact-commit production promotion and
+release publication as recorded in the roadmap. Production remains manual.
