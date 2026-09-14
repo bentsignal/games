@@ -23,10 +23,29 @@ export default function AccountGate({
   const [username, setUsername] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  if (isAuthenticated && user?.username)
+  if (isAuthenticated && user?.username && !user.previewAccessDenied)
     return <div className="auth-reveal">{children(user.username)}</div>;
   const loading = isLoading || (isAuthenticated && user === undefined);
   if (loading) return null;
+  if (isAuthenticated && user?.previewAccessDenied)
+    return (
+      <main className="auth-screen auth-reveal">
+        <section
+          className="account-page preview-access"
+          aria-labelledby="preview-access-title"
+        >
+          <h1 id="preview-access-title">Preview access is limited</h1>
+          <p>This account isn’t on the preview list.</p>
+          <p className="muted">
+            Already invited? Sign out and sign in again with your invited Google
+            account.
+          </p>
+          <button className="primary full" onClick={() => void signOut()}>
+            Sign out
+          </button>
+        </section>
+      </main>
+    );
   return (
     <main className="auth-screen auth-reveal">
       <div className={isAuthenticated ? "account-page" : "sign-in-page"}>

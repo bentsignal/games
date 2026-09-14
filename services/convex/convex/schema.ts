@@ -22,6 +22,8 @@ export default defineSchema({
     ["player"],
   ),
   users: defineTable({
+    verifiedGoogleEmail: v.optional(v.string()),
+    testAccount: v.optional(v.boolean()),
     username: v.optional(v.string()),
     usernameKey: v.optional(v.string()),
     playerId: v.optional(v.string()),

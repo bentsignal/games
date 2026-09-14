@@ -1484,6 +1484,9 @@ export default function App({ username }: { username: string }) {
                           title="At expiry, draw face-down cards to finish the turn."
                           value={game.turnSeconds ?? 0}
                           disabled={!host}
+                          aria-busy={pendingTable.some((key) =>
+                            key.startsWith("timer"),
+                          )}
                           onChange={(e) =>
                             setTable("timer", {
                               turnSeconds: Number(e.target.value) as

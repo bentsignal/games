@@ -89,6 +89,25 @@ has no manual approval requirement. Production remains a separate manual job.
 
 ## Authentication
 
+Stable preview game access is invite-only. Set `GAMES_PREVIEW_ALLOWED_EMAILS` on
+`BSX:games:preview/preview` to a comma-separated list of invited Google emails.
+Keep the addresses in Convex environment configuration, not the repository.
+An empty list denies access. Production and ordinary local development do not
+use this restriction.
+
+Google sign-in identifies the account; an unlisted account sees a limited-access
+screen and cannot onboard a player, access Ticket to Ride, or get a Grams connection
+ticket. The backend checks the email verified by Google on every player request,
+including requests from existing sessions. Existing accounts must sign out and
+sign back in once to populate their verified email. Existing Grams sockets finish
+their current session before a changed invitation takes effect on reconnect.
+
+Admin-created test accounts remain available through the existing internal
+fixtures. Website clients cannot create them or set their access flag. To test
+the restriction in an isolated local database, set `GAMES_PREVIEW_SITE_URL` to
+that database's site URL, with its matching `GAMES_DEV_SITE_URL`, and configure
+test addresses in `GAMES_PREVIEW_ALLOWED_EMAILS`. Remove the test override afterward.
+
 Stable preview uses Google sign-in with a fixed callback URL. Its OAuth client
 must allow `https://chatty-okapi-416.convex.site/oauth/google/callback`.
 The Google client configuration is shared with production, but session signing

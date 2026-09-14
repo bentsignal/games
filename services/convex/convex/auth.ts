@@ -22,7 +22,10 @@ const google: ReturnType<typeof setupOauth<"google", GoogleProfile, "users">> =
       pkce: true,
       profile: normalizeGoogleProfile,
     },
-    { createUser: internal.users.createUser },
+    {
+      createUser: internal.users.createUser,
+      onSignIn: internal.users.onGoogleSignIn,
+    },
     {
       component: components.oauthGoogle,
       allowedRedirectOrigins: [

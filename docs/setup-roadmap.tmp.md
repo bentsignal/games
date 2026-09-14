@@ -72,7 +72,11 @@ complete deployment; the live preview SHA matches its commit. Google callback
 setup and real sign-in were verified. Production is unchanged and owner-approved.
 See [workflow design](preview-workflow.md) for deployment evidence.
 
-Next: implement promotion of the exact tested preview commit and durable GitHub
+Preview invitation restriction: implemented with verified Google email checks,
+backend enforcement, and a limited-access screen. Awaiting Shawn's Google email
+for the preview allowlist before deployment and his preview testing.
+
+Next after that testing: implement promotion of the exact tested preview commit and durable GitHub
 Release publication. The release review command and skill already exist. Code
 refactoring remains separate until this production-promotion workflow is verified.
 
