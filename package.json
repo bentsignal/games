@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Games for friends",
   "scripts": {
+    "release:stage": "node scripts/stage-release.mjs",
     "release:review": "node scripts/release-review.mjs",
     "test": "vitest run && node --test scripts/*.test.mjs",
     "dev": "node scripts/dev.mjs",

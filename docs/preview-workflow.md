@@ -156,9 +156,11 @@ PLAYWRIGHT_PREVIEW=1 PLAYWRIGHT_BASE_URL=https://preview.games.bentsignal.com pn
 These checks exercise real sessions and gameplay, but do not replace a human
 Google sign-in check after callback registration.
 
-## Next after stable preview
+## Production promotion
 
-Implement promotion of the exact tested preview commit and durable GitHub Release
-publication. The review command and production-release skill already exist, but
-legacy manual production dispatch still targets current main. It must not substitute
-for the tested-commit workflow.
+`promote.yml` accepts a draft release ID and the digest of its reviewed bundle.
+It verifies deployment evidence, reruns checks against the exact candidate, waits
+for owner approval, and publishes a durable GitHub Release only after deployment
+succeeds. See [production releases](releases.md) for the CLI sequence and recovery.
+The first owner-approved production promotion remains the final live validation;
+implementing or testing the workflow does not authorize that release.

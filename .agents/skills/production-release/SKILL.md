@@ -29,15 +29,17 @@ it does not approve deployment before Shawn has tested the candidate.
   Show the checklist in the conversation and help Shawn test. If preview changes while
   testing, restore the candidate with matching backends or restart testing for the new
   candidate. A frontend URL with newer backend code is not the same candidate.
-- After testing, ask Shawn to approve that exact candidate and review. Recheck the
+- Stage the written review with `pnpm run release:stage --inventory INVENTORY --review REVIEW`.
+  This creates a draft release and prints its ID, review digest, and promotion command.
+  Show the review to Shawn. A draft is not release approval.
+- After testing, ask Shawn to approve that exact candidate and review digest. Recheck the
   production baseline, deployment evidence, and required checks before dispatch.
   If the scope changes, update the review and obtain approval for the new scope.
 - Use GitHub CLI to dispatch the documented promotion and approve its Production
   environment on Shawn's behalf only after his approval. Never fall back to a
   current-main release when exact-commit promotion is unavailable. Watch the run,
   inspect the manifest, and verify the live services. Diagnose failures before retrying.
-- After a successful coordinated release, publish a GitHub Release tagged at the
-  deployed SHA with the reviewed changelog, PR links, comparison, and deployment run.
-  Preserve the review and manifest as release assets. Never mark a failed or partial
-  deployment as released. Use the last successful production release as the next
+- The workflow publishes the draft only after the coordinated deployment succeeds.
+  Verify the tag, reviewed notes, and evidence assets. If publication alone fails,
+  rerun only failed jobs; do not redeploy. Use the successful release as the next
   comparison baseline, cross-checked against live deployment state.

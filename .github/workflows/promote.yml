@@ -1,0 +1,183 @@
+name: Promote tested preview
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_id:
+        description: Draft GitHub Release ID containing the approved review
+        required: true
+        type: string
+      review_sha256:
+        description: SHA256 of the exact approved review bundle
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: production-release
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify reviewed candidate
+    if: >-
+      github.ref == 'refs/heads/main' && github.actor == 'bentsignal' &&
+      github.triggering_actor == 'bentsignal'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      candidate: ${{ steps.review.outputs.candidate }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - name: Verify review, deployment evidence, and live baseline
+        id: review
+        run: node scripts/promotion.mjs verify
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_ID: ${{ inputs.release_id }}
+          REVIEW_SHA256: ${{ inputs.review_sha256 }}
+
+  check:
+    name: ${{ matrix.name }}
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Typecheck
+            script: typecheck
+          - name: Lint
+            script: lint
+          - name: Format
+            script: format:check
+          - name: Tests
+            script: test
+          - name: Worker integration
+            script: grams:test
+          - name: Build
+            script: build
+    env:
+      CI: true
+      TURBO_TELEMETRY_DISABLED: 1
+      WRANGLER_SEND_METRICS: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.verify.outputs.candidate }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@d9184bf108216479bc5a137cc391f4d7b14c870b # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run ${{ matrix.script }}
+
+  release:
+    name: Production release
+    needs: [verify, check]
+    if: github.actor == 'bentsignal' && github.triggering_actor == 'bentsignal'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      actions: read
+    environment:
+      name: Production
+      url: https://games.bentsignal.com
+    defaults:
+      run:
+        working-directory: candidate
+    env:
+      CI: true
+      TURBO_TELEMETRY_DISABLED: 1
+      WRANGLER_SEND_METRICS: false
+      RELEASE_SHA: ${{ needs.verify.outputs.candidate }}
+      RELEASE_ID: ${{ inputs.release_id }}
+      REVIEW_SHA256: ${{ inputs.review_sha256 }}
+      VITE_CONVEX_URL: https://api.games.bentsignal.com
+      VITE_GRAMS_URL: https://games-grams.shawnrodgers266.workers.dev
+      VITE_DEV_AUTH: "0"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: control
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.verify.outputs.candidate }}
+          path: candidate
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@d9184bf108216479bc5a137cc391f4d7b14c870b # v6.1.0
+        with:
+          package_json_file: candidate/package.json
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: candidate/.nvmrc
+          cache: pnpm
+          cache-dependency-path: candidate/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - name: Recheck after owner approval
+        run: node ../control/scripts/promotion.mjs verify
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Deploy the tested commit
+        run: node ../control/scripts/release.mjs
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+          CHECK_PRODUCTION_DOMAIN: "true"
+      - name: Preserve deployment evidence even on failure
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-${{ needs.verify.outputs.candidate }}-${{ github.run_attempt }}
+          path: |
+            candidate/.release/manifest.json
+            candidate/.release/review-bundle.json
+            candidate/.release/review.md
+          retention-days: 90
+          if-no-files-found: warn
+
+  publish:
+    name: Publish production release
+    needs: [verify, release]
+    if: github.actor == 'bentsignal' && github.triggering_actor == 'bentsignal'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - name: Download coordinated deployment evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE: ${{ needs.verify.outputs.candidate }}
+        run: |
+          artifact=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq ".artifacts | map(select(.name | startswith(\"release-$CANDIDATE-\"))) | max_by(.id) | .name")
+          gh run download "$GITHUB_RUN_ID" --name "$artifact" --dir .release
+      - name: Publish the reviewed release and evidence
+        run: node scripts/promotion.mjs publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_ID: ${{ inputs.release_id }}
+          REVIEW_SHA256: ${{ inputs.review_sha256 }}
