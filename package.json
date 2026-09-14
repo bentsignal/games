@@ -19,7 +19,7 @@
     "grams:dev": "pnpm --filter @games/grams dev",
     "grams:deploy": "wrangler deploy --config services/grams/wrangler.jsonc --env \"\"",
     "grams:check": "pnpm --filter @games/grams typecheck",
-    "grams:test": "tsx scripts/grams-worker-test.ts",
+    "grams:test": "tsx scripts/grams-worker-test.ts && tsx scripts/ticket-worker-test.ts",
     "setup": "node scripts/setup.mjs",
     "doctor": "node scripts/doctor.mjs",
     "dev:web": "node scripts/web-dev.mjs",

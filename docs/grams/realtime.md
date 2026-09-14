@@ -2,7 +2,7 @@
 
 The original Grams interface and assets run at `/grams`. Its live lobby, guesses, scoring, chat, and emotes run in the `GramsRoom` SQLite Durable Object in `services/grams`. The existing singleton friends lobby and six-player limit are preserved.
 
-Convex handles Google accounts, usernames, short-lived connection tickets, and completed round summaries. Ticket to Ride remains on Convex. No Convex mutation or subscription is used for each Grams guess.
+Convex handles Google accounts, usernames, short-lived connection tickets, and completed round summaries. Ticket to Ride uses separate room Durable Objects in the same Worker. See [Ticket realtime server](../ticket-realtime.md). No Convex mutation or subscription is used for each Grams guess.
 
 ## Local development
 

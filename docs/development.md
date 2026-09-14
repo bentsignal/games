@@ -224,3 +224,10 @@ The full resolver and `mdns.allow` support checkout hostnames with multiple labe
 On NixOS the launcher disables Portless's `/etc/hosts` sync, since NixOS manages
 that file. Avahi provides resolution on this machine and publishes names to LAN
 clients. See [Portless LAN mode](https://github.com/vercel-labs/portless#lan-mode).
+
+## Ticket to Ride backend
+
+Ticket to Ride now shares the local Worker with Grams, using a separate Durable
+Object per room. Setup and launch commands are unchanged. Convex keeps auth and
+completed-game statistics. See [Ticket realtime server](ticket-realtime.md) for
+room storage, the cutover, and verification commands.
