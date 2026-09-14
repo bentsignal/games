@@ -3659,25 +3659,16 @@ label {
   position: fixed;
   inset: 0;
   background: #202b29;
+  display: flex;
+  flex-direction: column-reverse;
 }
 .grams-shell iframe {
   border: 0;
   width: 100%;
   height: 100%;
   display: block;
-}
-.grams-home {
-  position: fixed;
-  left: 12px;
-  top: 10px;
-  color: white;
-  font:
-    13px "Manrope",
-    sans-serif;
-  text-decoration: none;
-  background: #20352b99;
-  padding: 6px 10px;
-  border-radius: 4px;
+  flex: 1;
+  min-height: 0;
 }
 .games-back {
   color: inherit;
@@ -3713,4 +3704,76 @@ label {
 }
 .account-menu-panel .games-back:hover {
   background: #ffffff14;
+}
+
+.grams-lobbies {
+  min-height: 100dvh;
+  background: #202b29;
+  color: #f5f2e8;
+  padding: 40px max(24px, calc((100vw - 480px) / 2));
+  font-family: "Manrope", sans-serif;
+}
+.grams-lobbies > img {
+  display: block;
+  width: min(100%, 320px);
+  margin: 40px auto 24px;
+  filter: invert(1);
+}
+.grams-lobbies h1 {
+  font-size: 28px;
+}
+.grams-lobbies p {
+  margin: 12px 0 20px;
+  line-height: 1.6;
+}
+.grams-lobbies a,
+.grams-room-nav a {
+  color: inherit;
+}
+.grams-lobbies button,
+.grams-lobbies input {
+  width: 100%;
+  padding: 14px;
+  border: 1px solid #9caf9d;
+  border-radius: 6px;
+  font: inherit;
+}
+.grams-lobbies button {
+  cursor: pointer;
+  background: #dceab3;
+  color: #202b29;
+  font-weight: 700;
+}
+.grams-lobbies form {
+  display: grid;
+  gap: 12px;
+  margin-top: 32px;
+}
+.grams-lobbies input {
+  background: #fff;
+  color: #202b29;
+  letter-spacing: 0.15em;
+}
+.grams-room-nav {
+  flex-shrink: 0;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 6px 12px;
+  background: #202b29;
+  color: white;
+  font:
+    13px "Manrope",
+    sans-serif;
+}
+.grams-room-nav button {
+  color: inherit;
+  background: #354b40;
+  border: 1px solid #9caf9d;
+  border-radius: 4px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font: inherit;
 }

@@ -1,5 +1,6 @@
 import { DurableObject } from "cloudflare:workers";
 import { signTicket, verifyTicket } from "../../shared/realtimeAuth";
+import { gramsCodePattern } from "../../shared/gramsRooms";
 import {
   fresh,
   command,
@@ -16,12 +17,14 @@ interface Env {
   ALLOWED_ORIGINS: string;
 }
 type Attachment = {
+  authorized: boolean;
   identity: Identity;
   expires: number;
   window: number;
   count: number;
 };
 type Data = {
+  creator?: string;
   state: State;
   instance: string;
   disconnected: Record<string, number>;
@@ -31,6 +34,9 @@ type Data = {
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
+    const code = url.pathname.startsWith("/grams/")
+      ? url.pathname.slice("/grams/".length)
+      : "friends";
     if (url.pathname === "/health")
       return Response.json({
         ok: true,
@@ -38,7 +44,7 @@ export default {
         transport: "durable-object",
       });
     if (
-      url.pathname !== "/grams" ||
+      (url.pathname !== "/grams" && !gramsCodePattern.test(code)) ||
       req.headers.get("Upgrade")?.toLowerCase() !== "websocket"
     )
       return new Response("Not found", { status: 404 });
@@ -55,7 +61,7 @@ export default {
       const ticket = verifyTicket(
         protocols[1],
         env.GRAMS_REALTIME_SECRET,
-        "grams:friends",
+        `grams:${code}`,
       );
       if (
         ![ticket.id, ticket.userId, ticket.name].every(
@@ -73,7 +79,9 @@ export default {
         }),
       );
       headers.delete("Sec-WebSocket-Protocol");
-      return env.GRAMS.get(env.GRAMS.idFromName("friends")).fetch(
+      headers.set("X-Grams-Code", code);
+      headers.set("X-Grams-Create", ticket.create === true ? "true" : "false");
+      return env.GRAMS.get(env.GRAMS.idFromName(code)).fetch(
         new Request(req, { headers }),
       );
     } catch {
@@ -122,11 +130,35 @@ export class GramsRoom extends DurableObject<Env> {
     this.ctx.acceptWebSocket(ws);
     ws.serializeAttachment({
       identity,
+      authorized: false,
       expires: Date.now() + 3600000,
       window: Date.now(),
       count: 0,
     } satisfies Attachment);
     await this.ctx.blockConcurrencyWhile(async () => {
+      const code = req.headers.get("X-Grams-Code");
+      const create = req.headers.get("X-Grams-Create") === "true";
+      if (code !== "friends") {
+        const error =
+          !this.data.creator && !create
+            ? "Lobby not found. Check the code with your friend."
+            : create && this.data.creator && this.data.creator !== identity.id
+              ? "That lobby code is already taken. Create another lobby."
+              : undefined;
+        if (error) {
+          this.send(ws, { type: "grams-error", error });
+          ws.close(4004, "Lobby unavailable");
+          return;
+        }
+        if (!this.data.creator) {
+          this.data.creator = identity.id;
+          command(this.data.state, identity, { kind: "requestJoin" });
+        }
+      }
+      ws.serializeAttachment({
+        ...(ws.deserializeAttachment() as Attachment),
+        authorized: true,
+      });
       delete this.data.disconnected[identity.id];
       await this.settle();
       await this.persist();
@@ -197,6 +229,7 @@ export class GramsRoom extends DurableObject<Env> {
       return;
     }
     const a = ws.deserializeAttachment() as Attachment;
+    if (a.authorized === false) return;
     if (a.expires <= Date.now()) {
       ws.close(4001, "Sign in again");
       return;

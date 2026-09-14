@@ -1,8 +1,34 @@
 # Grams realtime server
 
-The original Grams interface and assets run at `/grams`. Its live lobby, guesses, scoring, chat, and emotes run in the `GramsRoom` SQLite Durable Object in `services/grams`. The existing singleton friends lobby and six-player limit are preserved.
+The original Grams interface and assets run at `/grams`. Its live lobby, guesses, scoring, chat, and emotes run in the `GramsRoom` SQLite Durable Object in `services/grams`. Each lobby has its own object and a six-player limit.
 
 Convex handles Google accounts, usernames, short-lived connection tickets, and completed round summaries. Ticket to Ride remains on Convex. No Convex mutation or subscription is used for each Grams guess.
+
+## Lobbies
+
+At `/grams`, create a lobby or enter an eight-character code. Invitations use
+`/grams/room/ABCD2345`. The browser generates codes with Web Crypto using an
+alphabet that omits I, O, 0, and 1. The Worker routes `/grams/ABCD2345` WebSockets
+to `GRAMS.idFromName("ABCD2345")`.
+
+Convex authenticates the player and signs a one-minute ticket for that exact
+code. A creation ticket lets the object reserve the code and seat its creator
+as host before sending its first state. Creating an existing code owned by
+another account fails; the player can create another lobby. Joining an unknown
+code fails without creating a lobby. A code is an invitation, so anyone with an
+account and the code can request a seat, subject to the player limit and round
+status. There is no public lobby directory.
+
+Refresh and reconnect use the same URL and object. Players still press Enter
+on the original Grams welcome screen to enter the game. Disconnected seats and
+host transfer follow the rules below. Empty rooms keep their code and can be
+used again. Room state, chat, timers, and result outboxes are separate per object;
+result IDs already include a unique object-instance ID. Convex stores accounts
+and completed rounds, with no new lobby table.
+
+The legacy `/grams` Worker endpoint and tickets without a code continue to use
+`friends` for clients already open during an update. The new frontend does not
+join that singleton. The legacy Convex Grams implementation remains unchanged.
 
 ## Local development
 

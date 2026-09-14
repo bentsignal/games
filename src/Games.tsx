@@ -9,7 +9,7 @@ export default function Games({ username }: { username: string }) {
     path.startsWith("/ticket") ||
     path.startsWith("/room/") ||
     path === "/ending-preview";
-  const grams = path === "/grams" || path === "/grams/";
+  const grams = path === "/grams" || path.startsWith("/grams/");
   useEffect(() => {
     document.title = ticket ? "Ticket to Ride" : grams ? "Grams" : "Games";
   }, [ticket, grams]);

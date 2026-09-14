@@ -21,6 +21,22 @@ it("requires accounts for connection and saves authenticated results exactly onc
   const ticket = await client.mutation(api.realtime.connect, {});
   const identity = verifyTicket(ticket, "test-only-secret", "grams:friends");
   expect(identity.userId).toBe(userId);
+  const scoped = await client.mutation(api.realtime.connect, {
+    code: "ABCD2345",
+    create: true,
+  });
+  expect(
+    verifyTicket(scoped, "test-only-secret", "grams:ABCD2345"),
+  ).toMatchObject({ userId, create: true });
+  expect(() =>
+    verifyTicket(scoped, "test-only-secret", "grams:EFGH6789"),
+  ).toThrow();
+  await expect(
+    client.mutation(api.realtime.connect, { code: "bad" }),
+  ).rejects.toThrow("eight-character");
+  await expect(
+    client.mutation(api.realtime.connect, { create: true }),
+  ).rejects.toThrow("Lobby code required");
   await expect(
     t.mutation(api.realtime.saveResult, { token: ticket }),
   ).rejects.toThrow();
