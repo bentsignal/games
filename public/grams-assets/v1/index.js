@@ -62,17 +62,26 @@ const clearIntervals = () => {
     }
 }
 
-const leaveGame = () => {
-    socket.emit("leave")
+const resetLobby = () => {
     sound.music.pause()
     game.state.changeState(states.home)
     wordCount.innerText = "Words: 0"
     myScore.innerText = "Score: 0"
     clearIntervals()
     game.left()
+    game.reset()
+    game.word = ""
     renderPlayerList()
-    game.resetWordList()
+    document.getElementById("pre-game-waiting").style.display = "block"
+    document.getElementById("pre-game-countdown").style.display = "none"
+    chat.innerHTML = ""
+    chatInput.value = ""
 }
+const leaveGame = () => {
+    socket.emit("leave")
+    resetLobby()
+}
+socket.on("lobbyReset", resetLobby)
 
 /*
 

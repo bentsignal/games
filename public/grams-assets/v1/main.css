@@ -857,18 +857,6 @@ select:focus {
     margin: 20px 50px;
 }
 /* Lobby controls share the original welcome screen and game styles. */
-#connection-wrapper h1 {
-    margin: 0 0 12px;
-    font-size: 28px;
-    font-weight: 500;
-    text-shadow: 0 1px 4px rgba(0,0,0,.5);
-}
-#lobby-account, #lobby-size, #lobby-status {
-    font-weight: 300;
-    line-height: 1.5;
-    text-shadow: 0 1px 4px rgba(0,0,0,.5);
-}
-#lobby-account { margin: 0 0 28px; }
 #create-lobby { width: 100%; }
 #lobby-divider {
     display: flex;
@@ -885,7 +873,6 @@ select:focus {
     background: currentColor;
     opacity: .4;
 }
-#join-lobby label { display: block; margin-bottom: 10px; }
 #lobby-code-row { display: flex; gap: 8px; }
 #lobby-code {
     min-width: 0;
@@ -910,8 +897,7 @@ select:focus {
     outline: 2px solid white;
     outline-offset: 4px;
 }
-#lobby-size { margin: 16px 0; font-size: 14px; }
-#lobby-status:empty, #join-errors:empty { display: none; }
+#join-errors:empty { display: none; }
 #lobby-navigation {
     position: fixed;
     top: 16px;
@@ -956,3 +942,21 @@ select:focus {
     text-align: right;
 }
 .in-game #lobby-navigation a { display: none; }
+
+#connection-wrapper button { position: relative; }
+#connection-wrapper button:disabled { cursor: wait; }
+#connection-wrapper button[aria-busy="true"] .button-label { visibility: hidden; }
+.lobby-spinner {
+    display: none;
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--silver);
+    border-top-color: var(--charcoal);
+    border-radius: 50%;
+    animation: lobby-spin .7s linear infinite;
+}
+button[aria-busy="true"] .lobby-spinner { display: block; }
+@keyframes lobby-spin { to { transform: rotate(360deg); } }

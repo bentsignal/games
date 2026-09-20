@@ -1,14 +1,23 @@
 // Event adapter: the original interface talks to the shared authenticated app.
 const handlers = new Map();
 let state, joined=false, previous, cursor=0, request=0, joinRequested=false, lobbyCode="";
-const lobbyStatus=document.getElementById("lobby-status");
+const createButton=document.getElementById("create-lobby");
+const joinButton=document.getElementById("join-lobby-button");
+function loading(kind){
+ for(const [button,key] of [[createButton,"create"],[joinButton,"join"]]){
+  button.disabled=!!kind;
+  button.setAttribute("aria-busy",String(kind===key));
+ }
+ document.getElementById("lobby-code").disabled=!!kind;
+}
 const invite=document.getElementById("invite-friends");
 const inviteStatus=document.getElementById("invite-status");
 const joinErrors=document.getElementById("join-errors");
 const send=(data)=>parent.postMessage(data,location.origin);
-document.getElementById("create-lobby").addEventListener("click",()=>send({type:"grams-create"}));
+createButton.addEventListener("click",()=>{joinErrors.textContent="";loading("create");send({type:"grams-create"})});
 document.getElementById("join-lobby").addEventListener("submit",event=>{
  event.preventDefault();
+ joinErrors.textContent="";loading("join");
  send({type:"grams-join",code:document.getElementById("lobby-code").value});
 });
 invite.addEventListener("click",()=>send({type:"grams-invite"}));
@@ -56,18 +65,22 @@ window.addEventListener("message",e=>{
  if(e.origin!==location.origin||e.source!==parent)return;
  if(e.data?.type==="grams-resume"){previous=undefined;if(!joined){joinRequested=false;joinErrors.textContent="";}}
  if(e.data?.type==="grams-lobby"){
+  if(e.data.reset){
+   state=undefined;previous=undefined;joined=false;joinRequested=false;cursor=0;pending.clear();
+   document.body.classList.remove("in-game");invite.hidden=true;inviteStatus.textContent="";
+   fire("lobbyReset");
+  }
   lobbyCode=e.data.code||"";
-  document.getElementById("lobby-account").textContent=`Playing as ${e.data.username}`;
-  if(lobbyCode)document.getElementById("lobby-code").value=lobbyCode;
+  if(e.data.reset||lobbyCode)document.getElementById("lobby-code").value=lobbyCode;
   invite.textContent=`Invite friends · ${lobbyCode}`;
   joinErrors.textContent=e.data.error||"";
-  lobbyStatus.textContent=e.data.error?"":lobbyCode?`Joining lobby ${lobbyCode}…`:"";
+  loading(e.data.error?null:e.data.loading);
  }
  if(e.data?.type==="grams-copy")inviteStatus.textContent=e.data.message;
  if(e.data?.type==="grams-connection"){
   const message=e.data.connected?"":e.data.message||"Connecting to lobby…";
   if(joined)inviteStatus.textContent=message;
-  else if(!joinErrors.textContent)lobbyStatus.textContent=message;
+  else if(e.data.message){joinErrors.textContent=e.data.message;loading(null);}
  }
  if(e.data?.type==="grams-state"){
   state=e.data.state;socket.id=state.id;
@@ -84,10 +97,10 @@ window.addEventListener("message",e=>{
  }
  if(e.data?.type==="grams-reply"){
   const op=pending.get(e.data.request);if(!op)return;pending.delete(e.data.request);
-  if(e.data.error){if(op.kind==="requestJoin")lobbyStatus.textContent="";fire(op.kind==="requestJoin"?"joinDeclined":"newMessage",{sender:"Server",type:"bad",message:escape(e.data.error)});return}
+  if(e.data.error){if(op.kind==="requestJoin")loading(null);fire(op.kind==="requestJoin"?"joinDeclined":"newMessage",{sender:"Server",type:"bad",message:escape(e.data.error)});return}
   if(op.kind==="requestJoin"){
    joined=true;cursor=state?.seq??0;document.body.classList.add("in-game");
-   lobbyStatus.textContent="";joinErrors.textContent="";invite.hidden=false;
+   loading(null);joinErrors.textContent="";invite.hidden=false;
    document.activeElement?.blur();
    fire("joinAccepted",{name:state.name});if(state)render(state);
   }

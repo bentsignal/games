@@ -20,6 +20,8 @@ account and the code can request a seat, subject to the player limit and round
 status. There is no public lobby directory.
 
 The original animated welcome screen shows the logo beside create/join controls.
+Creating, joining, and leaving update the URL without reloading the page or iframe.
+The selected button shows a spinner while connecting; the background keeps running.
 Players enter a lobby automatically using their signed-in account username; there
 is no name-entry step. Refresh and reconnect use the same URL and object. Leaving
 a lobby returns to the welcome screen. Disconnected seats and

@@ -201,11 +201,13 @@ test("Grams preserves its welcome screen, joins automatically, and keeps lobbies
     await host.goto(baseURL! + "/grams");
     await signIn(host, "Grams_Lobbies_Host_QA");
     await expect(
-      frame.getByRole("heading", { name: "Play with friends", exact: true }),
+      frame.getByRole("button", { name: "Create a lobby", exact: true }),
     ).toBeVisible();
-    await expect(frame.locator("#lobby-account")).toHaveText(
-      "Playing as Grams_Lobbies_Host_QA",
-    );
+    await expect(
+      frame.locator(
+        "#connection-wrapper h1, #lobby-account, #lobby-size, #lobby-status, #join-lobby label",
+      ),
+    ).toHaveCount(0);
     await expect(frame.locator("#name-input")).toHaveCount(0);
     await expect(frame.locator("#world")).toBeVisible();
     await expect(frame.locator("#sunset")).toHaveCSS(
@@ -226,9 +228,23 @@ test("Grams preserves its welcome screen, joins automatically, and keeps lobbies
     const form = await frame.locator("#connection-container").boundingBox();
     expect(logo!.x + logo!.width).toBeLessThan(form!.x);
     await host.screenshot({ path: "/tmp/grams-lobbies-desktop.png" });
+    let navigations = 0;
+    host.on("request", (request) => {
+      if (request.isNavigationRequest()) navigations++;
+    });
+    await hostContext.setOffline(true);
     await frame
       .getByRole("button", { name: "Create a lobby", exact: true })
       .click();
+    await expect(frame.locator("#create-lobby")).toHaveAttribute(
+      "aria-busy",
+      "true",
+    );
+    await expect(frame.locator("#create-lobby .lobby-spinner")).toBeVisible();
+    await expect(frame.locator("#join-lobby-button")).toBeDisabled();
+    await host.screenshot({ path: "/tmp/grams-lobby-loading.png" });
+    expect(navigations).toBe(0);
+    await hostContext.setOffline(false);
     await expect(host).toHaveURL(/\/grams\/room\/[A-Z2-9]{8}$/);
     const firstCode = new URL(host.url()).pathname.split("/").at(-1)!;
     await expect(frame.locator("#player-list-wrapper")).toContainText(
@@ -252,6 +268,12 @@ test("Grams preserves its welcome screen, joins automatically, and keeps lobbies
 
     await friend.goto(baseURL! + "/grams");
     await signIn(friend, "Grams_Lobbies_Friend_QA");
+    await expect(
+      friendFrame.getByLabel("Lobby code", { exact: true }),
+    ).toBeVisible();
+    friend.on("request", (request) => {
+      if (request.isNavigationRequest()) navigations++;
+    });
     await friendFrame.getByLabel("Lobby code", { exact: true }).fill("bad");
     await friendFrame
       .getByRole("button", { name: "Join", exact: true })
@@ -280,6 +302,11 @@ test("Grams preserves its welcome screen, joins automatically, and keeps lobbies
     await expect(frame.locator("#player-list-wrapper")).toContainText(
       "Grams_Lobbies_Friend_QA",
     );
+    await frame.locator("#chat-input").fill("First lobby conversation");
+    await frame.locator("#chat-input").press("Enter");
+    await expect(friendFrame.locator("#chat")).toContainText(
+      "First lobby conversation",
+    );
     await friendFrame.locator("#leave").click();
     await expect(friend).toHaveURL(/\/grams$/);
     await friendFrame
@@ -288,6 +315,9 @@ test("Grams preserves its welcome screen, joins automatically, and keeps lobbies
     await expect(friend).toHaveURL(/\/grams\/room\/[A-Z2-9]{8}$/);
     expect(friend.url()).not.toEqual(host.url());
     await expect(friendFrame.locator("#start")).toBeVisible();
+    await expect(friendFrame.locator("#chat")).not.toContainText(
+      "First lobby conversation",
+    );
     await expect(friendFrame.locator("#player-list-wrapper")).not.toContainText(
       "Grams_Lobbies_Host_QA",
     );
@@ -305,6 +335,30 @@ test("Grams preserves its welcome screen, joins automatically, and keeps lobbies
       frame.getByRole("button", { name: "Create a lobby", exact: true }),
     ).toBeVisible();
     await friendFrame.locator("#leave").click();
+    await expect(friend).toHaveURL(/\/grams$/);
+    expect(navigations).toBe(0);
+    await host.goBack();
+    await expect(frame.locator("#start")).toBeVisible();
+    await host.goForward();
+    await expect(
+      frame.getByRole("button", { name: "Create a lobby", exact: true }),
+    ).toBeEnabled();
+    await frame
+      .getByRole("button", { name: "Create a lobby", exact: true })
+      .click();
+    await frame.locator("#start").click();
+    await expect(frame.locator("#pre-game-countdown")).toBeVisible();
+    await frame.locator("#leave").click();
+    await frame
+      .getByRole("button", { name: "Create a lobby", exact: true })
+      .click();
+    await expect(frame.locator("#pre-game-waiting")).toBeVisible();
+    await expect(frame.locator("#pre-game-countdown")).toBeHidden();
+    await frame.locator("#start").click();
+    await expect(frame.locator(".letter-available.filled")).toHaveCount(6);
+    await frame.locator("#leave").click();
+    await expect(host).toHaveURL(/\/grams$/);
+    expect(navigations).toBe(0);
     expect(errors).toEqual([]);
   } finally {
     await hostContext.close();
