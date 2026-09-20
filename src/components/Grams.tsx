@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useConvex } from "convex/react";
 import { api } from "../../services/convex/convex/_generated/api";
+import PlatformHeader from "./PlatformHeader";
 import { gramsCodePattern, newGramsCode } from "../../shared/gramsRooms";
 
 export default function Grams({ username }: { username: string }) {
@@ -197,13 +198,16 @@ export default function Grams({ username }: { username: string }) {
     };
   }, [client, code, valid, username]);
   return (
-    <div className="grams-shell">
-      <iframe
-        ref={frame}
-        title="Grams"
-        src="/grams-assets/v1/index.html"
-        allow="autoplay"
-      />
+    <div className="grams-page">
+      <PlatformHeader username={username} game="grams" />
+      <div className="grams-shell">
+        <iframe
+          ref={frame}
+          title="Grams"
+          src="/grams-assets/v1/index.html"
+          allow="autoplay"
+        />
+      </div>
     </div>
   );
 }
