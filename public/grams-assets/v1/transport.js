@@ -1,6 +1,17 @@
 // Event adapter: the original interface talks to the shared authenticated app.
 const handlers = new Map();
-let state, joined=false, previous, cursor=0, request=0;
+let state, joined=false, previous, cursor=0, request=0, joinRequested=false, lobbyCode="";
+const lobbyStatus=document.getElementById("lobby-status");
+const invite=document.getElementById("invite-friends");
+const inviteStatus=document.getElementById("invite-status");
+const joinErrors=document.getElementById("join-errors");
+const send=(data)=>parent.postMessage(data,location.origin);
+document.getElementById("create-lobby").addEventListener("click",()=>send({type:"grams-create"}));
+document.getElementById("join-lobby").addEventListener("submit",event=>{
+ event.preventDefault();
+ send({type:"grams-join",code:document.getElementById("lobby-code").value});
+});
+invite.addEventListener("click",()=>send({type:"grams-invite"}));
 const pending=new Map();
 const fire=(kind,data)=>{for(const fn of handlers.get(kind)||[])fn(data)};
 const escape=(s)=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -17,7 +28,7 @@ export const socket={
   if(kind==="emoteSent")args.emote=data.emote;
   const seq=++request;pending.set(seq,{kind,data});
   parent.postMessage({type:"grams-command",request:seq,args},location.origin);
-  if(kind==="leave"){joined=false;previous=undefined}
+  if(kind==="leave"){joined=false;previous=undefined;document.body.classList.remove("in-game");invite.hidden=true;}
  }
 };
 function render(s){
@@ -43,12 +54,24 @@ function render(s){
 }
 window.addEventListener("message",e=>{
  if(e.origin!==location.origin||e.source!==parent)return;
- if(e.data?.type==="grams-resume")previous=undefined;
- if(e.data?.type==="grams-connection"){const input=document.getElementById("name-input");if(input)input.title=e.data.connected?"Join Grams":"Connecting…";}
+ if(e.data?.type==="grams-resume"){previous=undefined;if(!joined){joinRequested=false;joinErrors.textContent="";}}
+ if(e.data?.type==="grams-lobby"){
+  lobbyCode=e.data.code||"";
+  document.getElementById("lobby-account").textContent=`Playing as ${e.data.username}`;
+  if(lobbyCode)document.getElementById("lobby-code").value=lobbyCode;
+  invite.textContent=`Invite friends · ${lobbyCode}`;
+  joinErrors.textContent=e.data.error||"";
+  lobbyStatus.textContent=e.data.error?"":lobbyCode?`Joining lobby ${lobbyCode}…`:"";
+ }
+ if(e.data?.type==="grams-copy")inviteStatus.textContent=e.data.message;
+ if(e.data?.type==="grams-connection"){
+  const message=e.data.connected?"":e.data.message||"Connecting to lobby…";
+  if(joined)inviteStatus.textContent=message;
+  else if(!joinErrors.textContent)lobbyStatus.textContent=message;
+ }
  if(e.data?.type==="grams-state"){
   state=e.data.state;socket.id=state.id;
-  const input=document.getElementById("name-input");
-  if(input){input.value=state.name;input.readOnly=true;input.title="Join Grams";input.setAttribute("aria-label","Join Grams");input.style.cursor="pointer";input.placeholder="Press Enter to join";}
+  if(!joined&&!joinRequested){joinRequested=true;socket.emit("requestJoin")}
   render(state);fire("connect");
  }
  if(e.data?.type==="grams-feed"){
@@ -61,8 +84,14 @@ window.addEventListener("message",e=>{
  }
  if(e.data?.type==="grams-reply"){
   const op=pending.get(e.data.request);if(!op)return;pending.delete(e.data.request);
-  if(e.data.error){fire(op.kind==="requestJoin"?"joinDeclined":"newMessage",{sender:"Server",type:"bad",message:escape(e.data.error)});return}
-  if(op.kind==="requestJoin"){joined=true;cursor=state?.seq??0;fire("joinAccepted");if(state)render(state)}
+  if(e.data.error){if(op.kind==="requestJoin")lobbyStatus.textContent="";fire(op.kind==="requestJoin"?"joinDeclined":"newMessage",{sender:"Server",type:"bad",message:escape(e.data.error)});return}
+  if(op.kind==="requestJoin"){
+   joined=true;cursor=state?.seq??0;document.body.classList.add("in-game");
+   lobbyStatus.textContent="";joinErrors.textContent="";invite.hidden=false;
+   document.activeElement?.blur();
+   fire("joinAccepted",{name:state.name});if(state)render(state);
+  }
+  if(op.kind==="leave")send({type:"grams-left"});
   if(op.kind==="wordSubmit")fire(e.data.result?.accepted?"wordAccept":"wordDecline",e.data.result);
  }
 });

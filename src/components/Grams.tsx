@@ -1,24 +1,17 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useConvex } from "convex/react";
 import { api } from "../../services/convex/convex/_generated/api";
 import { gramsCodePattern, newGramsCode } from "../../shared/gramsRooms";
 
-export default function Grams() {
+export default function Grams({ username }: { username: string }) {
   const code = location.pathname
     .match(/^\/grams\/room\/([^/]+)\/?$/)?.[1]
     ?.toUpperCase();
-  const [input, setInput] = useState("");
-  const [error, setError] = useState("");
-  const [connectionStatus, setConnectionStatus] = useState(
-    "Connecting to lobby…",
-  );
-  const [copyStatus, setCopyStatus] = useState("");
   const valid = code !== undefined && gramsCodePattern.test(code);
   const creating = useRef(new URLSearchParams(location.search).has("create"));
   const frame = useRef<HTMLIFrameElement>(null);
   const client = useConvex();
   useEffect(() => {
-    if (!valid) return;
     let stopped = false,
       socket: WebSocket | undefined,
       retry: ReturnType<typeof setTimeout> | undefined,
@@ -26,12 +19,17 @@ export default function Grams() {
       state: any,
       feed: any,
       reconnect = false;
+    const lobby = {
+      type: "grams-lobby",
+      code: valid ? code : undefined,
+      username,
+      error: code && !valid ? "Enter an eight-character Grams lobby code." : "",
+    };
     const pending = new Set<number>();
     const post = (data: unknown) =>
       frame.current?.contentWindow?.postMessage(data, location.origin);
     const status = (connected: boolean) => {
       post({ type: "grams-connection", connected });
-      setConnectionStatus(connected ? "" : "Reconnecting to lobby…");
     };
     const failPending = () => {
       for (const request of pending)
@@ -58,7 +56,6 @@ export default function Grams() {
         socket = ws;
         ws.onopen = () => {
           attempt = 0;
-          setError("");
           status(true);
         };
         ws.onmessage = (e) => {
@@ -66,7 +63,8 @@ export default function Grams() {
           const message = JSON.parse(e.data);
           if (message.type === "grams-error") {
             stopped = true;
-            setError(message.error);
+            lobby.error = message.error;
+            post(lobby);
             failPending();
             ws.close();
             return;
@@ -107,11 +105,14 @@ export default function Grams() {
       } catch (error) {
         if (!stopped) {
           status(false);
-          setConnectionStatus(
-            error instanceof Error
-              ? error.message
-              : "Unable to connect to Grams.",
-          );
+          post({
+            type: "grams-connection",
+            connected: false,
+            message:
+              error instanceof Error
+                ? error.message
+                : "Unable to connect to Grams.",
+          });
           queue();
         }
       }
@@ -130,12 +131,46 @@ export default function Grams() {
       )
         return;
       if (e.data?.type === "grams-ready") {
+        post(lobby);
         if (state) post({ type: "grams-state", state });
         if (feed) post({ type: "grams-feed", feed });
-        status(socket?.readyState === WebSocket.OPEN);
+        if (valid) status(socket?.readyState === WebSocket.OPEN);
         return;
       }
-      if (e.data?.type !== "grams-command") return;
+      if (e.data?.type === "grams-create") {
+        location.assign(`/grams/room/${newGramsCode()}?create=1`);
+        return;
+      }
+      if (e.data?.type === "grams-join") {
+        const next =
+          typeof e.data.code === "string"
+            ? e.data.code.trim().toUpperCase()
+            : "";
+        if (!gramsCodePattern.test(next)) {
+          lobby.error = "Enter an eight-character Grams lobby code.";
+          post(lobby);
+        } else location.assign(`/grams/room/${next}`);
+        return;
+      }
+      if (e.data?.type === "grams-left") {
+        location.assign("/grams");
+        return;
+      }
+      if (e.data?.type === "grams-invite" && valid) {
+        void (async () => {
+          let message = "Link copied";
+          try {
+            await navigator.clipboard.writeText(
+              `${location.origin}/grams/room/${code}`,
+            );
+          } catch {
+            message = "Copy the invitation link from the address bar";
+          }
+          post({ type: "grams-copy", message });
+        })();
+        return;
+      }
+      if (e.data?.type !== "grams-command" || !valid || stopped) return;
       if (socket?.readyState !== WebSocket.OPEN) {
         post({
           type: "grams-reply",
@@ -151,7 +186,8 @@ export default function Grams() {
     const ping = setInterval(() => {
       if (socket?.readyState === WebSocket.OPEN) socket.send("ping");
     }, 30000);
-    void connect();
+    post(lobby);
+    if (valid) void connect();
     return () => {
       stopped = true;
       clearTimeout(retry);
@@ -159,50 +195,7 @@ export default function Grams() {
       window.removeEventListener("message", receive);
       socket?.close();
     };
-  }, [client, code, valid]);
-  if (!valid || error)
-    return (
-      <main className="grams-lobbies">
-        <a href="/">Games</a>
-        <img src="/grams-assets/v1/images/logo_600.png" alt="Grams" />
-        <h1>Play Grams with friends</h1>
-        <p>Create a lobby and share its code. Up to six players can join.</p>
-        {(error || code) && (
-          <p role="alert">
-            {error || "Enter an eight-character Grams lobby code."}
-          </p>
-        )}
-        <button
-          onClick={() =>
-            location.assign(`/grams/room/${newGramsCode()}?create=1`)
-          }
-        >
-          Create a lobby
-        </button>
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            const normalized = input.trim().toUpperCase();
-            if (!gramsCodePattern.test(normalized)) {
-              setError("Enter an eight-character Grams lobby code.");
-              return;
-            }
-            location.assign(`/grams/room/${normalized}`);
-          }}
-        >
-          <label htmlFor="grams-code">Lobby code</label>
-          <input
-            id="grams-code"
-            autoComplete="off"
-            placeholder="ABCD2345"
-            maxLength={8}
-            value={input}
-            onChange={(event) => setInput(event.target.value.toUpperCase())}
-          />
-          <button type="submit">Join lobby</button>
-        </form>
-      </main>
-    );
+  }, [client, code, valid, username]);
   return (
     <div className="grams-shell">
       <iframe
@@ -211,24 +204,6 @@ export default function Grams() {
         src="/grams-assets/v1/index.html"
         allow="autoplay"
       />
-      <nav className="grams-room-nav" aria-label="Grams lobby">
-        <a href="/grams">Lobbies</a>
-        <button
-          onClick={async () => {
-            try {
-              await navigator.clipboard.writeText(
-                `${location.origin}/grams/room/${code}`,
-              );
-              setCopyStatus("Link copied");
-            } catch {
-              setCopyStatus("Copy the invitation link from the address bar");
-            }
-          }}
-        >
-          Invite friends · {code}
-        </button>
-        <span role="status">{connectionStatus || copyStatus}</span>
-      </nav>
     </div>
   );
 }

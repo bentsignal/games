@@ -22,7 +22,7 @@ export default function Games({ username }: { username: string }) {
   if (grams)
     return (
       <Suspense fallback={null}>
-        <Grams />
+        <Grams username={username} />
       </Suspense>
     );
   return (

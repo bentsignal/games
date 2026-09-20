@@ -19,8 +19,10 @@ code fails without creating a lobby. A code is an invitation, so anyone with an
 account and the code can request a seat, subject to the player limit and round
 status. There is no public lobby directory.
 
-Refresh and reconnect use the same URL and object. Players still press Enter
-on the original Grams welcome screen to enter the game. Disconnected seats and
+The original animated welcome screen shows the logo beside create/join controls.
+Players enter a lobby automatically using their signed-in account username; there
+is no name-entry step. Refresh and reconnect use the same URL and object. Leaving
+a lobby returns to the welcome screen. Disconnected seats and
 host transfer follow the rules below. Empty rooms keep their code and can be
 used again. Room state, chat, timers, and result outboxes are separate per object;
 result IDs already include a unique object-instance ID. Convex stores accounts
