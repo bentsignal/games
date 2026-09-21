@@ -79,7 +79,7 @@ import Scoreboard, {
 } from "./components/Scoreboard";
 import { TrainArtwork, ConductorPortrait } from "./components/TrainArtwork";
 import { cue } from "./audio";
-import { useAuthActions } from "@convex-dev/auth/react";
+import PlatformHeader from "./components/PlatformHeader";
 const Board = lazy(() => import("./components/Board"));
 const roomFromUrl = () =>
   location.pathname
@@ -339,7 +339,6 @@ function Rules({ onClose }: { onClose: () => void }) {
 }
 
 export default function App({ username }: { username: string }) {
-  const { signOut } = useAuthActions();
   const [watching, setWatching] = useState(() =>
     new URLSearchParams(location.search).has("watch"),
   );
@@ -865,55 +864,23 @@ export default function App({ username }: { username: string }) {
   };
   return (
     <div className={`app ${code ? "at-table" : ""}`}>
-      <header className="masthead">
-        <button
-          className="brand"
-          onClick={() => visit("")}
-          aria-label="Ticket to Ride home"
-        >
-          <span>Ticket to Ride</span>
-        </button>
-        <nav>
-          <Music />
-          {code && (
-            <button className="room-code" onClick={copy}>
-              {copied ? <Check size={14} /> : <Copy size={14} />}
-              <span>{code}</span>
-            </button>
-          )}
-          <button className="nav-help" onClick={() => setRules(true)}>
-            <BookOpen size={17} />
-            <span>How to play</span>
+      <PlatformHeader
+        username={username}
+        game="ticket"
+        onGameHome={() => visit("")}
+      >
+        <Music />
+        {code && (
+          <button className="room-code" onClick={copy}>
+            {copied ? <Check size={14} /> : <Copy size={14} />}
+            <span>{code}</span>
           </button>
-          <details
-            className="account-menu"
-            onBlur={(event) => {
-              if (!event.currentTarget.contains(event.relatedTarget))
-                event.currentTarget.open = false;
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "Escape") {
-                event.currentTarget.open = false;
-                event.currentTarget.querySelector("summary")?.focus();
-              }
-            }}
-          >
-            <summary>
-              {username}
-              <ChevronDown size={14} />
-            </summary>
-            <div className="account-menu-panel">
-              <a className="games-back" href="/">
-                Games
-              </a>
-              <button onClick={() => void signOut()}>
-                <LogOut size={16} />
-                Sign out
-              </button>
-            </div>
-          </details>
-        </nav>
-      </header>
+        )}
+        <button className="nav-help" onClick={() => setRules(true)}>
+          <BookOpen size={17} />
+          <span>How to play</span>
+        </button>
+      </PlatformHeader>
       {confirming && connectedServer && room && (
         <div className="move-confirmation" role="status">
           Confirming move…
