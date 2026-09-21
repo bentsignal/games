@@ -396,6 +396,7 @@ export default function App({ username }: { username: string }) {
     send,
     get,
     room,
+    confirmedRoom,
     connectedServer,
     messages,
     chatStatus,
@@ -407,8 +408,11 @@ export default function App({ username }: { username: string }) {
     () => playerDisplayColors(game, code),
     [game?.players, me?.id, code],
   );
-  const completion = useDestinationFeedback(game, code);
-  const scoreReveal = useScoreReveal(me || watching ? game : undefined, code);
+  const completion = useDestinationFeedback(confirmedRoom?.game, code);
+  const scoreReveal = useScoreReveal(
+    me || watching ? confirmedRoom?.game : undefined,
+    code,
+  );
   useEffect(() => {
     if (game?.phase === "finished") {
       setTab("scoreboard");
@@ -687,8 +691,19 @@ export default function App({ username }: { username: string }) {
     setSelected(null);
     setError("");
   };
+  const actionInFlight = useRef(false);
+  const [confirming, setConfirming] = useState(false);
+  useEffect(() => {
+    if (!busy) {
+      setConfirming(false);
+      return;
+    }
+    const timer = setTimeout(() => setConfirming(true), 250);
+    return () => clearTimeout(timer);
+  }, [busy]);
   async function run(fn: () => Promise<unknown>) {
-    if (busy) return;
+    if (actionInFlight.current) return;
+    actionInFlight.current = true;
     setBusy(true);
     setError("");
     try {
@@ -702,6 +717,7 @@ export default function App({ username }: { username: string }) {
             : "Something went wrong. Please try again.",
       );
     } finally {
+      actionInFlight.current = false;
       setBusy(false);
     }
   }
@@ -736,6 +752,7 @@ export default function App({ username }: { username: string }) {
           };
       }
       try {
+        if (a.type === "claim") cue("claim");
         await play({ code, revision, action: a });
       } catch (error) {
         if (a.type === "draw") pendingDraw.current = null;
@@ -745,7 +762,7 @@ export default function App({ username }: { username: string }) {
         setSelected(null);
         setFocus([]);
       }
-      if (["draw", "claim", "tickets"].includes(a.type))
+      if (["draw", "tickets"].includes(a.type))
         cue(a.type as "draw" | "claim" | "tickets");
     });
   }
@@ -897,6 +914,11 @@ export default function App({ username }: { username: string }) {
           </details>
         </nav>
       </header>
+      {confirming && connectedServer && room && (
+        <div className="move-confirmation" role="status">
+          Confirming move…
+        </div>
+      )}
       {!connectedServer && code && (
         <div className="connection-banner">
           <WifiOff size={15} />

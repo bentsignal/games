@@ -77,8 +77,8 @@ Sources: [Durable Objects pricing](https://developers.cloudflare.com/durable-obj
 
 Ticket to Ride now uses one SQLite Durable Object per room in the existing Grams
 Worker. The earlier Convex gameplay estimates are historical. Auth, room-creation
-limits, and completed-round statistics remain in Convex. Live moves and chat use
-HTTP commands to the Worker; updates use hibernating WebSockets. Browser countdowns
+limits, and completed-round statistics remain in Convex. Live moves, chat, and updates use
+the same hibernating WebSocket. Room creation uses one HTTP command. Browser countdowns
 remain local. Bot moves, turn expiry, chat cleanup, and result-delivery retries use
 alarms. New gameplay is not written to the old Convex room or message tables.
 

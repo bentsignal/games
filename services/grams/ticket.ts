@@ -43,7 +43,13 @@ type Data = {
   chatSeq: number;
   lastChat: Record<string, number>;
 };
-type Attachment = { id: string; expires: number };
+type Attachment = Identity & {
+  code: string;
+  expires: number;
+  lastRequest: number;
+  window: number;
+  count: number;
+};
 export async function ticketFetch(
   req: Request,
   env: TicketEnv,
@@ -301,6 +307,12 @@ export class TicketRoom extends DurableObject<TicketEnv> {
         this.ctx.acceptWebSocket(ws);
         ws.serializeAttachment({
           id: identity.id,
+          userId: identity.userId,
+          name: identity.name,
+          code: identity.code,
+          lastRequest: 0,
+          window: Date.now(),
+          count: 0,
           expires: Date.now() + 3600000,
         } satisfies Attachment);
         this.send(ws, { type: "state", room: this.view(identity.id) });
@@ -502,8 +514,73 @@ export class TicketRoom extends DurableObject<TicketEnv> {
       await this.persist();
     });
   }
-  webSocketMessage(ws: WebSocket) {
-    ws.close(1008, "Use room commands");
+  async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer) {
+    if (
+      typeof message !== "string" ||
+      new TextEncoder().encode(message).length > 4096
+    ) {
+      ws.close(1009, "Message too large");
+      return;
+    }
+    let frame: { type: string; request: number; args: Command };
+    try {
+      frame = JSON.parse(message);
+      if (
+        frame?.type !== "command" ||
+        !Number.isSafeInteger(frame.request) ||
+        frame.request < 1
+      )
+        throw new Error();
+    } catch {
+      ws.close(1008, "Invalid command");
+      return;
+    }
+    await this.ctx.blockConcurrencyWhile(async () => {
+      const identity = ws.deserializeAttachment() as Attachment;
+      if (!identity.userId || identity.expires <= Date.now()) {
+        ws.close(4001, "Sign in again");
+        return;
+      }
+      if (Date.now() - identity.window >= 1000) {
+        identity.window = Date.now();
+        identity.count = 0;
+      }
+      if (++identity.count > 100) {
+        ws.close(4008, "Please slow down");
+        return;
+      }
+      if (frame.request <= identity.lastRequest) {
+        this.send(ws, {
+          type: "reply",
+          request: frame.request,
+          error: "This command has already been received.",
+        });
+        return;
+      }
+      identity.lastRequest = frame.request;
+      ws.serializeAttachment(identity);
+      try {
+        validate(frame.args);
+        const result = await this.command(identity, frame.args);
+        // Send the authoritative view with the acknowledgement. The client can
+        // settle its optimistic action without waiting for a different channel.
+        this.send(ws, {
+          type: "reply",
+          request: frame.request,
+          result,
+          ...(["play", "manage", "join", "get"].includes(frame.args.kind)
+            ? { room: this.view(identity.id) }
+            : {}),
+        });
+      } catch (error) {
+        this.send(ws, {
+          type: "reply",
+          request: frame.request,
+          error: error instanceof Error ? error.message : "Please try again.",
+          room: this.view(identity.id),
+        });
+      }
+    });
   }
   webSocketClose(ws: WebSocket) {
     ws.close(1000, "Disconnected");

@@ -139,7 +139,23 @@ async function connect(id: string) {
   });
   ws.accept();
   sockets.push(ws);
-  return { ws, messages };
+  let sequence = 0;
+  return {
+    ws,
+    messages,
+    async command(args: unknown) {
+      const request = ++sequence;
+      ws.send(JSON.stringify({ type: "command", request, args }));
+      await wait(() =>
+        messages.some((m) => m.type === "reply" && m.request === request),
+      );
+      const reply = messages.find(
+        (m) => m.type === "reply" && m.request === request,
+      );
+      if (reply.error) throw new Error(reply.error);
+      return reply;
+    },
+  };
 }
 async function wait(predicate: () => boolean) {
   const deadline = Date.now() + 5000;
@@ -196,7 +212,7 @@ try {
   const a = await connect("Alice"),
     b = await connect("Bob"),
     spectator = await connect("Spectator");
-  await command("Alice", {
+  await a.command({
     kind: "manage",
     operation: "timer",
     turnSeconds: 30,
@@ -205,8 +221,33 @@ try {
     command("Bob", { kind: "manage", operation: "timer", turnSeconds: 60 }),
     /host/,
   );
+  const revisionBeforeDuplicate = (await read()).revision;
+  a.ws.send(
+    JSON.stringify({
+      type: "command",
+      request: 1,
+      args: { kind: "manage", operation: "bot" },
+    }),
+  );
+  await wait(() =>
+    a.messages.some((m) => m.error?.includes("already been received")),
+  );
+  assert.equal((await read()).revision, revisionBeforeDuplicate);
+  await assert.rejects(b.command({ kind: "manage", operation: "bot" }), /host/);
+  await assert.rejects(
+    spectator.command({ kind: "manage", operation: "bot" }),
+    /Not seated/,
+  );
+  await assert.rejects(
+    a.command({
+      kind: "play",
+      revision: revisionBeforeDuplicate,
+      action: { type: "claim", route: "r1", color: "red", wilds: -1 },
+    }),
+    /Invalid command/,
+  );
   const before = await read();
-  await command("Alice", {
+  await a.command({
     kind: "play",
     revision: before.revision,
     action: { type: "start" },
@@ -272,7 +313,7 @@ try {
     name: code,
     webSockets: "hibernate",
   });
-  await command("Alice", { kind: "send", text: "After hibernation" });
+  await a.command({ kind: "send", text: "After hibernation" });
   await wait(() =>
     b.messages.some(
       (m) => m.type === "chat" && m.message.text === "After hibernation",

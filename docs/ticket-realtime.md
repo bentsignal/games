@@ -21,14 +21,32 @@ mode. Both use the existing realtime secret with Ticket-specific audiences.
 Clients cannot choose their player identity or create a room with a connection
 ticket. Retrying the same creation ticket does not reset an existing room.
 
-The Worker accepts authenticated HTTP commands at `/ticket/<code>` and streams
-player-specific state and chat over a hibernating WebSocket at that path. It
-checks the configured Origin for both transports. Each state update hides other
-players' hands and tickets, including from spectators. Chat messages do not
-broadcast another game snapshot. The browser caches connection tickets briefly,
-reconnects with backoff, refreshes room and chat state after reconnecting, and
-renews long-lived connections. Interrupted HTTP commands are not automatically
-replayed. A player can refresh to see whether a move was accepted.
+After the HTTP room-creation request, the browser sends moves, lobby commands,
+chat, and history reads through its authenticated WebSocket at `/ticket/<code>`.
+The same socket streams private room updates and replies with request IDs. Its
+stored identity survives hibernation. Convex issues a ticket when the socket
+connects, not during normal moves. HTTP commands remain available for older
+clients and the CLI integration check.
+
+The Worker checks the configured Origin at connection time, validates commands,
+and rejects repeated request IDs on a connection. Replies to gameplay commands
+include an authoritative room view so an acknowledgement can settle a move even
+if its separate broadcast has not rendered yet. Repeated snapshots of the same
+revision do not rerender the board. Chat messages do not broadcast another game
+snapshot. Each view hides other players' hands and tickets.
+
+The browser reconnects with backoff, refreshes room and chat state, and renews
+long-lived connections. Interrupted or timed-out commands are not replayed.
+Reconnection reads the server's state, including any move accepted before the
+connection broke.
+
+React's built-in `useOptimistic` projects a valid route claim immediately using
+only visible information: the route, payment cards, trains, and route points.
+Server revisions supersede the prediction without applying the payment twice;
+rejection or interruption removes it. Drawn cards, turn advancement, final scores,
+and destination celebrations wait for confirmed state. A synchronous input guard
+prevents duplicate submissions, and slow acknowledgements show "Confirming move".
+No additional state-management library is needed.
 
 The room serializes commands and persists accepted changes before broadcasting.
 Revisions reject stale moves; initial ticket choices can arrive concurrently.
@@ -59,7 +77,9 @@ The existing Worker launcher isolates local SQLite storage by deployment.
   hibernation, chat, restart recovery, timer/bot alarms, and completed-result
   delivery across an outage, rematch, and restart.
 - `pnpm run test:e2e:smoke` exercises real development sign-in and two-browser
-  Ticket to Ride gameplay through the Worker.
+  Ticket to Ride gameplay through the Worker. It also holds socket replies to
+  verify optimistic placement, rejection rollback, and recovery with or without
+  server acceptance before disconnecting, with CPU throttling.
 - `pnpm run test:live` plays a full game through the local Worker with Convex
   accounts, then verifies rematch and leaving the room.
 - `pnpm run check` runs the repository checks, including Worker integration.

@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useOptimistic,
+  startTransition,
+} from "react";
 import { useConvex } from "convex/react";
 import { api } from "../../services/convex/convex/_generated/api";
 import type {
@@ -8,6 +16,8 @@ import type {
 } from "../../shared/ticketProtocol";
 import type { Action, Game } from "./engine";
 import type { Mode } from "./data";
+import { TicketSocket } from "./ticketSocket";
+import { optimisticRoom } from "./optimisticRoom";
 type RoomArgs = { code: string };
 type ChatPage = { messages: ChatMessage[]; more: boolean };
 const endpoint = () => {
@@ -20,7 +30,7 @@ export function useTicketRoom(code: string) {
   const activeCode = useRef(code);
   activeCode.current = code;
   const tableChanges = useRef<Promise<unknown>>(Promise.resolve());
-  const tickets = useRef(new Map<string, { token: string; expires: number }>());
+  const channel = useRef<{ code: string; requests: TicketSocket } | null>(null);
   const [snapshot, setSnapshot] = useState<{
     code: string;
     room: RoomView | null;
@@ -33,42 +43,19 @@ export function useTicketRoom(code: string) {
   }>({ code: "", messages: [], more: false });
   const chatRef = useRef(chat);
   chatRef.current = chat;
-  const ticket = useCallback(
-    async (roomCode: string) => {
-      const old = tickets.current.get(roomCode);
-      if (old && old.expires > Date.now()) return old.token;
-      const token = await client.mutation(api.ticket.connect, {
-        code: roomCode,
-      });
-      tickets.current.set(roomCode, { token, expires: Date.now() + 45000 });
-      return token;
-    },
-    [client],
+  const [room, addOptimisticMove] = useOptimistic(
+    snapshot?.code === code ? snapshot.room : undefined,
+    optimisticRoom,
   );
   const request = useCallback(
-    async <T>(
-      roomCode: string,
-      args: Command,
-      provided?: string,
-    ): Promise<T> => {
-      const token = provided ?? (await ticket(roomCode));
-      const response = await fetch(`${endpoint()}/ticket/${roomCode}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(args),
-        signal: AbortSignal.timeout(15000),
-      });
-      const data = await response.json();
-      if (!response.ok || data.error) {
-        if (response.status === 401) tickets.current.delete(roomCode);
-        throw new Error(data.error ?? "Game server unavailable.");
-      }
-      return data.result as T;
+    <T>(roomCode: string, args: Command): Promise<T> => {
+      if (channel.current?.code !== roomCode)
+        return Promise.reject(
+          new Error("Reconnecting. Please try again when connected."),
+        );
+      return channel.current.requests.request<T>(args);
     },
-    [ticket],
+    [],
   );
   const mergeChat = useCallback(
     (roomCode: string, messages: ChatMessage[], more?: boolean) => {
@@ -98,27 +85,47 @@ export function useTicketRoom(code: string) {
       retry: ReturnType<typeof setTimeout> | undefined,
       attempt = 0,
       lastMessage = Date.now();
+    let requests: TicketSocket | undefined;
     async function connect() {
       try {
-        const token = await ticket(code);
+        const token = await client.mutation(api.ticket.connect, { code });
         if (stopped) return;
         ws = new WebSocket(
           `${endpoint().replace(/^http/, "ws")}/ticket/${code}`,
           ["ticket", token],
         );
-        ws.onmessage = (e) => {
+        const socket = ws;
+        const current = new TicketSocket(socket);
+        requests = current;
+        socket.onmessage = (e) => {
           if (stopped) return;
           lastMessage = Date.now();
           if (e.data === "pong") return;
           const message = JSON.parse(e.data);
-          if (message.type === "state") {
-            setSnapshot({ code, room: message.room });
+          if (
+            message.type === "state" ||
+            (message.type === "reply" && "room" in message)
+          ) {
+            setSnapshot((old) =>
+              old?.code === code &&
+              old.room &&
+              message.room &&
+              old.room.revision >= message.room.revision
+                ? old
+                : { code, room: message.room },
+            );
             setConnection(code);
             attempt = 0;
           }
+          if (message.type === "reply") current.reply(message);
           if (message.type === "chat") mergeChat(code, [message.message]);
         };
-        ws.onopen = () => {
+        socket.onopen = () => {
+          if (stopped) {
+            socket.close();
+            return;
+          }
+          channel.current = { code, requests: current };
           lastMessage = Date.now();
           // Subscribe before loading history so messages sent during the read are merged.
           void request<ChatPage>(code, { kind: "chat" })
@@ -127,13 +134,15 @@ export function useTicketRoom(code: string) {
             })
             .catch(() => {});
         };
-        ws.onclose = () => {
+        socket.onclose = () => {
+          current.close();
+          if (channel.current?.requests === current) channel.current = null;
           if (!stopped) {
             setConnection("");
             queue();
           }
         };
-        ws.onerror = () => ws?.close();
+        socket.onerror = () => socket.close();
       } catch {
         if (!stopped) {
           setConnection("");
@@ -161,9 +170,11 @@ export function useTicketRoom(code: string) {
       clearTimeout(retry);
       clearInterval(ping);
       clearInterval(renew);
+      requests?.close();
+      if (channel.current?.requests === requests) channel.current = null;
       ws?.close();
     };
-  }, [code, ticket, request, mergeChat]);
+  }, [code, client, request, mergeChat]);
   const methods = useMemo(
     () => ({
       create: async (args: { mode: Mode; endingPreview?: boolean }) => {
@@ -171,15 +182,38 @@ export function useTicketRoom(code: string) {
           mode: args.mode,
           endingPreview: args.endingPreview,
         });
-        await request(created.code, { kind: "create" }, created.token);
+        // Room creation is the only HTTP command, before a room socket exists.
+        const response = await fetch(`${endpoint()}/ticket/${created.code}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${created.token}`,
+          },
+          body: JSON.stringify({ kind: "create" }),
+          signal: AbortSignal.timeout(15000),
+        });
+        const data = await response.json();
+        if (!response.ok || data.error)
+          throw new Error(data.error ?? "Could not create the room.");
         return created.code;
       },
       join: (args: RoomArgs) => request<string>(args.code, { kind: "join" }),
       play: (args: RoomArgs & { revision: number; action: Action }) =>
-        request(args.code, {
-          kind: "play",
-          revision: args.revision,
-          action: args.action,
+        new Promise<unknown>((resolve, reject) => {
+          startTransition(async () => {
+            addOptimisticMove(args);
+            try {
+              resolve(
+                await request(args.code, {
+                  kind: "play",
+                  revision: args.revision,
+                  action: args.action,
+                }),
+              );
+            } catch (error) {
+              reject(error);
+            }
+          });
         }),
       manage: (
         args: RoomArgs & {
@@ -196,7 +230,7 @@ export function useTicketRoom(code: string) {
           turnSeconds?: Game["turnSeconds"];
         },
       ) => {
-        // Preserve click order even when HTTP requests would arrive out of order.
+        // Preserve the order of setup actions and their acknowledgements.
         const task = tableChanges.current
           .catch(() => {})
           .then(() => request(args.code, { ...args, kind: "manage" }));
@@ -208,7 +242,7 @@ export function useTicketRoom(code: string) {
       get: (args: RoomArgs) =>
         request<RoomView | null>(args.code, { kind: "get" }),
     }),
-    [client, request],
+    [client, request, addOptimisticMove],
   );
   const loadMore = useCallback(
     (_count: number) => {
@@ -223,7 +257,8 @@ export function useTicketRoom(code: string) {
   );
   return {
     ...methods,
-    room: snapshot?.code === code ? snapshot.room : undefined,
+    room,
+    confirmedRoom: snapshot?.code === code ? snapshot.room : undefined,
     connectedServer: !code || connection === code,
     messages: chat.code === code ? chat.messages : [],
     chatStatus: chat.code === code && chat.more ? "CanLoadMore" : "Exhausted",
