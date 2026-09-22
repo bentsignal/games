@@ -23,6 +23,10 @@ concurrency:
 jobs:
   verify:
     name: Verify reviewed candidate
+    permissions:
+      # GitHub requires push access to read unpublished releases and their assets.
+      contents: write
+      actions: read
     if: >-
       github.ref == 'refs/heads/main' && github.actor == 'bentsignal' &&
       github.triggering_actor == 'bentsignal'
@@ -91,7 +95,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     permissions:
-      contents: read
+      # The post-approval verifier reads the same unpublished review bundle.
+      contents: write
       actions: read
     environment:
       name: Production
