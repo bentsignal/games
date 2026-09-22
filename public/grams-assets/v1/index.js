@@ -1,5 +1,4 @@
 const leave = document.getElementById("leave")
-const nameInput = document.getElementById("name-input")
 const playerList = document.getElementById("player-list-wrapper")
 const chatInput = document.getElementById("chat-input")
 const chat = document.getElementById("chat")
@@ -17,7 +16,6 @@ const volumeButton = document.getElementById("volume-button")
 const pfpButton = document.getElementById("pfp-button")
 const keybindsButton = document.getElementById("keybinds-button")
 
-import { validName } from "./utils.js"
 import { cfg } from "./cfg.js"
 import { states } from "./state.js"
 import Game from "./game.js"
@@ -55,30 +53,6 @@ const checkMessage = (message) => {
     return true
 }
 
-/*
-
-    Make request to server to join game
-
-*/
-const joinGame = () => {
-    joinErrors.innerHTML = ""
-    const name = nameInput.value
-    if (name.length == 0) {
-        joinErrors.innerHTML += `<p class="bad">Username must be at least 1 character long</p>`
-    }
-    else if (!validName(name)) {
-        joinErrors.innerHTML += `<p class="bad">Characters allowed: a-z, A-Z, 0-9, ., and _</p>`
-    }
-    else if (game.inGame) {
-        joinErrors.innerHTML += `<p class="bad">Already connected to the game</p>`
-    }
-    else {
-        socket.emit("requestJoin", {
-            name: name
-        })
-    }
-}
-
 const clearIntervals = () => {
     if (gameCountdown != 0) {
         clearInterval(gameCountdown)
@@ -88,17 +62,26 @@ const clearIntervals = () => {
     }
 }
 
-const leaveGame = () => {
-    socket.emit("leave")
+const resetLobby = () => {
     sound.music.pause()
     game.state.changeState(states.home)
     wordCount.innerText = "Words: 0"
     myScore.innerText = "Score: 0"
     clearIntervals()
     game.left()
+    game.reset()
+    game.word = ""
     renderPlayerList()
-    game.resetWordList()
+    document.getElementById("pre-game-waiting").style.display = "block"
+    document.getElementById("pre-game-countdown").style.display = "none"
+    chat.innerHTML = ""
+    chatInput.value = ""
 }
+const leaveGame = () => {
+    socket.emit("leave")
+    resetLobby()
+}
+socket.on("lobbyReset", resetLobby)
 
 /*
 
@@ -171,7 +154,7 @@ const startCountdown = (letters) => {
     const countdownText = document.getElementById("pre-game-countdown")
     message.style.display = "none"
     countdownText.style.display = "block"
-    sound.start.play()
+    sound.start.play().catch(() => {})
     let countdown = 3
     countdownText.innerText = ""
     gameCountdown = setInterval(() => {
@@ -204,7 +187,7 @@ const startTimer = (countdown) => {
             timer.innerText = `0:${countdown}`
         }
         if (countdown == 4) {
-            sound.fiveSeconds.play()
+            sound.fiveSeconds.play().catch(() => {})
         }
         countdown -= 1
     }, 1000)
@@ -379,12 +362,7 @@ document.addEventListener("keydown", (evt) => {
             sendMessage()
         }
     }
-    else if (document.activeElement == nameInput) {
-        // name
-        if (evt.key == "Enter") {
-            joinGame()
-        }
-    }
+
 })
 
 document.getElementById("emote-button").addEventListener('click', () => {
@@ -458,9 +436,17 @@ socket.on("connect_error", (error) => {
     popups.lostConnection.show()
 })
 
-socket.on("joinAccepted", () => {
-    sound.music.play()
-    game.joined(nameInput.value)
+socket.on("joinAccepted", (data) => {
+    sound.music.play().catch(() => {
+        const retryMusic = () => {
+            document.removeEventListener("pointerdown", retryMusic)
+            document.removeEventListener("keydown", retryMusic)
+            if (game.inGame) sound.music.play().catch(() => {})
+        }
+        document.addEventListener("pointerdown", retryMusic, { once: true })
+        document.addEventListener("keydown", retryMusic, { once: true })
+    })
+    game.joined(data.name)
     game.state.changeState(states.preGame)
     setUsername()
     socket.emit("requestPlayers")
@@ -505,7 +491,7 @@ socket.on("newMessage", (data) => {
             `
         }
         else {
-            sound.chat.play()
+            sound.chat.play().catch(() => {})
             chat.innerHTML += `
                 <p id="message-${game.state.messageCount}">
                     <span class="chat">${sender}: </span>
@@ -519,7 +505,7 @@ socket.on("newMessage", (data) => {
 
 socket.on("emoteReceived", (data) => {
     if (game.inGame) {
-        sound.emote.play()
+        sound.emote.play().catch(() => {})
         const emote = data.emote
         const id = data.id
         const emoteElement = document.getElementById(`${id}-emote`)
@@ -572,7 +558,7 @@ socket.on("startGame", (data) => {
 })
 
 socket.on("wordAccept", (data) => {
-    sound.validWord.play()
+    sound.validWord.play().catch(() => {})
     const word = data.word
     const me = data.player
     const points = data.points
@@ -590,7 +576,7 @@ socket.on("wordAccept", (data) => {
 
 socket.on("wordDecline", (data) => {
     game.clearPlayedLetters()
-    sound.invalidWord.play()
+    sound.invalidWord.play().catch(() => {})
     declinedAnimation()
 })
 
@@ -599,11 +585,11 @@ socket.on("updatePlayerScore", (data) => {
 })
 
 socket.on("youWon", () => {
-    sound.win.play()
+    sound.win.play().catch(() => {})
 })
 
 socket.on("youLost", () => {
-    sound.lose.play()
+    sound.lose.play().catch(() => {})
 })
 
 socket.on("gameOver", (data) => {
@@ -639,5 +625,3 @@ socket.on("resumeGame", data => {
     wordCount.innerText = `Words: ${data.me?.words.length || 0}`
     myScore.innerText = `Score: ${data.me?.score || 0}`
 })
-
-nameInput.addEventListener("click", () => { if (nameInput.readOnly && !game.inGame) joinGame() })

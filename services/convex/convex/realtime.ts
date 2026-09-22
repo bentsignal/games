@@ -2,6 +2,7 @@ import { mutation } from "./_generated/server";
 import { v, ConvexError } from "convex/values";
 import { requirePlayer } from "./users";
 import { signTicket, verifyTicket } from "../../../shared/realtimeAuth";
+import { gramsCodePattern } from "../../../shared/gramsRooms";
 function secret() {
   const value = process.env.GRAMS_REALTIME_SECRET;
   if (!value)
@@ -12,13 +13,17 @@ function secret() {
 }
 // A narrowly scoped, one-minute connection ticket. The Convex ID token never leaves Convex.
 export const connect = mutation({
-  args: {},
-  handler: async (ctx) => {
+  args: { code: v.optional(v.string()), create: v.optional(v.boolean()) },
+  handler: async (ctx, { code, create }) => {
     const player = await requirePlayer(ctx);
+    if (code !== undefined && !gramsCodePattern.test(code))
+      throw new ConvexError("Enter an eight-character Grams lobby code.");
+    if (create && !code) throw new ConvexError("Lobby code required.");
     return signTicket(
       {
         iss: "games-realtime",
-        aud: "grams:friends",
+        aud: `grams:${code ?? "friends"}`,
+        create: create === true,
         exp: Math.floor(Date.now() / 1000) + 60,
         ...player,
       },

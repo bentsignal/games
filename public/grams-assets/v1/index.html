@@ -62,19 +62,28 @@
         <div id="stars-wrapper">
         </div>
     </div>
+    <nav id="lobby-navigation" aria-label="Grams navigation">
+        <button id="invite-friends" type="button" hidden></button>
+        <span id="invite-status" role="status"></span>
+    </nav>
     <div id="home-container">
         <div id="home-wrapper">
             <div id="home-header-wrapper">
-                <img id="home-logo" src="./images/logo_600.png">
+                <img id="home-logo" src="./images/logo_600.png" alt="Grams">
             </div>
-            <div id="connection-container">
+            <section id="connection-container" aria-label="Grams lobbies">
                 <div id="connection-wrapper">
-                    <input id="name-input" placeholder="enter name, then hit enter" autocomplete="off"/>
-                    <div id="join-errors">
-                    </div>
+                    <button id="create-lobby" type="button" aria-label="Create a lobby"><span class="button-label">Create a lobby</span><span class="lobby-spinner" aria-hidden="true"></span></button>
+                    <div id="lobby-divider">or join a lobby</div>
+                    <form id="join-lobby">
+                        <div id="lobby-code-row">
+                            <input id="lobby-code" aria-label="Lobby code" placeholder="ABCD2345" maxlength="8" autocomplete="off" autocapitalize="characters" spellcheck="false" />
+                            <button id="join-lobby-button" type="submit" aria-label="Join"><span class="button-label">Join</span><span class="lobby-spinner" aria-hidden="true"></span></button>
+                        </div>
+                    </form>
+                    <div id="join-errors" role="alert"></div>
                 </div>
-                
-            </div>
+            </section>
         </div>
     </div>
     <div id="pre-game-container">

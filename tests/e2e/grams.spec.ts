@@ -18,16 +18,22 @@ test("Grams preserves its interface and plays a complete round with two accounts
   try {
     await a.goto(baseURL! + "/grams");
     await signIn(a, "Grams_A_QA");
+    await a
+      .frameLocator('iframe[title="Grams"]')
+      .getByRole("button", { name: "Create a lobby", exact: true })
+      .click();
+    await expect(a).toHaveURL(/\/grams\/room\/[A-Z2-9]{8}$/);
+    const invitation = a.url();
     const fa = a.frameLocator('iframe[title="Grams"]');
-    await expect(fa.locator("#name-input")).toHaveValue("Grams_A_QA");
+    await expect(fa.locator("#name-input")).toHaveCount(0);
     await a.screenshot({ path: "/tmp/grams-home.png" });
-    await fa.locator("#name-input").press("Enter");
     await expect(fa.locator("#start")).toBeVisible();
-    await b.goto(baseURL! + "/grams");
+    await b.goto(invitation);
     await signIn(b, "Grams_B_QA");
     const fb = b.frameLocator('iframe[title="Grams"]');
-    await expect(fb.locator("#name-input")).toHaveValue("Grams_B_QA");
-    await fb.locator("#name-input").press("Enter");
+    await expect(fb.locator("#player-list-wrapper")).toContainText(
+      "Grams_B_QA",
+    );
     await expect(fa.locator("#player-list-wrapper")).toContainText(
       "Grams_B_QA",
     );
@@ -76,8 +82,7 @@ test("Grams preserves its interface and plays a complete round with two accounts
     );
     await a.screenshot({ path: "/tmp/grams-playing.png" });
     await a.reload();
-    await expect(fa.locator("#name-input")).toHaveValue("Grams_A_QA");
-    await fa.locator("#name-input").press("Enter");
+    await expect(fa.locator("#name-input")).toHaveCount(0);
     await expect(fa.locator("#wordCount")).toHaveText("Words: 1");
     await expect(fa.locator(".letter-available.filled")).toHaveCount(6);
 
@@ -154,9 +159,11 @@ test("hub links to both games with one account", async ({ page }) => {
     page.getByRole("navigation", { name: "Choose a game" }).getByRole("link"),
   ).toHaveCount(1);
   await page.getByRole("link", { name: "Grams", exact: true }).click();
-  await expect(page.frameLocator("iframe").locator("#name-input")).toHaveValue(
-    "Hub_QA",
-  );
+  await expect(
+    page
+      .frameLocator("iframe")
+      .getByRole("button", { name: "Create a lobby", exact: true }),
+  ).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.locator(".platform-header .brand")).toHaveText("Grams");
   const header = await page.locator(".platform-header").boundingBox();
@@ -175,4 +182,186 @@ test("hub links to both games with one account", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "Sign in (dev)" }),
   ).toBeVisible();
+});
+
+test("Grams preserves its welcome screen, joins automatically, and keeps lobbies separate", async ({
+  browser,
+  baseURL,
+}) => {
+  const hostContext = await browser.newContext();
+  const friendContext = await browser.newContext();
+  const host = await hostContext.newPage();
+  const friend = await friendContext.newPage();
+  const frame = host.frameLocator('iframe[title="Grams"]');
+  const friendFrame = friend.frameLocator('iframe[title="Grams"]');
+  const errors: string[] = [];
+  host.on("pageerror", (error) => errors.push(error.message));
+  friend.on("pageerror", (error) => errors.push(error.message));
+  try {
+    await host.goto(baseURL! + "/grams");
+    await signIn(host, "Grams_Lobbies_Host_QA");
+    await expect(
+      frame.getByRole("button", { name: "Create a lobby", exact: true }),
+    ).toBeVisible();
+    await expect(
+      frame.locator(
+        "#connection-wrapper h1, #lobby-account, #lobby-size, #lobby-status, #join-lobby label",
+      ),
+    ).toHaveCount(0);
+    await expect(frame.locator("#name-input")).toHaveCount(0);
+    await expect(frame.locator("#world")).toBeVisible();
+    await expect(frame.locator("#sunset")).toHaveCSS(
+      "animation-name",
+      "sunset-sky",
+    );
+    await expect(frame.locator("#home-logo")).toBeVisible();
+    await host.setViewportSize({ width: 390, height: 844 });
+    await expect(
+      frame.getByRole("button", { name: "Create a lobby", exact: true }),
+    ).toBeInViewport();
+    await expect(
+      frame.getByRole("button", { name: "Join", exact: true }),
+    ).toBeInViewport();
+    await host.screenshot({ path: "/tmp/grams-lobbies-mobile.png" });
+    await host.setViewportSize({ width: 1440, height: 1000 });
+    const logo = await frame.locator("#home-logo").boundingBox();
+    const form = await frame.locator("#connection-container").boundingBox();
+    expect(logo!.x + logo!.width).toBeLessThan(form!.x);
+    await host.screenshot({ path: "/tmp/grams-lobbies-desktop.png" });
+    let navigations = 0;
+    host.on("request", (request) => {
+      if (request.isNavigationRequest()) navigations++;
+    });
+    await hostContext.setOffline(true);
+    await frame
+      .getByRole("button", { name: "Create a lobby", exact: true })
+      .click();
+    await expect(frame.locator("#create-lobby")).toHaveAttribute(
+      "aria-busy",
+      "true",
+    );
+    await expect(frame.locator("#create-lobby .lobby-spinner")).toBeVisible();
+    await expect(frame.locator("#join-lobby-button")).toBeDisabled();
+    await host.screenshot({ path: "/tmp/grams-lobby-loading.png" });
+    expect(navigations).toBe(0);
+    await hostContext.setOffline(false);
+    await expect(host).toHaveURL(/\/grams\/room\/[A-Z2-9]{8}$/);
+    const firstCode = new URL(host.url()).pathname.split("/").at(-1)!;
+    await expect(frame.locator("#player-list-wrapper")).toContainText(
+      "Grams_Lobbies_Host_QA",
+    );
+    await expect(frame.locator("#home-container")).toBeHidden();
+    const inviteBounds = await frame.locator("#invite-friends").boundingBox();
+    const playersBounds = await frame
+      .locator("#player-list-wrapper")
+      .boundingBox();
+    expect(inviteBounds!.x).toBeGreaterThan(
+      playersBounds!.x + playersBounds!.width,
+    );
+    await host.screenshot({ path: "/tmp/grams-lobby-in-game.png" });
+    await frame
+      .getByRole("button", { name: `Invite friends · ${firstCode}` })
+      .click();
+    await expect(frame.locator("#invite-status")).toContainText(
+      /Link copied|address bar/,
+    );
+
+    await friend.goto(baseURL! + "/grams");
+    await signIn(friend, "Grams_Lobbies_Friend_QA");
+    await expect(
+      friendFrame.getByLabel("Lobby code", { exact: true }),
+    ).toBeVisible();
+    friend.on("request", (request) => {
+      if (request.isNavigationRequest()) navigations++;
+    });
+    await friendFrame.getByLabel("Lobby code", { exact: true }).fill("bad");
+    await friendFrame
+      .getByRole("button", { name: "Join", exact: true })
+      .click();
+    await expect(friendFrame.getByRole("alert")).toContainText(
+      "eight-character",
+    );
+    await friendFrame
+      .getByLabel("Lobby code", { exact: true })
+      .fill("ZZZZZZZZ");
+    await friendFrame
+      .getByRole("button", { name: "Join", exact: true })
+      .click();
+    await expect(friendFrame.getByRole("alert")).toContainText(
+      "Lobby not found",
+    );
+    await friendFrame
+      .getByLabel("Lobby code", { exact: true })
+      .fill(firstCode.toLowerCase());
+    await friendFrame
+      .getByRole("button", { name: "Join", exact: true })
+      .click();
+    await expect(friendFrame.locator("#player-list-wrapper")).toContainText(
+      "Grams_Lobbies_Friend_QA",
+    );
+    await expect(frame.locator("#player-list-wrapper")).toContainText(
+      "Grams_Lobbies_Friend_QA",
+    );
+    await frame.locator("#chat-input").fill("First lobby conversation");
+    await frame.locator("#chat-input").press("Enter");
+    await expect(friendFrame.locator("#chat")).toContainText(
+      "First lobby conversation",
+    );
+    await friendFrame.locator("#leave").click();
+    await expect(friend).toHaveURL(/\/grams$/);
+    await friendFrame
+      .getByRole("button", { name: "Create a lobby", exact: true })
+      .click();
+    await expect(friend).toHaveURL(/\/grams\/room\/[A-Z2-9]{8}$/);
+    expect(friend.url()).not.toEqual(host.url());
+    await expect(friendFrame.locator("#start")).toBeVisible();
+    await expect(friendFrame.locator("#chat")).not.toContainText(
+      "First lobby conversation",
+    );
+    await expect(friendFrame.locator("#player-list-wrapper")).not.toContainText(
+      "Grams_Lobbies_Host_QA",
+    );
+    await frame.locator("#chat-input").fill("Private to the first lobby");
+    await frame.locator("#chat-input").press("Enter");
+    await expect(frame.locator("#chat")).toContainText(
+      "Private to the first lobby",
+    );
+    await expect(friendFrame.locator("#chat")).not.toContainText(
+      "Private to the first lobby",
+    );
+    await frame.locator("#leave").click();
+    await expect(host).toHaveURL(/\/grams$/);
+    await expect(
+      frame.getByRole("button", { name: "Create a lobby", exact: true }),
+    ).toBeVisible();
+    await friendFrame.locator("#leave").click();
+    await expect(friend).toHaveURL(/\/grams$/);
+    expect(navigations).toBe(0);
+    await host.goBack();
+    await expect(frame.locator("#start")).toBeVisible();
+    await host.goForward();
+    await expect(
+      frame.getByRole("button", { name: "Create a lobby", exact: true }),
+    ).toBeEnabled();
+    await frame
+      .getByRole("button", { name: "Create a lobby", exact: true })
+      .click();
+    await frame.locator("#start").click();
+    await expect(frame.locator("#pre-game-countdown")).toBeVisible();
+    await frame.locator("#leave").click();
+    await frame
+      .getByRole("button", { name: "Create a lobby", exact: true })
+      .click();
+    await expect(frame.locator("#pre-game-waiting")).toBeVisible();
+    await expect(frame.locator("#pre-game-countdown")).toBeHidden();
+    await frame.locator("#start").click();
+    await expect(frame.locator(".letter-available.filled")).toHaveCount(6);
+    await frame.locator("#leave").click();
+    await expect(host).toHaveURL(/\/grams$/);
+    expect(navigations).toBe(0);
+    expect(errors).toEqual([]);
+  } finally {
+    await hostContext.close();
+    await friendContext.close();
+  }
 });
