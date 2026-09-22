@@ -6,9 +6,15 @@
   "workers_dev": true,
   "observability": { "enabled": false },
   "durable_objects": {
-    "bindings": [{ "name": "GRAMS", "class_name": "GramsRoom" }],
+    "bindings": [
+      { "name": "GRAMS", "class_name": "GramsRoom" },
+      { "name": "TICKET", "class_name": "TicketRoom" },
+    ],
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["GramsRoom"] }],
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["GramsRoom"] },
+    { "tag": "v2", "new_sqlite_classes": ["TicketRoom"] },
+  ],
   "vars": {
     "CONVEX_URL": "https://api.games.bentsignal.com",
     "ALLOWED_ORIGINS": "https://games.bentsignal.com",
@@ -17,7 +23,10 @@
     "preview": {
       "name": "games-grams-preview",
       "durable_objects": {
-        "bindings": [{ "name": "GRAMS", "class_name": "GramsRoom" }],
+        "bindings": [
+          { "name": "GRAMS", "class_name": "GramsRoom" },
+          { "name": "TICKET", "class_name": "TicketRoom" },
+        ],
       },
       "vars": {
         "CONVEX_URL": "https://chatty-okapi-416.convex.cloud",
@@ -27,7 +36,10 @@
     "development": {
       "name": "games-grams-development",
       "durable_objects": {
-        "bindings": [{ "name": "GRAMS", "class_name": "GramsRoom" }],
+        "bindings": [
+          { "name": "GRAMS", "class_name": "GramsRoom" },
+          { "name": "TICKET", "class_name": "TicketRoom" },
+        ],
       },
       "vars": {
         "CONVEX_URL": "http://127.0.0.1:1",

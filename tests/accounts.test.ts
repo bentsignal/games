@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { convexTest } from "convex-test";
 import schema from "../services/convex/convex/schema";
-import { api } from "../services/convex/convex/_generated/api";
+import { api, internal } from "../services/convex/convex/_generated/api";
 import { saveResult } from "../services/convex/convex/results";
 import { endingPreview } from "../src/game/ending-preview";
 import { applyAction } from "../src/game/engine";
@@ -11,26 +11,34 @@ describe("Google account game access", () => {
   it("requires authentication and onboarding even with a legacy session token", async () => {
     const t = convexTest(schema, modules);
     await expect(
-      t.mutation(api.rooms.create, { token, name: "Guest", mode: "mega" }),
+      t.mutation(internal.rooms.create, { token, name: "Guest", mode: "mega" }),
     ).rejects.toThrow("Sign in");
     await expect(
-      t.query(api.rooms.get, { token, code: "ABCDEFGH" }),
+      t.query(internal.rooms.get, { token, code: "ABCDEFGH" }),
     ).rejects.toThrow("Sign in");
     await expect(
-      t.mutation(api.rooms.join, { token, code: "ABCDEFGH", name: "Guest" }),
+      t.mutation(internal.rooms.join, {
+        token,
+        code: "ABCDEFGH",
+        name: "Guest",
+      }),
     ).rejects.toThrow("Sign in");
     const id = await t.run((ctx) => ctx.db.insert("users", {}));
     const user = t.withIdentity({ subject: id });
     await expect(
-      user.mutation(api.rooms.create, { token, name: "Guest", mode: "mega" }),
+      user.mutation(internal.rooms.create, {
+        token,
+        name: "Guest",
+        mode: "mega",
+      }),
     ).rejects.toThrow("username");
     await user.mutation(api.users.onboard, { username: "Shawn" });
-    const code = await user.mutation(api.rooms.create, {
+    const code = await user.mutation(internal.rooms.create, {
       token,
       name: "Spoofed",
       mode: "mega",
     });
-    const room = await user.query(api.rooms.get, { token, code });
+    const room = await user.query(internal.rooms.get, { token, code });
     expect(room?.game?.me?.name).toBe("Shawn");
     const otherId = await t.run((ctx) => ctx.db.insert("users", {}));
     const other = t.withIdentity({ subject: otherId });
@@ -38,7 +46,7 @@ describe("Google account game access", () => {
       other.mutation(api.users.onboard, { username: "shawn" }),
     ).rejects.toThrow("taken");
     await other.mutation(api.users.onboard, { username: "Friend" });
-    const spectator = (await other.query(api.rooms.get, { token, code }))!
+    const spectator = (await other.query(internal.rooms.get, { token, code }))!
       .game!;
     expect(spectator.me).toBeNull();
     expect(spectator.revealed).toEqual({});
@@ -46,26 +54,30 @@ describe("Google account game access", () => {
     expect(spectator.players[0]).not.toHaveProperty("tickets");
     expect(spectator).not.toHaveProperty("deck");
     await expect(
-      other.mutation(api.rooms.manage, { token, code, operation: "bot" }),
+      other.mutation(internal.rooms.manage, { token, code, operation: "bot" }),
     ).rejects.toThrow("Not seated");
     await expect(
-      other.mutation(api.rooms.play, {
+      other.mutation(internal.rooms.play, {
         token,
         code,
         revision: 0,
         action: { type: "start" },
       }),
     ).rejects.toThrow();
-    await other.mutation(api.rooms.send, { token, code, text: "Watching!" });
-    const chat = await other.query(api.rooms.chat, {
+    await other.mutation(internal.rooms.send, {
+      token,
+      code,
+      text: "Watching!",
+    });
+    const chat = await other.query(internal.rooms.chat, {
       token,
       code,
       paginationOpts: { numItems: 50, cursor: null },
     });
     expect(chat.page[0].name).toBe("Friend");
-    await other.mutation(api.rooms.join, { token, code, name: "Spoofed" });
+    await other.mutation(internal.rooms.join, { token, code, name: "Spoofed" });
     expect(
-      (await other.query(api.rooms.get, { token, code }))?.game?.me?.name,
+      (await other.query(internal.rooms.get, { token, code }))?.game?.me?.name,
     ).toBe("Friend");
   });
   it("retains more than 100 messages, paginates them, and still rejects spam", async () => {
@@ -73,7 +85,7 @@ describe("Google account game access", () => {
     const id = await t.run((ctx) => ctx.db.insert("users", {}));
     const user = t.withIdentity({ subject: id });
     await user.mutation(api.users.onboard, { username: "ChatHistory" });
-    const code = await user.mutation(api.rooms.create, {
+    const code = await user.mutation(internal.rooms.create, {
       token,
       name: "ignored",
       mode: "mega",
@@ -92,21 +104,21 @@ describe("Google account game access", () => {
           time: i,
         });
     });
-    await user.mutation(api.rooms.send, { token, code, text: "Latest" });
+    await user.mutation(internal.rooms.send, { token, code, text: "Latest" });
     await expect(
-      user.mutation(api.rooms.send, { token, code, text: "Spam" }),
+      user.mutation(internal.rooms.send, { token, code, text: "Spam" }),
     ).rejects.toThrow("slow");
     expect(
       await t.run((ctx) => ctx.db.query("messages").collect()),
     ).toHaveLength(111);
-    const first = await user.query(api.rooms.chat, {
+    const first = await user.query(internal.rooms.chat, {
       token,
       code,
       paginationOpts: { numItems: 50, cursor: null },
     });
     expect(first.page).toHaveLength(50);
     expect(first.isDone).toBe(false);
-    const second = await user.query(api.rooms.chat, {
+    const second = await user.query(internal.rooms.chat, {
       token,
       code,
       paginationOpts: { numItems: 100, cursor: first.continueCursor },

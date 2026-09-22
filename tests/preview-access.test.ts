@@ -28,14 +28,12 @@ test("preview denies existing players and onboarding without a verified invitati
     user.mutation(api.users.onboard, { username: "Existing" }),
   ).rejects.toThrow("Preview access");
   await expect(
-    user.mutation(api.rooms.create, {
-      token: "a".repeat(64),
-      name: "Player",
+    user.mutation(api.ticket.create, {
       mode: "mega",
     }),
   ).rejects.toThrow("Preview access");
   await expect(
-    user.query(api.rooms.get, { token: "a".repeat(64), code: "ABCDEFGH" }),
+    user.mutation(api.ticket.connect, { code: "ABCDEFGH" }),
   ).rejects.toThrow("Preview access");
   await expect(user.query(api.grams.view, {})).rejects.toThrow(
     "Preview access",
@@ -71,9 +69,7 @@ test("Google sign-in creates an identifiable account but only database approval 
   expect((await user.query(api.users.me, {}))?.previewAccessDenied).toBe(false);
   await user.mutation(api.users.onboard, { username: "Owner" });
   await expect(
-    user.mutation(api.rooms.create, {
-      token: "a".repeat(64),
-      name: "Player",
+    user.mutation(api.ticket.create, {
       mode: "mega",
     }),
   ).resolves.toBeTruthy();

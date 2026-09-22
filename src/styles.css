@@ -2115,3 +2115,16 @@ small {
     max-height: 100%;
   }
 }
+
+.move-confirmation {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  z-index: 100;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: #302521;
+  color: #fff4da;
+  pointer-events: none;
+  font-size: 14px;
+}

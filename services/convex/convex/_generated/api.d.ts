@@ -15,6 +15,7 @@ import type * as realtime from "../realtime.js";
 import type * as results from "../results.js";
 import type * as rooms from "../rooms.js";
 import type * as testing from "../testing.js";
+import type * as ticket from "../ticket.js";
 import type * as users from "../users.js";
 
 import type {
@@ -31,6 +32,7 @@ declare const fullApi: ApiFromModules<{
   results: typeof results;
   rooms: typeof rooms;
   testing: typeof testing;
+  ticket: typeof ticket;
   users: typeof users;
 }>;
 
