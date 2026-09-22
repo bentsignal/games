@@ -274,7 +274,8 @@ function endTurn(g: Game) {
   g.turn = (g.turn + 1) % g.players.length;
   g.turnNumber++;
 }
-export function routeAvailable(g: Game, p: Player, r: Route): boolean {
+type RouteState = { claimed: Game["claimed"]; players: { id: string }[] };
+export function routeAvailable(g: RouteState, p: Player, r: Route): boolean {
   if (g.claimed[r.id] || p.trains < r.length) return false;
   const sibling = ROUTES.find(
     (s) =>
@@ -285,7 +286,7 @@ export function routeAvailable(g: Game, p: Player, r: Route): boolean {
   return !sibling || (g.players.length >= 4 && g.claimed[sibling.id] !== p.id);
 }
 export function paymentOptions(
-  g: Game,
+  g: RouteState,
   p: Player,
   r: Route,
 ): { color: Color; wilds: number }[] {

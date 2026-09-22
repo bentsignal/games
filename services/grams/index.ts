@@ -1,3 +1,5 @@
+import { ticketFetch, type TicketEnv } from "./ticket";
+export { TicketRoom } from "./ticket";
 import { DurableObject } from "cloudflare:workers";
 import { signTicket, verifyTicket } from "../../shared/realtimeAuth";
 import {
@@ -9,7 +11,7 @@ import {
   type State,
   type Identity,
 } from "./engine";
-interface Env {
+interface Env extends TicketEnv {
   GRAMS: DurableObjectNamespace<GramsRoom>;
   GRAMS_REALTIME_SECRET: string;
   CONVEX_URL: string;
@@ -31,6 +33,7 @@ type Data = {
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
+    if (url.pathname.startsWith("/ticket/")) return ticketFetch(req, env);
     if (url.pathname === "/health")
       return Response.json({
         ok: true,
