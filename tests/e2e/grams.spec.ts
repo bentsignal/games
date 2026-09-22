@@ -139,6 +139,43 @@ test("Grams preserves its interface and plays a complete round with two accounts
     await cb.close();
   }
 });
+test("Grams preserves the first lobby click while scripts load", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await signIn(page, "Grams_Load_QA");
+  let releaseScript!: () => void;
+  const scriptReady = new Promise<void>((resolve) => {
+    releaseScript = resolve;
+  });
+  await page.route("**/grams-assets/v1/index.js", async (route) => {
+    await scriptReady;
+    await route.continue();
+  });
+  try {
+    await page.goto("/grams", { waitUntil: "commit" });
+    const frame = page.frameLocator('iframe[title="Grams"]');
+    const create = frame.getByRole("button", {
+      name: "Create a lobby",
+      exact: true,
+    });
+    await expect(create).toBeDisabled();
+    await expect(
+      frame.getByRole("button", { name: "Join", exact: true }),
+    ).toBeDisabled();
+    await expect(
+      frame.getByRole("textbox", { name: "Lobby code" }),
+    ).toBeDisabled();
+    releaseScript();
+    await create.click();
+    await expect(page).toHaveURL(/\/grams\/room\/[A-Z2-9]{8}$/);
+    await expect(frame.locator("#start")).toBeVisible();
+    await frame.locator("#leave").click();
+  } finally {
+    releaseScript();
+  }
+});
+
 test("hub links to both games with one account", async ({ page }) => {
   await page.goto("/");
   await signIn(page, "Hub_QA");
@@ -179,9 +216,14 @@ test("hub links to both games with one account", async ({ page }) => {
   ).toBeVisible();
   await page.locator(".platform-actions .account-menu summary").click();
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
-  await expect(
-    page.getByRole("heading", { name: "Sign in (dev)" }),
-  ).toBeVisible();
+  if (process.env.PLAYWRIGHT_PREVIEW === "1")
+    await expect(
+      page.getByRole("button", { name: "Sign in with Google" }),
+    ).toBeVisible();
+  else
+    await expect(
+      page.getByRole("heading", { name: "Sign in (dev)" }),
+    ).toBeVisible();
 });
 
 test("Grams preserves its welcome screen, joins automatically, and keeps lobbies separate", async ({
