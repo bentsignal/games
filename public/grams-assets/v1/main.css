@@ -27,8 +27,6 @@ body {
 .wrapper {
     background-color: var(--charcoal);
     opacity: 100%;
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
     box-shadow: 0 0 10px rgba(0,0,0,.5);
 }
 
@@ -960,3 +958,7 @@ select:focus {
 }
 button[aria-busy="true"] .lobby-spinner { display: block; }
 @keyframes lobby-spin { to { transform: rotate(360deg); } }
+
+.word-declined .empty {
+    background-color: red;
+}

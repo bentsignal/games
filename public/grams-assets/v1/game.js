@@ -86,32 +86,29 @@ class Game {
     updateDeck = () => {
         const availableWrapper = document.getElementById("letters-available-wrapper")
         const usedWrapper = document.getElementById("letters-used-wrapper")
-        availableWrapper.innerHTML = ""
-        usedWrapper.innerHTML = ""
-        if (this.inGame && this.midGame) {
-            for (let i = 1; i <= this.wordSize; i++) {
-                // letters available
-                if (this.lettersAvailable[i-1].available) {
-                    availableWrapper.innerHTML += `
-                        <p id="letters-available-${i}" class="letter-available filled">${this.lettersAvailable[i-1].value}</p>
-                    `
-                }
-                else {
-                    availableWrapper.innerHTML += `
-                        <p id="letters-available-${i}" class="letter-available empty"></p>
-                    `
-                }
-                // letters used
-                if (i <= this.lettersUsed.length) {
-                    usedWrapper.innerHTML += `
-                        <p id="letter-used-${i}" class="letter-used filled">${this.lettersUsed[i-1]}</p>
-                    `
-                }
-                else {
-                    usedWrapper.innerHTML += `
-                        <p id="letter-used-${i}" class="letter-used empty"></p>
-                    `
-                }
+        const size = this.inGame && this.midGame ? this.lettersAvailable.length : 0
+        // Keep the tile nodes alive while typing. Only changed text/classes need painting.
+        for (const [wrapper, prefix, className] of [
+            [availableWrapper, "letters-available", "letter-available"],
+            [usedWrapper, "letter-used", "letter-used"]
+        ]) {
+            if (wrapper.children.length !== size) {
+                const tiles = Array.from({ length: size }, (_, i) => {
+                    const tile = document.createElement("p")
+                    tile.id = `${prefix}-${i + 1}`
+                    tile.className = className
+                    return tile
+                })
+                wrapper.replaceChildren(...tiles)
+            }
+            for (let i = 0; i < size; i++) {
+                const value = wrapper === availableWrapper
+                    ? (this.lettersAvailable[i].available ? this.lettersAvailable[i].value : "")
+                    : (this.lettersUsed[i] || "")
+                const tile = wrapper.children[i]
+                const nextClass = `${className} ${value ? "filled" : "empty"}`
+                if (tile.textContent !== value) tile.textContent = value
+                if (tile.className !== nextClass) tile.className = nextClass
             }
         }
     }
@@ -140,6 +137,7 @@ class Game {
     }
 
     playLetter = (key) => {
+        key = key.toLowerCase()
         let found = false
         for (let i = 0; i < this.lettersAvailable.length; i++) {
             if (!found && this.lettersAvailable[i].value == key && this.lettersAvailable[i].available) {
