@@ -14,7 +14,7 @@ test("Grams preserves its interface and plays a complete round with two accounts
     await context.addInitScript(() => {
       const play = HTMLMediaElement.prototype.play;
       HTMLMediaElement.prototype.play = function () {
-        if (/\/(win|lose)\.mp3$/.test(this.src)) {
+        if (/\/(win-applause|lose)\.mp3$/.test(this.src)) {
           document.documentElement.setAttribute(
             "data-result-sound",
             this.src.split("/").at(-1)!,
@@ -107,7 +107,7 @@ test("Grams preserves its interface and plays a complete round with two accounts
     await expect(fb.locator("#results-wrapper")).toContainText(word);
     await expect(fa.locator("html")).toHaveAttribute(
       "data-result-sound",
-      "win.mp3",
+      "win-applause.mp3",
     );
     await expect(fb.locator("html")).toHaveAttribute(
       "data-result-sound",

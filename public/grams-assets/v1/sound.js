@@ -25,7 +25,7 @@ class Sound {
         this.music = new Audio("./sounds/george_st_shuffle.mp3")
         this.invalidWord =  new Audio("./sounds/bad.mp3")
         this.validWord = new Audio("./sounds/good.mp3")
-        this.win = new Audio("./sounds/win.mp3")
+        this.win = new Audio("./sounds/win-applause.mp3")
         this.lose = new Audio("./sounds/lose.mp3")
         this.start = new Audio("./sounds/start.mp3")
         this.chat = new Audio("./sounds/chat.mp3")
