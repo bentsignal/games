@@ -113,6 +113,12 @@ preserves security and immutable asset headers.
 6. Upload the same frontend files to Pages production and check the served SHA.
    After cutover, also check `https://games.bentsignal.com`.
 
+For the one-time Pages project rename, move the Cloudflare custom-domain
+association and Vercel `games` CNAME only after the new Pages production URL
+serves the release SHA. The release job waits up to ten minutes for the custom
+domain smoke check while this move completes. It does not publish the GitHub
+release until that check passes.
+
 The release manifest artifact records the commit, completed stages, candidate and
 production Pages IDs, and old/new Worker versions. It contains no credentials.
 Actions artifacts expire after 90 days; successful release assets are retained. Health checks cover anonymous Convex access and

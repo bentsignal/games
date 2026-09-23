@@ -246,8 +246,21 @@ try {
     uploadPages("main");
     report.pages = await findPages("main");
     await retry(() => smokeFrontend(`https://${project}.pages.dev`, sha));
-    if (process.env.CHECK_PRODUCTION_DOMAIN === "true")
-      await retry(() => smokeFrontend("https://games.bentsignal.com", sha));
+    if (process.env.CHECK_PRODUCTION_DOMAIN === "true") {
+      const domains = await cf(`/pages/projects/${project}/domains`);
+      const domainReady = domains.some(
+        (domain) =>
+          domain.name === "games.bentsignal.com" && domain.status === "active",
+      );
+      if (!domainReady)
+        console.log("Release: waiting for production custom domain cutover");
+      // Give the one-time Pages and Vercel DNS cutover time to complete after
+      // the new project has a verified production deployment.
+      await retry(
+        () => smokeFrontend("https://games.bentsignal.com", sha),
+        domainReady ? 12 : 120,
+      );
+    }
   });
   report.status = "passed";
 } catch (error) {
