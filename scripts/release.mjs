@@ -28,8 +28,9 @@ assert.ok(
   "Production key required",
 );
 
-const project = "bentsignal-games";
-const worker = "games-grams";
+const project = "bentsignal-games-web-prod";
+const worker = "bentsignal-games-server-prod";
+const oldWorker = "games-grams";
 const config = "services/grams/wrangler.jsonc";
 const report = {
   sha,
@@ -53,14 +54,20 @@ function run(args, capture = false) {
     encoding: "utf8",
   });
 }
-async function cf(path) {
+async function cf(path, options = {}) {
   const response = await fetch(
     `https://api.cloudflare.com/client/v4/accounts/${account}${path}`,
     {
-      headers: { Authorization: `Bearer ${process.env.CLOUDFLARE_API_TOKEN}` },
+      method: options.method ?? "GET",
+      headers: {
+        Authorization: `Bearer ${process.env.CLOUDFLARE_API_TOKEN}`,
+        ...(options.body ? { "Content-Type": "application/json" } : {}),
+      },
+      body: options.body ? JSON.stringify(options.body) : undefined,
       signal: AbortSignal.timeout(30000),
     },
   );
+  if (response.status === 404 && options.allowMissing) return null;
   // Do not echo API response bodies, which can contain binding values.
   assert.ok(
     response.ok,
@@ -69,6 +76,28 @@ async function cf(path) {
   const data = await response.json();
   assert.ok(data.success, "Cloudflare API returned failure");
   return data.result;
+}
+function installWorkerSecret() {
+  const secret = run(
+    ["exec", "convex", "env", "get", "GRAMS_REALTIME_SECRET"],
+    true,
+  ).trim();
+  assert.ok(secret, "Missing production realtime secret");
+  execFileSync(
+    "pnpm",
+    [
+      "exec",
+      "wrangler",
+      "secret",
+      "put",
+      "GRAMS_REALTIME_SECRET",
+      "--config",
+      config,
+      "--env",
+      "",
+    ],
+    { input: secret, stdio: ["pipe", "inherit", "inherit"] },
+  );
 }
 async function stage(name, action) {
   const entry = { name, status: "running" };
@@ -115,19 +144,20 @@ function uploadPages(branch) {
 
 try {
   await stage("preflight", async () => {
-    const settings = await cf(`/workers/scripts/${worker}/settings`);
+    const newSettings = await cf(`/workers/scripts/${worker}/settings`, {
+      allowMissing: true,
+    });
+    const currentWorker = newSettings ? worker : oldWorker;
+    const settings =
+      newSettings ?? (await cf(`/workers/scripts/${oldWorker}/settings`));
+    if (currentWorker === oldWorker)
+      assert.ok(
+        settings.bindings.some(
+          (b) => b.name === "GRAMS_REALTIME_SECRET" && b.type === "secret_text",
+        ),
+      );
     assert.ok(
-      settings.bindings.some(
-        (b) => b.name === "GRAMS_REALTIME_SECRET" && b.type === "secret_text",
-      ),
-    );
-    assert.ok(
-      settings.bindings.some(
-        (b) =>
-          b.name === "GRAMS" &&
-          b.namespace_id === "594d285208dd4519ba392e4c0d941548",
-      ),
-      "Unexpected Durable Object namespace",
+      settings.bindings.some((b) => b.name === "GRAMS" && b.namespace_id),
     );
     const names = run(
       ["exec", "convex", "env", "list", "--names-only"],
@@ -153,7 +183,9 @@ try {
           url: pages.canonical_deployment.url,
         }
       : null;
-    const deployments = await cf(`/workers/scripts/${worker}/deployments`);
+    const deployments = await cf(
+      `/workers/scripts/${currentWorker}/deployments`,
+    );
     report.previousWorker = deployments.deployments?.[0]?.versions;
     assert.ok(
       report.previousWorker?.length,
@@ -192,7 +224,6 @@ try {
       "--message",
       `GitHub release ${sha}`,
     ]);
-    await retry(smokeBackends);
   });
   await stage("worker", async () => {
     run([
@@ -206,6 +237,14 @@ try {
       "--message",
       `GitHub release ${sha}`,
     ]);
+    installWorkerSecret();
+    const settings = await cf(`/workers/scripts/${worker}/settings`);
+    for (const name of ["GRAMS", "TICKET"])
+      assert.ok(
+        settings.bindings.some(
+          (binding) => binding.name === name && binding.namespace_id,
+        ),
+      );
     const deployments = await cf(`/workers/scripts/${worker}/deployments`);
     report.worker = deployments.deployments?.[0]?.versions;
     await retry(smokeBackends);

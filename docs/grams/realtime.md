@@ -46,12 +46,12 @@ See [development setup](../development.md) for auth, worktrees, HTTPS, and NixOS
 
 ## Production
 
-- Worker: `games-grams`, https://games-grams.shawnrodgers266.workers.dev
+- Worker: `bentsignal-games-server-prod`, https://bentsignal-games-server-prod.shawnrodgers266.workers.dev
 - Allowed browser origin: `https://games.bentsignal.com`
 - Convex result endpoint: `https://api.games.bentsignal.com`
-- Vercel production variable: `VITE_GRAMS_URL=https://games-grams.shawnrodgers266.workers.dev`
+- Frontend build variable: `VITE_GRAMS_URL=https://bentsignal-games-server-prod.shawnrodgers266.workers.dev`
 
-Deploy the Worker with `pnpm run grams:deploy`. Install its secret with `pnpm exec wrangler secret put GRAMS_REALTIME_SECRET --config services/grams/wrangler.jsonc --env ''`, and set the matching production Convex variable. Deploy Convex with `pnpm exec convex deploy`, then the frontend with `vercel --prod --scope bsx-sh`. The Worker origin list must explicitly include any additional frontend deployment used for testing.
+GitHub Actions deploys the Worker and frontend together through the production release workflow. The Worker and Convex deployment share `GRAMS_REALTIME_SECRET`. The Worker origin list must explicitly include any additional frontend deployment used for testing.
 
 ## Persistence and reconnects
 

@@ -24,10 +24,13 @@ assert.ok(
 );
 const target = {
   convexUrl: "https://chatty-okapi-416.convex.cloud",
-  workerUrl: "https://games-grams-preview.shawnrodgers266.workers.dev",
+  workerUrl:
+    "https://bentsignal-games-server-preview.shawnrodgers266.workers.dev",
 };
-const project = "bentsignal-games-preview";
-const worker = "games-grams-preview";
+const project = "bentsignal-games-web-preview";
+const worker = "bentsignal-games-server-preview";
+const oldWorker = "games-grams-preview";
+const workerConfig = "services/grams/wrangler.jsonc";
 const origin = "https://preview.games.bentsignal.com";
 assert.equal(process.env.VITE_CONVEX_URL, target.convexUrl);
 assert.equal(process.env.VITE_GRAMS_URL, target.workerUrl);
@@ -54,14 +57,20 @@ function run(args, capture = false) {
     stdio: capture ? ["ignore", "pipe", "pipe"] : "inherit",
   });
 }
-async function cf(path) {
+async function cf(path, options = {}) {
   const response = await fetch(
     `https://api.cloudflare.com/client/v4/accounts/${account}${path}`,
     {
-      headers: { Authorization: `Bearer ${process.env.CLOUDFLARE_API_TOKEN}` },
+      method: options.method ?? "GET",
+      headers: {
+        Authorization: `Bearer ${process.env.CLOUDFLARE_API_TOKEN}`,
+        ...(options.body ? { "Content-Type": "application/json" } : {}),
+      },
+      body: options.body ? JSON.stringify(options.body) : undefined,
       signal: AbortSignal.timeout(30000),
     },
   );
+  if (response.status === 404 && options.allowMissing) return null;
   const data = await response.json();
   const codes = (data.errors ?? [])
     .flatMap((error) => [
@@ -75,6 +84,28 @@ async function cf(path) {
   );
   assert.ok(data.success, "Cloudflare metadata request failed");
   return data.result;
+}
+function installWorkerSecret() {
+  const secret = run(
+    ["exec", "convex", "env", "get", "GRAMS_REALTIME_SECRET"],
+    true,
+  ).trim();
+  assert.ok(secret, "Missing preview realtime secret");
+  execFileSync(
+    "pnpm",
+    [
+      "exec",
+      "wrangler",
+      "secret",
+      "put",
+      "GRAMS_REALTIME_SECRET",
+      "--config",
+      workerConfig,
+      "--env",
+      "preview",
+    ],
+    { input: secret, stdio: ["pipe", "inherit", "inherit"] },
+  );
 }
 async function stage(name, action) {
   const entry = { name, status: "running" };
@@ -125,12 +156,19 @@ try {
           url: pages.canonical_deployment.url,
         }
       : null;
-    const settings = await cf(`/workers/scripts/${worker}/settings`);
-    assert.ok(
-      settings.bindings.some(
-        (b) => b.name === "GRAMS_REALTIME_SECRET" && b.type === "secret_text",
-      ),
-    );
+    const currentWorker =
+      (await cf(`/workers/scripts/${worker}/settings`, {
+        allowMissing: true,
+      })) !== null
+        ? worker
+        : oldWorker;
+    const settings = await cf(`/workers/scripts/${currentWorker}/settings`);
+    if (currentWorker === oldWorker)
+      assert.ok(
+        settings.bindings.some(
+          (b) => b.name === "GRAMS_REALTIME_SECRET" && b.type === "secret_text",
+        ),
+      );
     assert.ok(
       settings.bindings.some(
         (b) => b.name === "CONVEX_URL" && b.text === target.convexUrl,
@@ -145,7 +183,7 @@ try {
     );
     report.namespace = binding.namespace_id;
     report.previousWorker = (
-      await cf(`/workers/scripts/${worker}/deployments`)
+      await cf(`/workers/scripts/${currentWorker}/deployments`)
     ).deployments?.[0]?.versions;
   });
   await stage("build", async () => {
@@ -190,6 +228,14 @@ try {
       "--message",
       `Stable preview ${sha}`,
     ]);
+    installWorkerSecret();
+    const settings = await cf(`/workers/scripts/${worker}/settings`);
+    for (const name of ["GRAMS", "TICKET"])
+      assert.ok(
+        settings.bindings.some(
+          (binding) => binding.name === name && binding.namespace_id,
+        ),
+      );
     report.worker = (
       await cf(`/workers/scripts/${worker}/deployments`)
     ).deployments?.[0]?.versions;
@@ -217,7 +263,16 @@ try {
     await retry(() =>
       smokeFrontend(`https://${project}.pages.dev`, sha, target),
     );
-    await retry(() => smokeFrontend(origin, sha, target));
+    const domains = await cf(`/pages/projects/${project}/domains`);
+    if (
+      domains.some(
+        (domain) =>
+          domain.name === new URL(origin).hostname &&
+          domain.status === "active",
+      )
+    )
+      await retry(() => smokeFrontend(origin, sha, target));
+    else report.domainMigrationPending = true;
   });
   report.status = "passed";
 } catch (error) {

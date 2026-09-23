@@ -1,6 +1,6 @@
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
-  "name": "games-grams",
+  "name": "bentsignal-games-server-prod",
   "main": "index.ts",
   "compatibility_date": "2026-09-09",
   "workers_dev": true,
@@ -21,7 +21,7 @@
   },
   "env": {
     "preview": {
-      "name": "games-grams-preview",
+      "name": "bentsignal-games-server-preview",
       "durable_objects": {
         "bindings": [
           { "name": "GRAMS", "class_name": "GramsRoom" },
@@ -30,11 +30,11 @@
       },
       "vars": {
         "CONVEX_URL": "https://chatty-okapi-416.convex.cloud",
-        "ALLOWED_ORIGINS": "https://preview.games.bentsignal.com,https://bentsignal-games-preview.pages.dev",
+        "ALLOWED_ORIGINS": "https://preview.games.bentsignal.com,https://bentsignal-games-web-preview.pages.dev",
       },
     },
     "development": {
-      "name": "games-grams-development",
+      "name": "bentsignal-games-server-development",
       "durable_objects": {
         "bindings": [
           { "name": "GRAMS", "class_name": "GramsRoom" },

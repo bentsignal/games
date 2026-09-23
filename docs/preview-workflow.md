@@ -61,13 +61,13 @@ with an agent-written testing checklist based on the actual Git changes.
 
 ## Stable preview resources
 
-| Resource                 | Target                                                          |
-| ------------------------ | --------------------------------------------------------------- |
-| Frontend                 | `https://preview.games.bentsignal.com`                          |
-| Cloudflare Pages project | `bentsignal-games-preview`, direct uploads to its `main` branch |
-| Convex                   | `BSX:games:preview/preview`, deployment `chatty-okapi-416`      |
-| Grams Worker             | `games-grams-preview`                                           |
-| GitHub environment       | `Preview`, restricted to protected branches                     |
+| Resource                 | Target                                                              |
+| ------------------------ | ------------------------------------------------------------------- |
+| Frontend                 | `https://preview.games.bentsignal.com`                              |
+| Cloudflare Pages project | `bentsignal-games-web-preview`, direct uploads to its `main` branch |
+| Convex                   | `BSX:games:preview/preview`, deployment `chatty-okapi-416`          |
+| Realtime Worker          | `bentsignal-games-server-preview`                                   |
+| GitHub environment       | `Preview`, restricted to protected branches                         |
 
 The Preview environment needs its deployment-scoped `CONVEX_DEPLOY_KEY`,
 `CLOUDFLARE_API_TOKEN`, and `CLOUDFLARE_ACCOUNT_ID` variable. The Cloudflare token
@@ -132,7 +132,8 @@ Convex, Worker health, frontend service URLs, deep links, redirects, assets, and
 release markers pass smoke checks. The initial deployment used local CLI logins. Browser tests passed a complete Grams
 round with two accounts and stored results, plus Ticket to Ride joining, ticket
 selection, chat, drawing cards, and reconnecting.
-The preview Worker namespace is `c9b91ebdaeb4497dbbb8b64f3e3e3763`.
+The preview server Worker has separate Grams and Ticket namespaces. Its deployment
+manifest records the Grams namespace used for each rollout.
 
 Stable preview is enabled with `STABLE_PREVIEW_ENABLED=true`. GitHub Actions run
 [34796077885](https://github.com/bentsignal/games/actions/runs/34796077885) passed all
