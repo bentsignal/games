@@ -148,6 +148,14 @@ complete; the setup agent verified real Google sign-in through username setup.
 The initial token-copy problem was corrected and the replacement credential has
 now passed a complete CI deployment. Production remains manual and unchanged.
 
+The resource rename on 2026-09-22 moved the stable preview site to Pages project
+`bentsignal-games-web-preview` and Worker `bentsignal-games-server-preview`.
+The Worker now uses Grams namespace `ca1671a679a149789a84747e99cf8a5f` and
+Ticket namespace `52419dd2e8b2426db409f975c4c7f5ea`. Vercel CNAME record
+`rec_9443fa56b96ed7d1bea5603b` points `preview.games` to the new Pages site.
+The custom-domain smoke check passed for commit
+`caf321e3f2764c7849163cbcf6234effa7619958`.
+
 For authenticated browser checks using admin-created preview sessions:
 
 ```sh

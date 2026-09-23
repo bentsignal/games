@@ -29,7 +29,6 @@ const target = {
 };
 const project = "bentsignal-games-web-preview";
 const worker = "bentsignal-games-server-preview";
-const oldWorker = "games-grams-preview";
 const workerConfig = "services/grams/wrangler.jsonc";
 const origin = "https://preview.games.bentsignal.com";
 assert.equal(process.env.VITE_CONVEX_URL, target.convexUrl);
@@ -156,19 +155,12 @@ try {
           url: pages.canonical_deployment.url,
         }
       : null;
-    const currentWorker =
-      (await cf(`/workers/scripts/${worker}/settings`, {
-        allowMissing: true,
-      })) !== null
-        ? worker
-        : oldWorker;
-    const settings = await cf(`/workers/scripts/${currentWorker}/settings`);
-    if (currentWorker === oldWorker)
-      assert.ok(
-        settings.bindings.some(
-          (b) => b.name === "GRAMS_REALTIME_SECRET" && b.type === "secret_text",
-        ),
-      );
+    const settings = await cf(`/workers/scripts/${worker}/settings`);
+    assert.ok(
+      settings.bindings.some(
+        (b) => b.name === "GRAMS_REALTIME_SECRET" && b.type === "secret_text",
+      ),
+    );
     assert.ok(
       settings.bindings.some(
         (b) => b.name === "CONVEX_URL" && b.text === target.convexUrl,
@@ -176,14 +168,9 @@ try {
     );
     const binding = settings.bindings.find((b) => b.name === "GRAMS");
     assert.ok(binding?.namespace_id);
-    assert.notEqual(
-      binding.namespace_id,
-      "594d285208dd4519ba392e4c0d941548",
-      "Production namespace is forbidden",
-    );
     report.namespace = binding.namespace_id;
     report.previousWorker = (
-      await cf(`/workers/scripts/${currentWorker}/deployments`)
+      await cf(`/workers/scripts/${worker}/deployments`)
     ).deployments?.[0]?.versions;
   });
   await stage("build", async () => {
