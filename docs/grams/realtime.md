@@ -59,6 +59,13 @@ Connections use one-minute HMAC tickets scoped to Grams, signed only after Conve
 
 Accepted guesses persist before confirmation and broadcast small score deltas. Rejected guesses return privately without a database write or room broadcast. Countdown ticks are client-side. Hibernating WebSockets auto-answer keepalive pings without waking the object. Alarms handle round deadlines and disconnected-seat cleanup; there is no repeating per-second server job. Disconnected seats are retained for 90 seconds and through an active round, then removed with host transfer.
 
+Each room expires 24 hours after its last accepted player command. Connections,
+keepalive pings, automatic round completion, and result retries do not extend that
+time. Expiry closes any remaining sockets and deletes the room state and chat.
+Pending completed-round results must reach Convex before the room is deleted.
+Rooms created before this policy receive a fresh 24 hours on their next wakeup;
+Cloudflare does not enumerate dormant objects for a one-time migration.
+
 Round completion writes the final state and a result outbox entry together. Delivery to Convex retries with exponential backoff, capped at one hour. Convex verifies the signed result and account mapping, then deduplicates by the object-instance/round ID. This keeps outcomes through temporary Convex outages. Chat/emote display retains the latest 60 events, with no lifetime message cap.
 
 The old Convex Grams functions/tables remain for rollback and historical records; the migrated client does not use them. Roll back frontend and backend together if reverting the transport. Live DO rounds are not translated back into legacy Convex state.

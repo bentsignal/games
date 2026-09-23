@@ -56,6 +56,13 @@ each countdown tick. Chat retains its history and loads 50 messages at a time.
 When the last player leaves a lobby, an alarm removes chat in bounded batches.
 A small room tombstone prevents a replayed creation ticket from reviving it.
 
+Rooms expire 24 hours after the last accepted player action, including chat.
+Reads, connections, pings, bot turns, and result retries do not reset the timer.
+Expiry closes remaining sockets and deletes the game and chat. Completed results
+in the delivery queue reach Convex before deletion. Rooms created before this
+policy receive a fresh 24 hours when next accessed; dormant objects cannot be
+enumerated for a one-time migration.
+
 Completed real rounds enter a persistent delivery queue in the same write as the
 finished game. An alarm sends signed summaries to `ticket.saveResult` in Convex
 and retries failures with backoff. Convex deduplicates by room instance and round
