@@ -180,8 +180,8 @@ cutover fails; never change the zone's nameservers or other applications' record
   Pages deployment: `d8112f7e-4c50-4025-bf5b-663dcca398ae`. Worker version:
   `e60b0155-c780-458f-8e04-7fcc28698c78`. The original Durable Object namespace
   and existing application secrets were preserved.
-- Vercel required replacing the A record instead of changing its type. The new
-  CNAME record ID is `rec_7bedc34f7df946ece586ac6b`, TTL 60. All 19 other DNS
+- Vercel required replacing the A record instead of changing its type. At that
+  time, the CNAME record ID was `rec_7bedc34f7df946ece586ac6b`, TTL 60. All 19 other DNS
   records were compared before/after and remained unchanged. Nameservers and
   registration remain at Vercel. Certificate activation briefly interrupted HTTPS
   during the initial cutover; it is now active.
