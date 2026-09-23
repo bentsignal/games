@@ -112,7 +112,7 @@ jobs:
       RELEASE_ID: ${{ inputs.release_id }}
       REVIEW_SHA256: ${{ inputs.review_sha256 }}
       VITE_CONVEX_URL: https://api.games.bentsignal.com
-      VITE_GRAMS_URL: https://games-grams.shawnrodgers266.workers.dev
+      VITE_GRAMS_URL: https://bentsignal-games-server-prod.shawnrodgers266.workers.dev
       VITE_DEV_AUTH: "0"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

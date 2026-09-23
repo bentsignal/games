@@ -17,7 +17,7 @@ deployment status and recovery instructions are in [releases](releases.md).
 - Stored `CLOUDFLARE_ACCOUNT_ID` as a `Production` environment **variable**.
   Workflows must read `vars.CLOUDFLARE_ACCOUNT_ID`.
 - Cloudflare account ID: `12f3bac77e8f2b140391cd4f79c766ad`.
-- Existing Grams Worker: `games-grams`, with `GramsRoom` Durable Objects.
+- Existing Grams Worker: `bentsignal-games-server-prod`, with `GramsRoom` Durable Objects.
 - Legacy Vercel project: `railbound-1910`, team scope `bsx-sh`. Hosting has
   moved to Cloudflare and Vercel Git deployments are disabled.
 

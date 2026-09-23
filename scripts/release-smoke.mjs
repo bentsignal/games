@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 
 const production = {
   convexUrl: "https://api.games.bentsignal.com",
-  workerUrl: "https://games-grams.shawnrodgers266.workers.dev",
+  workerUrl: "https://bentsignal-games-server-prod.shawnrodgers266.workers.dev",
 };
 
 export async function smokeFrontend(origin, sha, target = production) {

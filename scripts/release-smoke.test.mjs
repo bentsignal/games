@@ -11,7 +11,7 @@ function serve(t, overrides = {}) {
       "application/javascript",
     ],
     "/assets/Grams.js": [
-      'const url="https://games-grams.shawnrodgers266.workers.dev";',
+      'const url="https://bentsignal-games-server-prod.shawnrodgers266.workers.dev";',
       "application/javascript",
     ],
     "/grams-assets/v1/images/logo_600.png": ["image", "image/png"],
@@ -45,7 +45,8 @@ test("release smoke follows lazy game chunks", async (t) => {
 test("preview smoke validates preview URLs instead of production URLs", async (t) => {
   const target = {
     convexUrl: "https://chatty-okapi-416.convex.cloud",
-    workerUrl: "https://games-grams-preview.shawnrodgers266.workers.dev",
+    workerUrl:
+      "https://bentsignal-games-server-preview.shawnrodgers266.workers.dev",
   };
   serve(t, {
     "/assets/main.js": [
@@ -63,7 +64,7 @@ test("preview smoke validates preview URLs instead of production URLs", async (t
 test("deployed build excludes the actual local development login endpoint", async (t) => {
   serve(t, {
     "/assets/Grams.js": [
-      'const url="https://games-grams.shawnrodgers266.workers.dev"; fetch("/__games/dev-login")',
+      'const url="https://bentsignal-games-server-prod.shawnrodgers266.workers.dev"; fetch("/__games/dev-login")',
       "application/javascript",
     ],
   });
@@ -82,7 +83,7 @@ test("release smoke rejects SPA fallback served as a missing game chunk", async 
 test("release smoke rejects development auth in a lazy game chunk", async (t) => {
   serve(t, {
     "/assets/Grams.js": [
-      'const url="https://games-grams.shawnrodgers266.workers.dev"; fetch("/__dev/sign-in")',
+      'const url="https://bentsignal-games-server-prod.shawnrodgers266.workers.dev"; fetch("/__dev/sign-in")',
       "application/javascript",
     ],
   });

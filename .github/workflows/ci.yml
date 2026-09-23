@@ -71,7 +71,7 @@ jobs:
       TURBO_TELEMETRY_DISABLED: 1
       WRANGLER_SEND_METRICS: false
       VITE_CONVEX_URL: https://chatty-okapi-416.convex.cloud
-      VITE_GRAMS_URL: https://games-grams-preview.shawnrodgers266.workers.dev
+      VITE_GRAMS_URL: https://bentsignal-games-server-preview.shawnrodgers266.workers.dev
       VITE_DEV_AUTH: "0"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

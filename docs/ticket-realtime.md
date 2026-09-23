@@ -1,7 +1,7 @@
 # Ticket to Ride realtime server
 
 Ticket to Ride stores each live room in a SQLite Durable Object named by its
-invitation code. `TicketRoom` runs in the existing `games-grams` Worker, alongside
+invitation code. `TicketRoom` runs in the existing `bentsignal-games-server-prod` Worker, alongside
 `GramsRoom`. The `TICKET` binding and `v2` migration are declared for production,
 preview, and development in `services/grams/wrangler.jsonc`.
 

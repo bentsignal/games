@@ -76,12 +76,12 @@ the old `ci.yml -f release=true` production path has been removed.
 
 ## Hosting
 
-| Resource                                | Provider                                    |
-| --------------------------------------- | ------------------------------------------- |
-| Frontend                                | Cloudflare Pages project `bentsignal-games` |
-| Grams live room                         | Cloudflare Worker `games-grams`             |
-| Auth, accounts, records, Ticket to Ride | Convex `BSX:games:prod`                     |
-| Registration and authoritative DNS      | Vercel, unchanged                           |
+| Resource                                | Provider                                             |
+| --------------------------------------- | ---------------------------------------------------- |
+| Frontend                                | Cloudflare Pages project `bentsignal-games-web-prod` |
+| Live rooms for Grams and Ticket         | Cloudflare Worker `bentsignal-games-server-prod`     |
+| Auth, accounts, records, Ticket to Ride | Convex `BSX:games:prod`                              |
+| Registration and authoritative DNS      | Vercel, unchanged                                    |
 
 Only `games.bentsignal.com` moves to Pages. Keep the existing `api.games` and
 `auth.games` records pointing to Convex. Other applications and subdomains stay
@@ -104,8 +104,8 @@ preserves security and immutable asset headers.
 1. Verify the pinned review and deployment evidence, rerun all six candidate checks,
    and wait for owner approval under the production release lock. Recheck evidence
    after approval. Running releases are never auto-cancelled.
-2. Verify credentials, required production auth settings, and the existing Grams
-   namespace `594d285208dd4519ba392e4c0d941548`. Record current Cloudflare versions.
+2. Verify credentials, required production auth settings, and the server Worker's
+   Grams and Ticket namespaces. Record current Cloudflare versions.
 3. Build the frontend with production URLs and bundle the Worker without deploying.
 4. Upload a Pages candidate and check its release SHA, deep links, redirects,
    JavaScript, image assets, and security headers.
@@ -156,13 +156,14 @@ reverting code cannot undo stored data or migrations.
 - For a compatible Worker code rollback, use the recorded previous version:
   `pnpm exec wrangler rollback VERSION_ID --config services/grams/wrangler.jsonc --env "" --yes`.
   Confirm compatibility with current Durable Object storage first. Preserve the
-  Worker name, `GRAMS` binding, class name, and namespace.
+  Worker name, `GRAMS` and `TICKET` bindings, class names, and namespaces.
 - To revert Convex code, make a revert PR and release it only after reviewing the
   schema against current data. Database restoration is a separate operation.
 
-Before DNS cutover, `games.bentsignal.com` used Vercel A record `76.76.21.21`,
-record ID `rec_f5738ba0dfa0e0f5af6c41cd`, TTL 60. Its replacement points to
-`bentsignal-games.pages.dev`. Preserve the old Vercel deployment and domain
+`games.bentsignal.com` uses Vercel CNAME record
+`rec_7bedc34f7df946ece586ac6b`, TTL 60. Point it to
+`bentsignal-games-web-prod.pages.dev` when moving the custom domain to the new
+Pages project. Preserve the old Vercel deployment and domain
 association until recovery is no longer needed. Restore only this hostname if
 cutover fails; never change the zone's nameservers or other applications' records.
 

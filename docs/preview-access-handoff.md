@@ -20,10 +20,10 @@ Completed 2026-09-13. Rolled the existing account-owned
 `games-github-actions-preview` token without changing its account scope or
 permissions. Before replacing the GitHub secret, verified the exact new token:
 
-| API GET endpoint within the specified account   | HTTP status | success |
-| ----------------------------------------------- | ----------- | ------- |
-| `/pages/projects/bentsignal-games-preview`      | 200         | true    |
-| `/workers/scripts/games-grams-preview/settings` | 200         | true    |
+| API GET endpoint within the specified account               | HTTP status | success |
+| ----------------------------------------------------------- | ----------- | ------- |
+| `/pages/projects/bentsignal-games-web-preview`              | 200         | true    |
+| `/workers/scripts/bentsignal-games-server-preview/settings` | 200         | true    |
 
 Saved the verified token value in GitHub's `Preview` environment after passkey
 reauthentication. GitHub's secret metadata confirms `CLOUDFLARE_API_TOKEN` was
@@ -42,7 +42,7 @@ passed all six checks and Convex preflight, then Cloudflare returned HTTP 400,
 error code `9106`, for this request:
 
 ```text
-GET https://api.cloudflare.com/client/v4/accounts/12f3bac77e8f2b140391cd4f79c766ad/pages/projects/bentsignal-games-preview
+GET https://api.cloudflare.com/client/v4/accounts/12f3bac77e8f2b140391cd4f79c766ad/pages/projects/bentsignal-games-web-preview
 Authorization: Bearer <API token>
 ```
 
@@ -55,7 +55,7 @@ environment secret `CLOUDFLARE_API_TOKEN` with a working token as needed. Use th
 API token value, not its name, ID, global API key, or a full Authorization header.
 Before saving it, make the GET request above with that exact token and require
 HTTP 200 with `success: true`. Also verify GET on the same account's
-`/workers/scripts/games-grams-preview/settings`. Never print the token or the
+`/workers/scripts/bentsignal-games-server-preview/settings`. Never print the token or the
 settings response, which can contain binding values; report only status/success.
 
 Retain the original account-scoped Pages Write, Workers Scripts Write, and
