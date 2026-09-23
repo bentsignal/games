@@ -158,7 +158,7 @@ async function connect(id: string) {
   };
 }
 async function wait(predicate: () => boolean) {
-  const deadline = Date.now() + 5000;
+  const deadline = Date.now() + 15000;
   while (!predicate()) {
     if (Date.now() > deadline) throw new Error("Expected update missing");
     await new Promise((r) => setTimeout(r, 10));

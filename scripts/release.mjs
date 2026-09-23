@@ -30,7 +30,6 @@ assert.ok(
 
 const project = "bentsignal-games-web-prod";
 const worker = "bentsignal-games-server-prod";
-const oldWorker = "games-grams";
 const config = "services/grams/wrangler.jsonc";
 const report = {
   sha,
@@ -144,21 +143,19 @@ function uploadPages(branch) {
 
 try {
   await stage("preflight", async () => {
-    const newSettings = await cf(`/workers/scripts/${worker}/settings`, {
+    const settings = await cf(`/workers/scripts/${worker}/settings`, {
       allowMissing: true,
     });
-    const currentWorker = newSettings ? worker : oldWorker;
-    const settings =
-      newSettings ?? (await cf(`/workers/scripts/${oldWorker}/settings`));
-    if (currentWorker === oldWorker)
+    if (settings) {
       assert.ok(
         settings.bindings.some(
           (b) => b.name === "GRAMS_REALTIME_SECRET" && b.type === "secret_text",
         ),
       );
-    assert.ok(
-      settings.bindings.some((b) => b.name === "GRAMS" && b.namespace_id),
-    );
+      assert.ok(
+        settings.bindings.some((b) => b.name === "GRAMS" && b.namespace_id),
+      );
+    }
     const names = run(
       ["exec", "convex", "env", "list", "--names-only"],
       true,
@@ -183,14 +180,10 @@ try {
           url: pages.canonical_deployment.url,
         }
       : null;
-    const deployments = await cf(
-      `/workers/scripts/${currentWorker}/deployments`,
-    );
-    report.previousWorker = deployments.deployments?.[0]?.versions;
-    assert.ok(
-      report.previousWorker?.length,
-      "Missing previous Worker versions",
-    );
+    report.previousWorker = settings
+      ? (await cf(`/workers/scripts/${worker}/deployments`)).deployments?.[0]
+          ?.versions
+      : null;
   });
   await stage("build", async () => {
     run(["run", "build"]);
