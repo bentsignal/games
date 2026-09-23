@@ -2,6 +2,8 @@
 
 Original: https://github.com/bentsignal/Grams (MIT). The original HTML/CSS, background animation, client game logic, artwork, and sound files are retained under `public/grams-assets/v1`. The missing sound/icon files were restored from the owner's `grams.rar` archive. Assets are committed to the private Games repository.
 
+The win sound uses the app's existing CC0 applause recording, copied as `sounds/win-applause.mp3`. The new filename avoids the year-long immutable cache on the original sound URL. See [audio credits](../../src/assets/audio/CREDITS.md) for its source.
+
 Character design and illustration: Ben Holzman. Music: “George Street Shuffle” by Kevin MacLeod, as credited in the original project. Icons: SVG Repo. The original third-party popup library is vendored at version 1.4.2.
 
 The original single shared lobby and six-player limit remain. The Socket.IO transport is replaced by `transport.js`, which communicates with the authenticated React parent; Convex owns players, word validation, scoring, chat, emotes, and round deadlines. A submitted word must use the available letters and cannot be played twice by the same player. Other players' words remain hidden until results.
