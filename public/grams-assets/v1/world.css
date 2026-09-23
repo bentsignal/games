@@ -466,3 +466,15 @@ body {
 
 
 
+
+/* Keep decorative rendering out of the typing frame budget. */
+.round-active #world,
+.round-active #world * {
+    animation-play-state: paused !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #world, #world * {
+        animation: none !important;
+    }
+}

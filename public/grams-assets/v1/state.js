@@ -44,6 +44,7 @@ class State {
     }
 
     render = () => {
+        document.body.classList.toggle("round-active", this.current === states.midGame)
         if (this.current == states.home) {
             this.renderHome()
         }

@@ -94,6 +94,8 @@ const playWord = () => {
         socket.emit("wordSubmit", {
             word: word
         })
+        // The next answer must not wait for the server's verdict.
+        game.clearPlayedLetters()
     }
     else {
         declinedAnimation()
@@ -106,16 +108,11 @@ const playWord = () => {
     being played is not in dictionary 
 
 */
+let declineTimer
 const declinedAnimation = () => {
-    let empty = document.getElementsByClassName("empty")
-    for (let i = 0; i < empty.length; i++) {
-        empty[i].style.backgroundColor = "red"
-    }
-    setTimeout(() => {
-        for (let i = 0; i < empty.length; i++) {
-            empty[i].style.backgroundColor = "white"
-        }
-    }, 500)
+    gameWrapper.classList.add("word-declined")
+    clearTimeout(declineTimer)
+    declineTimer = setTimeout(() => gameWrapper.classList.remove("word-declined"), 500)
 }
 
 const renderPlayerList = () => {
@@ -317,6 +314,7 @@ keybindsButton.addEventListener("click", () => {
 })
 
 document.addEventListener("keydown", (evt) => {
+    if (evt.isComposing || evt.ctrlKey || evt.metaKey || evt.altKey) return
     if (binds.awaitingBind) {
         binds.setBind(evt.key)
     }
@@ -324,17 +322,20 @@ document.addEventListener("keydown", (evt) => {
         // focus game
         if (game.inGame) {
             if (evt.key == "Backspace") {
+                evt.preventDefault()
                 if (game.lettersUsed.length > 0) {
                     game.removeLetter()
                 }
             }
             else if (evt.key == "Enter" && game.midGame) {
+                evt.preventDefault()
                 playWord() 
             }
             else if (game.midGame && game.isLetterAvailable(evt.key.toLowerCase())) {
                 game.playLetter(evt.key)
             }
             else if (evt.key == binds.clear && game.lettersUsed.length > 0) {
+                evt.preventDefault()
                 game.clearPlayedLetters()
             }
             else if (evt.key == binds.shuffle) {
@@ -476,28 +477,28 @@ socket.on("newMessage", (data) => {
         const me = game.name
         game.state.messageCount += 1
         if (sender == "Server") {
-            chat.innerHTML += `
+            chat.insertAdjacentHTML("beforeend", `
                 <p id="message-${game.state.messageCount}">
                     <span class="server-message ${data.type}">${message}</span>
                 </p>
-            `
+            `)
         }
         else if (sender == me) {
-            chat.innerHTML += `
+            chat.insertAdjacentHTML("beforeend", `
                 <p id="message-${game.state.messageCount}">
                     <span class="my-message">${me}: </span>
                     <span class="chat-message">${message}</span>
                 </p>
-            `
+            `)
         }
         else {
             sound.chat.play().catch(() => {})
-            chat.innerHTML += `
+            chat.insertAdjacentHTML("beforeend", `
                 <p id="message-${game.state.messageCount}">
                     <span class="chat">${sender}: </span>
                     <span class="chat-message">${message}</span>
                 </p>
-            `
+            `)
         }
         document.getElementById(`message-${game.state.messageCount}`).scrollIntoView()
     }
@@ -563,7 +564,6 @@ socket.on("wordAccept", (data) => {
     const me = data.player
     const points = data.points
     const length = word.length
-    game.clearPlayedLetters()
     document.getElementById(`words-${length}`).innerHTML += `
         <div class="word" style="font-size:${10+(length*2)}pt">
             <p>${word}</p>
@@ -575,7 +575,6 @@ socket.on("wordAccept", (data) => {
 })
 
 socket.on("wordDecline", (data) => {
-    game.clearPlayedLetters()
     sound.invalidWord.play().catch(() => {})
     declinedAnimation()
 })

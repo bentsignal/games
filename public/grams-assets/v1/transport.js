@@ -28,7 +28,7 @@ export const socket={
  id:"",
  on(kind,fn){if(!handlers.has(kind))handlers.set(kind,[]);handlers.get(kind).push(fn)},
  emit(kind,data={}){
-  if(kind==="requestPlayers"||kind==="pfpLoadAvailable"){if(state)render(state);return}
+  if(kind==="requestPlayers"||kind==="pfpLoadAvailable"){if(state)render(state,true);return}
   const args={kind};
   if(kind==="wordSubmit")args.word=data.word;
   if(kind==="requestStart")args.size=parseInt(data.size);
@@ -40,7 +40,7 @@ export const socket={
   if(kind==="leave"){joined=false;previous=undefined;document.body.classList.remove("in-game");invite.hidden=true;}
  }
 };
-function render(s){
+function render(s,refreshPicker=false){
  if(!joined)return;
  const old=previous;
  const playersChanged=!old||JSON.stringify(old.players.map(p=>[p.id,p.name,p.pfp,p.wins]))!==JSON.stringify(s.players.map(p=>[p.id,p.name,p.pfp,p.wins]))||old.round!==s.round;
@@ -48,9 +48,9 @@ function render(s){
  else for(const p of s.players)if(old.players.find(o=>o.id===p.id)?.score!==p.score)fire("updatePlayerScore",{id:p.id,score:p.score});
  fire("newHost",{id:s.host});
  const available=["ben","lukas"].map(n=>[1,2,3,4].map(i=>n+"-face-"+i+".jpg").filter(f=>!s.players.some(p=>p.pfp===f)));
- if(document.getElementById("pfp-list-row-ben"))fire("pfpAvailable",{ben:available[0],lukas:available[1]});
+ if((playersChanged||refreshPicker)&&document.getElementById("pfp-list-row-ben"))fire("pfpAvailable",{ben:available[0],lukas:available[1]});
  const me=s.players.find(p=>p.id===socket.id);
- if(me)fire("updatePlayerPfp",{id:me.id,pfp:me.pfp});
+ if(me&&playersChanged)fire("updatePlayerPfp",{id:me.id,pfp:me.pfp});
  if(s.phase==="playing"&&(!old||s.round!==old.round)){
   if(s.startAt>s.serverNow+2500)fire("startGame",{letters:s.letters});
   else fire("resumeGame",{...s,remaining:Math.max(0,Math.ceil((s.endAt-s.serverNow)/1000)-1)});
