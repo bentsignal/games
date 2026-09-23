@@ -113,11 +113,10 @@ preserves security and immutable asset headers.
 6. Upload the same frontend files to Pages production and check the served SHA.
    After cutover, also check `https://games.bentsignal.com`.
 
-For the one-time Pages project rename, move the Cloudflare custom-domain
-association and Vercel `games` CNAME only after the new Pages production URL
-serves the release SHA. The release job waits up to ten minutes for the custom
-domain smoke check while this move completes. It does not publish the GitHub
-release until that check passes.
+The release job checks the production custom domain before publishing the GitHub
+release. If a future Pages project change also requires moving that domain, the
+job waits up to ten minutes for the Cloudflare association and Vercel CNAME to
+settle after the new Pages production URL serves the release SHA.
 
 The release manifest artifact records the commit, completed stages, candidate and
 production Pages IDs, and old/new Worker versions. It contains no credentials.
@@ -167,9 +166,8 @@ reverting code cannot undo stored data or migrations.
   schema against current data. Database restoration is a separate operation.
 
 `games.bentsignal.com` uses Vercel CNAME record
-`rec_7bedc34f7df946ece586ac6b`, TTL 60. Point it to
-`bentsignal-games-web-prod.pages.dev` when moving the custom domain to the new
-Pages project. Preserve the old Vercel deployment and domain
+`rec_8fc6e7ca81cf32a0c38071ee`, TTL 60, pointing to
+`bentsignal-games-web-prod.pages.dev`. Preserve the old Vercel deployment and domain
 association until recovery is no longer needed. Restore only this hostname if
 cutover fails; never change the zone's nameservers or other applications' records.
 
@@ -194,6 +192,25 @@ cutover fails; never change the zone's nameservers or other applications' record
   Convex access. Browser verification reached Google authorization through the
   existing `auth.games.bentsignal.com` callback without browser errors. Full Google
   login and authenticated production gameplay still require a real user session.
+
+## Resource rename checkpoint
+
+- Completed 2026-09-22. The Cloudflare account now has exactly two Pages projects,
+  `bentsignal-games-web-prod` and `bentsignal-games-web-preview`, and two Workers,
+  `bentsignal-games-server-prod` and `bentsignal-games-server-preview`.
+- The [coordinated production release](https://github.com/bentsignal/games/actions/runs/35804260372)
+  deployed commit `83598a533c48a69b2f0df950b021de88c06904fd`. The initial
+  publication job retried after a transient custom-domain fetch failure and then
+  published the [release](https://github.com/bentsignal/games/releases/tag/production-83598a533c48a69b2f0df950b021de88c06904fd).
+  Its Pages deployment is `7d8ab290-13b7-4372-8a08-a1935ea3d7d5`, and its
+  Worker version is `d05418ff-066c-4bfa-bbb2-1d39bbd916e9`.
+- The production Worker uses Grams namespace `0449b7c092164774979bd941ff218263`
+  and Ticket namespace `e03f0fbb4d9b4fdaac35807f2b4b9b0f`. Both began empty,
+  as authorized for this greenfield app. Vercel DNS record
+  `rec_8fc6e7ca81cf32a0c38071ee` points `games` to the new Pages site.
+- The previous two Pages projects and two Workers were deleted after both custom
+  domains passed frontend and backend smoke checks. The Vercel fallback project
+  and unrelated DNS records were left in place.
 
 Sources: [Pages direct upload from CI](https://developers.cloudflare.com/pages/how-to/use-direct-upload-with-continuous-integration/),
 [Pages external DNS](https://developers.cloudflare.com/pages/configuration/custom-domains/),
