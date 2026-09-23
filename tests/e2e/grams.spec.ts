@@ -10,6 +10,20 @@ test("Grams preserves its interface and plays a complete round with two accounts
   const { deployment } = developmentEnvironment();
   const ca = await browser.newContext(),
     cb = await browser.newContext();
+  for (const context of [ca, cb]) {
+    await context.addInitScript(() => {
+      const play = HTMLMediaElement.prototype.play;
+      HTMLMediaElement.prototype.play = function () {
+        if (/\/(win-applause|lose)\.mp3$/.test(this.src)) {
+          document.documentElement.setAttribute(
+            "data-result-sound",
+            this.src.split("/").at(-1)!,
+          );
+        }
+        return play.call(this);
+      };
+    });
+  }
   const a = await ca.newPage(),
     b = await cb.newPage();
   const errors: string[] = [];
@@ -91,6 +105,14 @@ test("Grams preserves its interface and plays a complete round with two accounts
     });
     await expect(fa.locator("#results-wrapper")).toContainText(word);
     await expect(fb.locator("#results-wrapper")).toContainText(word);
+    await expect(fa.locator("html")).toHaveAttribute(
+      "data-result-sound",
+      "win-applause.mp3",
+    );
+    await expect(fb.locator("html")).toHaveAttribute(
+      "data-result-sound",
+      "lose.mp3",
+    );
     await a.screenshot({ path: "/tmp/grams-results.png" });
     await expect
       .poll(
