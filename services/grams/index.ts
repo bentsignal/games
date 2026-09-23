@@ -3,6 +3,7 @@ export { TicketRoom } from "./ticket";
 import { DurableObject } from "cloudflare:workers";
 import { signTicket, verifyTicket } from "../../shared/realtimeAuth";
 import { gramsCodePattern } from "../../shared/gramsRooms";
+import { ROOM_IDLE_MS } from "./retention";
 import {
   fresh,
   command,
@@ -27,6 +28,7 @@ type Attachment = {
 };
 type Data = {
   creator?: string;
+  lastActivity?: number;
   state: State;
   instance: string;
   disconnected: Record<string, number>;
@@ -97,13 +99,18 @@ export class GramsRoom extends DurableObject<Env> {
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     ctx.blockConcurrencyWhile(async () => {
-      this.data = (await ctx.storage.get<Data>("data")) ?? {
+      const stored = await ctx.storage.get<Data>("data");
+      this.data = stored ?? {
         state: fresh(),
         instance: crypto.randomUUID(),
         disconnected: {},
         retryAt: 0,
         retryDelay: 1000,
       };
+      // Existing rooms have no activity timestamp. Give them a day after their
+      // next wakeup; dormant objects cannot be enumerated by the Worker.
+      if (stored && !this.data.lastActivity)
+        this.data.lastActivity = Date.now();
     });
     ctx.setWebSocketAutoResponse(
       new WebSocketRequestResponsePair("ping", "pong"),
@@ -113,6 +120,7 @@ export class GramsRoom extends DurableObject<Env> {
     const identity = JSON.parse(
       req.headers.get("X-Grams-Identity")!,
     ) as Identity;
+    await this.ctx.blockConcurrencyWhile(() => this.expireIfIdle());
     if (
       this.ctx.getWebSockets().filter((ws) => ws.readyState === WebSocket.OPEN)
         .length >= 36
@@ -155,6 +163,7 @@ export class GramsRoom extends DurableObject<Env> {
         }
         if (!this.data.creator) {
           this.data.creator = identity.id;
+          this.data.lastActivity = Date.now();
           command(this.data.state, identity, { kind: "requestJoin" });
         }
       }
@@ -268,6 +277,7 @@ export class GramsRoom extends DurableObject<Env> {
           return;
         }
         this.data.state = next;
+        this.data.lastActivity = Date.now();
         if (op.args.kind === "leave")
           delete this.data.disconnected[a.identity.id];
         await this.persist();
@@ -337,6 +347,10 @@ export class GramsRoom extends DurableObject<Env> {
   }
   async schedule() {
     const deadlines: number[] = [];
+    if (this.data.lastActivity && !this.data.retryAt)
+      deadlines.push(
+        this.data.lastActivity + (this.env.ROOM_IDLE_MS ?? ROOM_IDLE_MS),
+      );
     if (this.data.state.phase === "playing")
       deadlines.push(this.data.state.endAt);
     for (const deadline of Object.values(this.data.disconnected))
@@ -376,7 +390,29 @@ export class GramsRoom extends DurableObject<Env> {
     });
     if (this.data.retryAt && this.data.retryAt <= Date.now())
       await this.flushResults();
+    if (await this.ctx.blockConcurrencyWhile(() => this.expireIfIdle())) return;
     await this.schedule();
+  }
+  async expireIfIdle() {
+    if (
+      !this.data.lastActivity ||
+      this.data.lastActivity + (this.env.ROOM_IDLE_MS ?? ROOM_IDLE_MS) >
+        Date.now() ||
+      this.data.retryAt ||
+      (await this.ctx.storage.list({ prefix: "result:", limit: 1 })).size
+    )
+      return false;
+    for (const ws of this.ctx.getWebSockets()) ws.close(4004, "Room expired");
+    await this.ctx.storage.deleteAll();
+    await this.ctx.storage.deleteAlarm();
+    this.data = {
+      state: fresh(),
+      instance: crypto.randomUUID(),
+      disconnected: {},
+      retryAt: 0,
+      retryDelay: 1000,
+    };
+    return true;
   }
   async flushResults() {
     const records = await this.ctx.storage.list<any>({

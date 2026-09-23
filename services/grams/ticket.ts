@@ -12,6 +12,7 @@ import {
 import { COLORS, type Mode } from "../../src/game/data";
 import { endingPreview } from "../../src/game/ending-preview";
 import { manageGame, nextBot, scheduleTurn } from "./ticket-engine";
+import { ROOM_IDLE_MS } from "./retention";
 import type {
   Identity,
   Command,
@@ -23,6 +24,7 @@ export interface TicketEnv {
   GRAMS_REALTIME_SECRET: string;
   CONVEX_URL: string;
   ALLOWED_ORIGINS: string;
+  ROOM_IDLE_MS?: number;
 }
 type Ticket = Identity & {
   code: string;
@@ -30,6 +32,7 @@ type Ticket = Identity & {
 };
 type Data = {
   code: string;
+  lastActivity?: number;
   game: Game | null;
   revision: number;
   preview: boolean;
@@ -194,6 +197,12 @@ export class TicketRoom extends DurableObject<TicketEnv> {
         chatSeq: 0,
         lastChat: {},
       };
+      // Pre-existing rooms receive a full day after their next wakeup.
+      if (!this.data.lastActivity && this.data.code) {
+        this.data.lastActivity = Date.now();
+        await ctx.storage.put("data", this.data);
+        await this.schedule();
+      }
     });
     ctx.setWebSocketAutoResponse(
       new WebSocketRequestResponsePair("ping", "pong"),
@@ -233,6 +242,9 @@ export class TicketRoom extends DurableObject<TicketEnv> {
       this.data.retryAt,
       this.data.cleanupAt ?? 0,
       this.data.game?.turnDeadline ?? 0,
+      this.data.lastActivity && !this.data.outbox.length
+        ? this.data.lastActivity + (this.env.ROOM_IDLE_MS ?? ROOM_IDLE_MS)
+        : 0,
     ].filter((t) => t > 0);
     if (times.length)
       await this.ctx.storage.setAlarm(
@@ -247,10 +259,11 @@ export class TicketRoom extends DurableObject<TicketEnv> {
       await this.schedule();
     });
   }
-  async commit(game: Game) {
+  async commit(game: Game, playerActivity = false) {
     const before = this.data.game!;
     scheduleTurn(before, game);
     this.data.game = game.players.length ? game : null;
+    if (playerActivity) this.data.lastActivity = Date.now();
     if (!this.data.game) {
       this.data.cleanupAt = Date.now() + 1;
       this.data.lastChat = {};
@@ -300,6 +313,7 @@ export class TicketRoom extends DurableObject<TicketEnv> {
     ) as Ticket;
     if (req.headers.get("Upgrade")?.toLowerCase() === "websocket") {
       return this.ctx.blockConcurrencyWhile(async () => {
+        await this.expireIfIdle();
         if (this.ctx.getWebSockets().length >= 40)
           return new Response("Room connections full", { status: 429 });
         await this.settle();
@@ -367,6 +381,7 @@ export class TicketRoom extends DurableObject<TicketEnv> {
   }
   async command(identity: Ticket, args: Command): Promise<unknown> {
     const { id, name } = identity;
+    await this.expireIfIdle();
     if (args.kind === "create") {
       if (!identity.create) throw new Error("Create a room first.");
       if (this.data.code) {
@@ -374,6 +389,7 @@ export class TicketRoom extends DurableObject<TicketEnv> {
         throw new Error("Room code already used. Create another room.");
       }
       this.data.code = identity.code;
+      this.data.lastActivity = Date.now();
       this.data.preview = identity.create.endingPreview ?? false;
       this.data.game = this.data.preview
         ? endingPreview(id, name, identity.code)
@@ -408,6 +424,7 @@ export class TicketRoom extends DurableObject<TicketEnv> {
         ),
       );
       this.data.lastChat[id] = now;
+      this.data.lastActivity = now;
       const key = `chat:${String(++this.data.chatSeq).padStart(12, "0")}`;
       const message: ChatMessage = {
         _id: key,
@@ -450,7 +467,7 @@ export class TicketRoom extends DurableObject<TicketEnv> {
         throw new Error("This seat is now controlled by the computer.");
       g = applyAction(g, id, args.action);
     }
-    await this.commit(g);
+    await this.commit(g, true);
     return args.kind === "join" ? this.data.code : null;
   }
   async alarm() {
@@ -512,7 +529,34 @@ export class TicketRoom extends DurableObject<TicketEnv> {
         this.data.cleanupAt = entries.size === 100 ? Date.now() + 1 : 0;
       }
       await this.persist();
+      await this.expireIfIdle();
     });
+  }
+  async expireIfIdle() {
+    if (
+      !this.data.lastActivity ||
+      this.data.lastActivity + (this.env.ROOM_IDLE_MS ?? ROOM_IDLE_MS) >
+        Date.now() ||
+      this.data.outbox.length
+    )
+      return false;
+    for (const ws of this.ctx.getWebSockets()) ws.close(4004, "Room expired");
+    await this.ctx.storage.deleteAll();
+    await this.ctx.storage.deleteAlarm();
+    this.data = {
+      code: "",
+      game: null,
+      revision: 0,
+      preview: false,
+      instance: crypto.randomUUID(),
+      botAt: 0,
+      retryAt: 0,
+      retryDelay: 1000,
+      outbox: [],
+      chatSeq: 0,
+      lastChat: {},
+    };
+    return true;
   }
   async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer) {
     if (

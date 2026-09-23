@@ -83,6 +83,8 @@ remain local. Bot moves, turn expiry, chat cleanup, and result-delivery retries 
 alarms. New gameplay is not written to the old Convex room or message tables.
 
 Chat remains paginated, with a 750ms per-account cooldown within each room. Empty
-lobbies remove their chat in batches and retain a small tombstone. Active and
-completed rooms have no automatic expiry. No pricing plan or budget setting was
-changed. See [Ticket realtime server](ticket-realtime.md) for deployment and checks.
+lobbies remove their chat in batches and retain a small tombstone. Grams and
+Ticket rooms now expire after 24 hours without an accepted player action. Their
+room storage is deleted after any pending completed results reach Convex. No
+pricing plan or budget setting was changed. See [Ticket realtime server](ticket-realtime.md)
+for deployment and checks.

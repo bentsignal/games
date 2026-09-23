@@ -154,9 +154,10 @@ programs.nix-ld = {
 environment.systemPackages = with pkgs; [ nodejs_24 openssl git ];
 ```
 
-The local Worker launcher passes NixOS's system certificate bundle to Miniflare
-via `NODE_EXTRA_CA_CERTS`, so result delivery to Convex can verify HTTPS. An
-explicit `NODE_EXTRA_CA_CERTS` value takes precedence.
+The local Worker launcher passes the system certificate bundle to Miniflare
+via `NODE_EXTRA_CA_CERTS` when `/etc/ssl/certs/ca-certificates.crt` exists, so
+result delivery to Convex can verify HTTPS. An explicit `NODE_EXTRA_CA_CERTS`
+value takes precedence.
 
 Apply with `sudo -n nixos-rebuild switch`. No Portless CA or client certificate
 trust is needed for HTTP development. Keep system CA certificates available for
