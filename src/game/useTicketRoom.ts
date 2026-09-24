@@ -17,9 +17,10 @@ import type {
 import type { Action, Game } from "./engine";
 import type { Mode } from "./data";
 import { TicketSocket } from "./ticketSocket";
+import { createTicketChat, type ChatPage } from "./ticketChat";
+import { diagnosticMeasure } from "./diagnostics";
 import { optimisticRoom } from "./optimisticRoom";
 type RoomArgs = { code: string };
-type ChatPage = { messages: ChatMessage[]; more: boolean };
 const endpoint = () => {
   const url = import.meta.env.VITE_GRAMS_URL;
   if (!url) throw new Error("Game server is not configured.");
@@ -27,8 +28,6 @@ const endpoint = () => {
 };
 export function useTicketRoom(code: string) {
   const client = useConvex();
-  const activeCode = useRef(code);
-  activeCode.current = code;
   const tableChanges = useRef<Promise<unknown>>(Promise.resolve());
   const channel = useRef<{ code: string; requests: TicketSocket } | null>(null);
   const [snapshot, setSnapshot] = useState<{
@@ -36,13 +35,7 @@ export function useTicketRoom(code: string) {
     room: RoomView | null;
   }>();
   const [connection, setConnection] = useState("");
-  const [chat, setChat] = useState<{
-    code: string;
-    messages: ChatMessage[];
-    more: boolean;
-  }>({ code: "", messages: [], more: false });
-  const chatRef = useRef(chat);
-  chatRef.current = chat;
+  const chat = useMemo(() => createTicketChat(code), [code]);
   const [room, addOptimisticMove] = useOptimistic(
     snapshot?.code === code ? snapshot.room : undefined,
     optimisticRoom,
@@ -54,27 +47,6 @@ export function useTicketRoom(code: string) {
           new Error("Reconnecting. Please try again when connected."),
         );
       return channel.current.requests.request<T>(args);
-    },
-    [],
-  );
-  const mergeChat = useCallback(
-    (roomCode: string, messages: ChatMessage[], more?: boolean) => {
-      if (activeCode.current !== roomCode) return;
-      setChat((old) => {
-        const prior =
-          old.code === roomCode
-            ? old
-            : { code: roomCode, messages: [], more: false };
-        const all = new Map(prior.messages.map((m) => [m._id, m]));
-        for (const m of messages) all.set(m._id, m);
-        return {
-          code: roomCode,
-          messages: [...all.values()].sort((a, b) =>
-            b._id.localeCompare(a._id),
-          ),
-          more: more ?? prior.more,
-        };
-      });
     },
     [],
   );
@@ -118,7 +90,7 @@ export function useTicketRoom(code: string) {
             attempt = 0;
           }
           if (message.type === "reply") current.reply(message);
-          if (message.type === "chat") mergeChat(code, [message.message]);
+          if (message.type === "chat") chat.merge([message.message]);
         };
         socket.onopen = () => {
           if (stopped) {
@@ -130,7 +102,7 @@ export function useTicketRoom(code: string) {
           // Subscribe before loading history so messages sent during the read are merged.
           void request<ChatPage>(code, { kind: "chat" })
             .then((page) => {
-              if (!stopped) mergeChat(code, page.messages, page.more);
+              if (!stopped) chat.merge(page.messages, page.more);
             })
             .catch(() => {});
         };
@@ -152,10 +124,9 @@ export function useTicketRoom(code: string) {
     }
     function queue() {
       clearTimeout(retry);
-      retry = setTimeout(
-        () => void connect(),
-        Math.min(1000 * 2 ** attempt++, 15000),
-      );
+      const delay = Math.min(1000 * 2 ** attempt, 15000);
+      attempt += 1;
+      retry = setTimeout(() => void connect(), delay);
     }
     const ping = setInterval(() => {
       if (ws?.readyState === WebSocket.OPEN) {
@@ -174,7 +145,7 @@ export function useTicketRoom(code: string) {
       if (channel.current?.requests === requests) channel.current = null;
       ws?.close();
     };
-  }, [code, client, request, mergeChat]);
+  }, [code, client, request, chat]);
   const methods = useMemo(
     () => ({
       create: async (args: { mode: Mode; endingPreview?: boolean }) => {
@@ -237,31 +208,36 @@ export function useTicketRoom(code: string) {
         tableChanges.current = task;
         return task;
       },
-      send: (args: RoomArgs & { text: string }) =>
-        request(args.code, { kind: "send", text: args.text }),
+      send: async (args: RoomArgs & { text: string; clientId: string }) => {
+        const started = performance.now();
+        const message = await request<ChatMessage | null>(args.code, {
+          kind: "send",
+          text: args.text,
+          clientId: args.clientId,
+        });
+        diagnosticMeasure("chat-ack", started);
+        chat.acknowledge(args.clientId, message);
+      },
       get: (args: RoomArgs) =>
         request<RoomView | null>(args.code, { kind: "get" }),
     }),
-    [client, request, addOptimisticMove],
+    [client, request, addOptimisticMove, chat],
   );
-  const loadMore = useCallback(
-    (_count: number) => {
-      const current = chatRef.current;
-      if (current.code !== code) return;
-      const before = current.messages.at(-1)?._id;
-      void request<ChatPage>(code, { kind: "chat", before })
-        .then((page) => mergeChat(code, page.messages, page.more))
-        .catch(() => {});
-    },
-    [code, request, mergeChat],
-  );
+  const loadMore = useCallback(async () => {
+    const before = chat
+      .getSnapshot()
+      .messages.map((message) => message._id)
+      .filter((id) => id.startsWith("chat:"))
+      .sort()[0];
+    const page = await request<ChatPage>(code, { kind: "chat", before });
+    chat.merge(page.messages, page.more);
+  }, [code, request, chat]);
   return {
     ...methods,
     room,
     confirmedRoom: snapshot?.code === code ? snapshot.room : undefined,
     connectedServer: !code || connection === code,
-    messages: chat.code === code ? chat.messages : [],
-    chatStatus: chat.code === code && chat.more ? "CanLoadMore" : "Exhausted",
+    chat,
     loadMoreChat: loadMore,
   };
 }

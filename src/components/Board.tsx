@@ -1,3 +1,4 @@
+import { diagnosticCount } from "../game/diagnostics";
 import {
   memo,
   useEffect,
@@ -56,6 +57,7 @@ export default function Board({
   completedTickets?: string[];
   scoreRoutes?: string[];
 }) {
+  diagnosticCount("board-renders");
   const id = useId().replace(/:/g, "");
   const svg = useRef<SVGSVGElement>(null);
   const [view, setView] = useState({ x: 0, y: 0, z: 1 });
@@ -89,14 +91,11 @@ export default function Board({
     () => previews.map((p) => ({ ...p, routes: ticketPath(game, p.ticket) })),
     [previews, game],
   );
-  const destinationStatus = useMemo(
-    () => destinationCityStatus(game),
-    [game?.me?.tickets, game?.claimed, game?.me?.id],
-  );
+  const destinationStatus = useMemo(() => destinationCityStatus(game), [game]);
   const demo = !game;
   const playerColors = useMemo(
     () => playerDisplayColors(game, colorSeed),
-    [game?.players, game?.me?.id, colorSeed],
+    [game, colorSeed],
   );
   const completedCities = new Set(
     completedTickets.flatMap((id) => [TICKET_BY_ID[id].a, TICKET_BY_ID[id].b]),
