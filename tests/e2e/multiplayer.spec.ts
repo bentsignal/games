@@ -182,7 +182,7 @@ test("two independent friends join, choose tickets, chat, draw, and reconnect", 
     .locator(".hand-cards .train-card:not(:disabled)")
     .first()
     .boundingBox())!;
-  const closedSlot = (await closed.locator("rect").first().boundingBox())!;
+  const closedSlot = (await closed.locator("path").first().boundingBox())!;
   await b.mouse.move(held.x + held.width / 2, held.y + held.height / 2);
   await b.mouse.down();
   await b.mouse.move(

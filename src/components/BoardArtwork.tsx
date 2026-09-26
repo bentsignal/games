@@ -59,6 +59,7 @@ const BoardArtwork = memo(function BoardArtwork({
             return (
               <g
                 key={r.id}
+                data-artwork-route={r.id}
                 className={`map-route ${blocked ? "closed" : ""} ${occupied ? "claimed" : ""} ${eligible ? (droppable ? "drop-eligible" : "drop-unavailable") : ""}`}
               >
                 <title>
