@@ -51,12 +51,12 @@ for (const outcome of [
     a.on("request", (r) => {
       if (
         r.method() === "POST" &&
-        new URL(r.url()).pathname.startsWith("/ticket/")
+        /^\/(?:_realtime\/)?ticket\//.test(new URL(r.url()).pathname)
       )
         httpCommands.push(r.postDataJSON().kind);
     });
     await a.routeWebSocket(
-      (url) => url.pathname.startsWith("/ticket/"),
+      (url) => /^\/(?:_realtime\/)?ticket\//.test(url.pathname),
       (ws) => {
         const server = ws.connectToServer();
         disconnectSocket = () => {

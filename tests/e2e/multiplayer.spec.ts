@@ -12,6 +12,20 @@ test("two independent friends join, choose tickets, chat, draw, and reconnect", 
     });
   const a = await first.newPage(),
     b = await second.newPage();
+  const gameRequests: string[] = [];
+  for (const page of [a, b]) {
+    page.on("request", (request) => {
+      if (
+        request.method() === "POST" &&
+        /\/(?:_realtime\/)?ticket\//.test(new URL(request.url()).pathname)
+      )
+        gameRequests.push(request.url());
+    });
+    page.on("websocket", (socket) => {
+      if (/\/(?:_realtime\/)?ticket\//.test(new URL(socket.url()).pathname))
+        gameRequests.push(socket.url().replace(/^ws/, "http"));
+    });
+  }
   const errors: string[] = [];
   a.on("pageerror", (e) => errors.push(e.message));
   b.on("pageerror", (e) => errors.push(e.message));
@@ -24,6 +38,13 @@ test("two independent friends join, choose tickets, chat, draw, and reconnect", 
   await signIn(b, "Bob_QA");
   await b.getByRole("button", { name: "Join game" }).click();
   await expect(a.getByText("Bob_QA", { exact: true }).first()).toBeVisible();
+  if (new URL(baseURL!).hostname.endsWith(".local")) {
+    expect(gameRequests.length).toBeGreaterThanOrEqual(3);
+    for (const request of gameRequests) {
+      expect(new URL(request).origin).toBe(new URL(baseURL!).origin);
+      expect(new URL(request).pathname).toMatch(/^\/_realtime\/ticket\//);
+    }
+  }
   await a.getByRole("tab", { name: /Chat/ }).click();
   const composerY = (await a.getByLabel("Chat message").boundingBox())!.y;
   await a.getByLabel("Chat message").fill("All aboard, Bob!");

@@ -33,7 +33,7 @@ test("Ticket chat and dragging stay isolated with delayed and failed replies", a
   let mode: "normal" | "hold" | "reject" = "normal";
   const held: (() => void)[] = [];
   await a.routeWebSocket(
-    (url) => url.pathname.startsWith("/ticket/"),
+    (url) => /^\/(?:_realtime\/)?ticket\//.test(url.pathname),
     (ws) => {
       const server = ws.connectToServer();
       ws.onMessage((message) => {
