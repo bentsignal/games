@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useLayoutEffect,
   useRef,
   useState,
@@ -47,6 +48,13 @@ export default function TicketChat({
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [slowDown, setSlowDown] = useState(false);
+  const nextSend = useRef(0);
+  useEffect(() => {
+    if (!slowDown) return;
+    const timer = setTimeout(() => setSlowDown(false), 1500);
+    return () => clearTimeout(timer);
+  }, [slowDown]);
   const submittedDraft = useRef<string | null>(null);
   const box = useRef<HTMLDivElement>(null);
   const older = useRef<{ height: number; top: number } | null>(null);
@@ -64,6 +72,12 @@ export default function TicketChat({
     const text = draft.trim();
     if (!text || submittedDraft.current === draft) return;
     const started = performance.now();
+    // Match the server's 750 ms chat limit before creating an optimistic entry.
+    if (slowDown || started < nextSend.current) {
+      setSlowDown(true);
+      return;
+    }
+    nextSend.current = started + 750;
     diagnosticMeasure("chat-input-delay", event.timeStamp);
     const id = clientId();
     // Guard repeated submits before React clears the field, not other messages.
@@ -81,6 +95,14 @@ export default function TicketChat({
       diagnosticMeasure("chat-pending-frame", started),
     );
     void send({ code, text, clientId: id }).catch((reason: unknown) => {
+      if (reason instanceof Error && reason.message === "Please slow down.") {
+        // Network timing or another tab can still trigger the server's limit.
+        chat.acknowledge(id, null);
+        submittedDraft.current = null;
+        setDraft((current) => current || text);
+        setSlowDown(true);
+        return;
+      }
       chat.fail(
         id,
         reason instanceof Error ? reason.message : "Message could not be sent.",
@@ -177,6 +199,7 @@ export default function TicketChat({
           maxLength={500}
           placeholder="Message the table…"
           value={draft}
+          readOnly={slowDown}
           onChange={(event) => {
             submittedDraft.current = null;
             setDraft(event.target.value);
@@ -185,10 +208,15 @@ export default function TicketChat({
         <button
           className="icon"
           aria-label="Send message"
-          disabled={!draft.trim()}
+          disabled={slowDown || !draft.trim()}
         >
           <Send size={18} />
         </button>
+        {slowDown && (
+          <div className="chat-slow-down" role="alert">
+            Please slow down.
+          </div>
+        )}
       </form>
     </div>
   );

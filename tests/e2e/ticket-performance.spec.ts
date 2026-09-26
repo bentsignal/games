@@ -96,6 +96,17 @@ test("Ticket chat and dragging stay isolated with delayed and failed replies", a
     await expect(
       a.getByRole("log").locator(".message[data-pending] time"),
     ).toHaveText("");
+    await input.fill("Too soon");
+    await input.press("Enter");
+    await expect(a.getByRole("alert")).toHaveText("Please slow down.");
+    await expect(input).toHaveValue("Too soon");
+    await expect(input).toHaveAttribute("readonly", "");
+    await expect(a.getByRole("log").locator(".message")).toHaveCount(1);
+    expect(held).toHaveLength(1);
+    await expect(a.getByRole("button", { name: "Copy to draft" })).toHaveCount(
+      0,
+    );
+    await expect(a.getByRole("alert")).toHaveCount(0);
     await input.fill("Second message while first is pending");
     await input.press("Enter");
     await expect(input).toHaveValue("");

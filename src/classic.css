@@ -3794,3 +3794,20 @@ label {
 .map-tooltip-layer {
   z-index: 6;
 }
+
+.chat-box form {
+  position: relative;
+}
+.chat-slow-down {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  border: 1px solid #a57545;
+  border-radius: 4px;
+  background: #faedcf;
+  color: #65452c;
+  box-shadow: 0 2px 8px #4c302533;
+  font-size: 13px;
+}

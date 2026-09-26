@@ -10,6 +10,12 @@ message ID, including after reconnection. A failed or interrupted send remains
 visible as unconfirmed. Copy to draft lets the player recover its text without
 overwriting a newer draft. Interrupted sends are never replayed automatically.
 
+The composer enforces the server's 750 ms chat interval before adding a pending
+message or making a request. Rapid sends preserve the draft and show a 1.5-second
+"Please slow down" toast over the composer. Rate-limit rejections caused by network
+timing or another tab remove the pending entry and use the same toast. Other
+failures keep their recovery controls.
+
 The board separates terrain, train/station artwork, input targets, route
 highlights, ticket previews, and the hover caption. BoardArtwork is memoized and
 receives no hover callbacks or preview state. Terrain and pieces stay on separate paint layers
