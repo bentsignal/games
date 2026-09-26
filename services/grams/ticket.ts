@@ -128,7 +128,10 @@ function validate(input: unknown): asserts input is Command {
     a.kind === "send" &&
     typeof a.text === "string" &&
     a.text.trim().length > 0 &&
-    a.text.length <= 500
+    a.text.length <= 500 &&
+    (a.clientId === undefined ||
+      (typeof a.clientId === "string" &&
+        /^[a-zA-Z0-9-]{1,80}$/.test(a.clientId)))
   )
     return;
   if (
@@ -428,6 +431,7 @@ export class TicketRoom extends DurableObject<TicketEnv> {
       const key = `chat:${String(++this.data.chatSeq).padStart(12, "0")}`;
       const message: ChatMessage = {
         _id: key,
+        ...(args.clientId ? { clientId: args.clientId } : {}),
         sender: id,
         name: g.players.find((p) => p.id === id)?.name ?? name,
         text: args.text.trim(),
@@ -442,7 +446,7 @@ export class TicketRoom extends DurableObject<TicketEnv> {
         if (a.expires > Date.now()) this.send(ws, { type: "chat", message });
         else ws.close(4001, "Sign in again");
       }
-      return null;
+      return message;
     }
     if (args.kind === "join") {
       if (g.players.some((p) => p.id === id)) return this.data.code;
@@ -471,7 +475,7 @@ export class TicketRoom extends DurableObject<TicketEnv> {
     return args.kind === "join" ? this.data.code : null;
   }
   async alarm() {
-    await this.ctx.blockConcurrencyWhile(async () => {
+    const result = await this.ctx.blockConcurrencyWhile(async () => {
       const expired = await this.settle();
       if (!expired && this.data.botAt && this.data.botAt <= Date.now()) {
         const g = this.data.game,
@@ -479,47 +483,11 @@ export class TicketRoom extends DurableObject<TicketEnv> {
         this.data.botAt = 0;
         if (g && p) await this.commit(applyAction(g, p.id, botAction(g, p)));
       }
-      if (this.data.retryAt && this.data.retryAt <= Date.now()) {
-        const result = this.data.outbox[0];
-        try {
-          if (result) {
-            const token = signTicket(
-              {
-                iss: "games-realtime",
-                aud: "ticket:result",
-                exp: Date.now() / 1000 + 60,
-                result,
-              },
-              this.env.GRAMS_REALTIME_SECRET,
-            );
-            const response = await fetch(
-              this.env.CONVEX_URL + "/api/mutation",
-              {
-                method: "POST",
-                signal: AbortSignal.timeout(10000),
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  path: "ticket:saveResult",
-                  args: { token },
-                  format: "json",
-                }),
-              },
-            );
-            if (
-              !response.ok ||
-              ((await response.json()) as { status: string }).status !==
-                "success"
-            )
-              throw new Error("Result delivery failed");
-            this.data.outbox.shift();
-          }
-          this.data.retryDelay = 1000;
-          this.data.retryAt = this.data.outbox.length ? Date.now() + 1 : 0;
-        } catch {
-          this.data.retryAt = Date.now() + this.data.retryDelay;
-          this.data.retryDelay = Math.min(this.data.retryDelay * 2, 300000);
-        }
-      }
+      const result =
+        this.data.retryAt && this.data.retryAt <= Date.now()
+          ? this.data.outbox[0]
+          : undefined;
+      if (result) this.data.retryAt = Date.now() + 10000;
       if (this.data.cleanupAt && this.data.cleanupAt <= Date.now()) {
         const entries = await this.ctx.storage.list({
           prefix: "chat:",
@@ -527,6 +495,52 @@ export class TicketRoom extends DurableObject<TicketEnv> {
         });
         await this.ctx.storage.delete([...entries.keys()]);
         this.data.cleanupAt = entries.size === 100 ? Date.now() + 1 : 0;
+      }
+      await this.persist();
+      await this.expireIfIdle();
+      return result;
+    });
+    // External result delivery must not hold the room's command lock.
+    if (result) await this.deliverResult(result);
+  }
+  async deliverResult(result: TicketResult) {
+    let accepted = false;
+    try {
+      const token = signTicket(
+        {
+          iss: "games-realtime",
+          aud: "ticket:result",
+          exp: Date.now() / 1000 + 60,
+          result,
+        },
+        this.env.GRAMS_REALTIME_SECRET,
+      );
+      const response = await fetch(this.env.CONVEX_URL + "/api/mutation", {
+        method: "POST",
+        signal: AbortSignal.timeout(10000),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          path: "ticket:saveResult",
+          args: { token },
+          format: "json",
+        }),
+      });
+      accepted =
+        response.ok &&
+        ((await response.json()) as { status: string }).status === "success";
+    } catch {
+      /* The persistent outbox is retried after interruption or failure. */
+    }
+    await this.ctx.blockConcurrencyWhile(async () => {
+      // Commands may have changed the game or appended another result during fetch.
+      if (this.data.outbox[0]?.id !== result.id) return;
+      if (accepted) {
+        this.data.outbox.shift();
+        this.data.retryDelay = 1000;
+        this.data.retryAt = this.data.outbox.length ? Date.now() + 1 : 0;
+      } else {
+        this.data.retryAt = Date.now() + this.data.retryDelay;
+        this.data.retryDelay = Math.min(this.data.retryDelay * 2, 300000);
       }
       await this.persist();
       await this.expireIfIdle();

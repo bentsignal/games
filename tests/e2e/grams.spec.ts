@@ -288,9 +288,14 @@ test("Grams preserves its welcome screen, joins automatically, and keeps lobbies
     ).toBeInViewport();
     await host.screenshot({ path: "/tmp/grams-lobbies-mobile.png" });
     await host.setViewportSize({ width: 1440, height: 1000 });
-    const logo = await frame.locator("#home-logo").boundingBox();
-    const form = await frame.locator("#connection-container").boundingBox();
-    expect(logo!.x + logo!.width).toBeLessThan(form!.x);
+    // The iframe receives its resize after the outer page's viewport changes.
+    await expect
+      .poll(async () => {
+        const logo = await frame.locator("#home-logo").boundingBox();
+        const form = await frame.locator("#connection-container").boundingBox();
+        return !!logo && !!form && logo.x + logo.width < form.x;
+      })
+      .toBe(true);
     await host.screenshot({ path: "/tmp/grams-lobbies-desktop.png" });
     let navigations = 0;
     host.on("request", (request) => {

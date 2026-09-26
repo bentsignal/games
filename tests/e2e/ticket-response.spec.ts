@@ -6,7 +6,7 @@ async function drop(page: Page) {
   await card.hover();
   const hand = (await card.boundingBox())!;
   const route = (await page
-    .locator('[data-route="r1"] rect')
+    .locator('[data-route="r1"] path')
     .first()
     .boundingBox())!;
   await page.mouse.move(hand.x + hand.width / 2, hand.y + hand.height / 2);
@@ -51,12 +51,12 @@ for (const outcome of [
     a.on("request", (r) => {
       if (
         r.method() === "POST" &&
-        new URL(r.url()).pathname.startsWith("/ticket/")
+        /^\/(?:_realtime\/)?ticket\//.test(new URL(r.url()).pathname)
       )
         httpCommands.push(r.postDataJSON().kind);
     });
     await a.routeWebSocket(
-      (url) => url.pathname.startsWith("/ticket/"),
+      (url) => /^\/(?:_realtime\/)?ticket\//.test(url.pathname),
       (ws) => {
         const server = ws.connectToServer();
         disconnectSocket = () => {

@@ -11,6 +11,7 @@ export type RoomView = {
 };
 export type ChatMessage = {
   _id: string;
+  clientId?: string;
   sender: string;
   name: string;
   text: string;
@@ -29,7 +30,7 @@ export type Command =
       mode?: Mode;
       turnSeconds?: Game["turnSeconds"];
     }
-  | { kind: "send"; text: string }
+  | { kind: "send"; text: string; clientId?: string }
   | { kind: "chat"; before?: string };
 export type TicketResult = {
   id: string;

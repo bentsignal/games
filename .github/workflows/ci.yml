@@ -33,6 +33,8 @@ jobs:
             script: test
           - name: Worker integration
             script: grams:test
+          - name: React Compiler
+            script: check:react-compiler
           - name: Build
             script: build
     env:

@@ -52,7 +52,7 @@ try {
           o.color !== "gray",
       ),
   )!;
-  const route = page.locator(`[data-route="${orange.id}"]`);
+  const route = page.locator(`[data-artwork-route="${orange.id}"]`);
   await expect(route).toHaveClass(/closed/);
   await expect(route.locator("rect").first()).toHaveAttribute(
     "fill",

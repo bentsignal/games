@@ -34,8 +34,13 @@ then starts three persistent Turbo tasks. Open the frontend URL it prints:
 
 ```text
 http://<checkout-id>.games.bentsignal.local
-http://<checkout-id>.grams.bentsignal.local
 ```
+
+The browser uses only the Games hostname. Vite forwards `/_realtime/` HTTP and
+WebSocket requests to the checkout's internal Worker at
+`http://<checkout-id>.grams.bentsignal.local`. Only the development machine needs
+to resolve that Worker hostname. Production builds retain their configured
+Worker endpoint.
 
 Each checkout has different URLs and a separate Convex database. Worker SQLite
 state lives under `.dev/worker/<convex-deployment>/`, so replacing an expired

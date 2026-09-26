@@ -12,6 +12,20 @@ test("two independent friends join, choose tickets, chat, draw, and reconnect", 
     });
   const a = await first.newPage(),
     b = await second.newPage();
+  const gameRequests: string[] = [];
+  for (const page of [a, b]) {
+    page.on("request", (request) => {
+      if (
+        request.method() === "POST" &&
+        /\/(?:_realtime\/)?ticket\//.test(new URL(request.url()).pathname)
+      )
+        gameRequests.push(request.url());
+    });
+    page.on("websocket", (socket) => {
+      if (/\/(?:_realtime\/)?ticket\//.test(new URL(socket.url()).pathname))
+        gameRequests.push(socket.url().replace(/^ws/, "http"));
+    });
+  }
   const errors: string[] = [];
   a.on("pageerror", (e) => errors.push(e.message));
   b.on("pageerror", (e) => errors.push(e.message));
@@ -24,6 +38,13 @@ test("two independent friends join, choose tickets, chat, draw, and reconnect", 
   await signIn(b, "Bob_QA");
   await b.getByRole("button", { name: "Join game" }).click();
   await expect(a.getByText("Bob_QA", { exact: true }).first()).toBeVisible();
+  if (new URL(baseURL!).hostname.endsWith(".local")) {
+    expect(gameRequests.length).toBeGreaterThanOrEqual(3);
+    for (const request of gameRequests) {
+      expect(new URL(request).origin).toBe(new URL(baseURL!).origin);
+      expect(new URL(request).pathname).toMatch(/^\/_realtime\/ticket\//);
+    }
+  }
   await a.getByRole("tab", { name: /Chat/ }).click();
   const composerY = (await a.getByLabel("Chat message").boundingBox())!.y;
   await a.getByLabel("Chat message").fill("All aboard, Bob!");
@@ -120,7 +141,7 @@ test("two independent friends join, choose tickets, chat, draw, and reconnect", 
   await expect(a.locator("#payment")).toHaveCount(0);
   const card = a.locator(".hand-cards .train-card:not(:disabled)").first();
   const hand = await card.boundingBox(),
-    target = await a.locator('[data-route="r2"] rect').first().boundingBox();
+    target = await a.locator('[data-route="r2"] path').first().boundingBox();
   await a.mouse.move(hand!.x + hand!.width / 2, hand!.y + hand!.height / 2);
   await a.mouse.down();
   await a.mouse.move(
@@ -182,7 +203,7 @@ test("two independent friends join, choose tickets, chat, draw, and reconnect", 
     .locator(".hand-cards .train-card:not(:disabled)")
     .first()
     .boundingBox())!;
-  const closedSlot = (await closed.locator("rect").first().boundingBox())!;
+  const closedSlot = (await closed.locator("path").first().boundingBox())!;
   await b.mouse.move(held.x + held.width / 2, held.y + held.height / 2);
   await b.mouse.down();
   await b.mouse.move(
@@ -207,7 +228,7 @@ test("two independent friends join, choose tickets, chat, draw, and reconnect", 
   await second.close();
 });
 
-test("the 2D atlas supports keyboard route selection, pan, zoom, and optional sound", async ({
+test("the fixed atlas supports keyboard routes and the header route list", async ({
   page,
 }) => {
   await page.goto("/ticket");
@@ -221,8 +242,6 @@ test("the 2D atlas supports keyboard route selection, pan, zoom, and optional so
   await route.focus();
   await page.keyboard.press("Enter");
   await expect(route).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: "Zoom in", exact: true }).click();
-  await expect(page.locator(".map-zoom")).toContainText("130%");
   await map.focus();
   await page.keyboard.press("ArrowRight");
   // A drag across the map must not accidentally choose a different route.
@@ -239,13 +258,21 @@ test("the 2D atlas supports keyboard route selection, pan, zoom, and optional so
   );
   await page.mouse.up();
   await expect(route).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: "Reset map", exact: true }).click();
-  await expect(page.locator(".map-zoom")).toContainText("100%");
+  await page.mouse.wheel(0, -200);
   await map.focus();
   await page.keyboard.press("+");
-  await expect(page.locator(".map-zoom")).toContainText("130%");
-  await page.keyboard.press("0");
-  await expect(page.locator(".map-zoom")).toContainText("100%");
+  expect(
+    await page.locator("[data-map-world]").getAttribute("transform"),
+  ).toBeNull();
+  await expect(
+    page.locator(".map-controls, .map-camera, .map-zoom"),
+  ).toHaveCount(0);
+  await page
+    .locator("header")
+    .getByRole("button", { name: "Open route list" })
+    .click();
+  await expect(page.getByRole("dialog", { name: "Route list" })).toBeVisible();
+  await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Leave table", exact: true }).click();
 });
 test("computer takeover finishes the game, reveals scores, and rematches", async ({
@@ -331,37 +358,13 @@ test("mobile landing, catalog, and room remain usable", async ({ page }) => {
   ).toBe(true);
   const map = page.getByRole("group", { name: "USA railway map" });
   await map.scrollIntoViewIfNeeded();
-  const rect = (await map.boundingBox())!;
-  const cx = rect.x + rect.width / 2,
-    cy = rect.y + rect.height / 2;
   const touch = await page.context().newCDPSession(page);
-  await touch.send("Input.dispatchTouchEvent", {
-    type: "touchStart",
-    touchPoints: [
-      { x: cx - 25, y: cy, id: 1 },
-      { x: cx + 25, y: cy, id: 2 },
-    ],
-  });
-  await touch.send("Input.dispatchTouchEvent", {
-    type: "touchMove",
-    touchPoints: [
-      { x: cx - 50, y: cy, id: 1 },
-      { x: cx + 50, y: cy, id: 2 },
-    ],
-  });
-  await touch.send("Input.dispatchTouchEvent", {
-    type: "touchEnd",
-    touchPoints: [],
-  });
-  await expect(page.locator(".map-zoom")).toContainText("200%");
-  await page.getByRole("button", { name: "Reset map", exact: true }).click();
-  await expect(page.locator(".map-zoom")).toContainText("100%");
   const hand = (await page
     .locator(".hand-cards .train-card:not(:disabled)")
     .first()
     .boundingBox())!;
   const target = (await page
-    .locator('[data-route="r1"] rect')
+    .locator('[data-route="r1"] path')
     .first()
     .boundingBox())!;
   const from = {
@@ -603,7 +606,13 @@ test("hovering either available lane highlights the whole connection", async ({
   await page.getByRole("button", { name: "Create a game" }).click();
   for (const id of ["r1", "r2"]) {
     await page.locator(`[data-route="${id}"][role="button"]`).focus();
-    await expect(page.locator('[data-route="r1"]')).toHaveClass(/highlighted/);
-    await expect(page.locator('[data-route="r2"]')).toHaveClass(/highlighted/);
+    await expect(page.locator('[data-route-highlight="r1"]')).toHaveAttribute(
+      "data-hovered",
+      "true",
+    );
+    await expect(page.locator('[data-route-highlight="r2"]')).toHaveAttribute(
+      "data-hovered",
+      "true",
+    );
   }
 });

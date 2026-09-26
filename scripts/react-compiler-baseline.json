@@ -1,0 +1,9 @@
+{
+  "src/components/AccountGate.tsx: (BuildHIR::lowerStatement) Handle TryStatement with a finalizer ('finally') clause": 2,
+  "src/components/Grams.tsx: (BuildHIR::lowerStatement) Support ThrowStatement inside of try/catch": 1,
+  "src/components/Grams.tsx: (BuildHIR::lowerExpression) Handle UpdateExpression to variables captured within lambdas.": 1,
+  "src/components/DevelopmentSignIn.tsx: (BuildHIR::lowerStatement) Support ThrowStatement inside of try/catch": 1,
+  "src/components/Music.tsx: Cannot access refs during render": 6,
+  "src/components/Scoreboard.tsx: Existing memoization could not be preserved": 1,
+  "src/components/Scoreboard.tsx: Cannot reassign variable after render completes": 1
+}
