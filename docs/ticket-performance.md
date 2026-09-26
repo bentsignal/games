@@ -2,7 +2,8 @@ Ticket performance checks and diagnostics
 
 Chat owns its draft and subscribes to a room-specific message store. The game
 screen does not subscribe to chat messages. Outgoing messages appear immediately
-with a Sending status. Server broadcasts and replies reconcile the same client
+with a Sending status. Each message can remain pending independently; sending
+another message does not wait for earlier acknowledgements. Server broadcasts and replies reconcile the same client
 message ID, including after reconnection. A failed or interrupted send remains
 visible as unconfirmed. Copy to draft lets the player recover its text without
 overwriting a newer draft. Interrupted sends are never replayed automatically.
@@ -11,7 +12,10 @@ The drag handler performs one geometric hit test per animation frame. Pointer
 coordinates update the ghost's CSS translate directly. Route labels update the
 ghost component, and route highlights update a separate SVG overlay. Crossing
 routes does not update game-screen state. The board updates when dragging starts
-or ends to show eligible routes.
+or ends to show eligible routes. The map and absolute highlight overlay share a
+contained viewport. The detailed map has its own composited surface, and highlight
+geometry cannot participate in the parent grid sizing. A relative SVG grid item
+previously repainted the underlying map as the drag crossed routes.
 
 Result delivery to Convex runs outside the Durable Object's command lock. The
 persistent outbox still retries failed deliveries and survives restarts. Commands
@@ -35,7 +39,7 @@ compiler alone is not sufficient. The upstream compatibility report is
 Run `pnpm run test:e2e:smoke` with the configured development services running.
 The Ticket performance test checks zero board renders during typing, incoming
 chat, delayed acknowledgements, and rejected messages. It also checks draft
-preservation, one hit test per pointer movement, bounded board renders during a
+preservation, multiple sends before acknowledgement, one hit test per pointer movement, bounded board renders during a
 continuous drag, and p95 drag frame intervals below 50 ms at 4x CPU slowdown.
 This threshold catches severe regressions; it is not a claim of 60 FPS on every
 machine. Worker integration holds result delivery open while sending chat to
@@ -87,3 +91,13 @@ feedback, not proof of GPU presentation.
 No chat text, player identity, room code, credentials, or WebSocket payloads are
 recorded. Diagnostics never upload automatically and are disabled in ordinary
 production builds. The offline command writes its separate build under `.dev/`.
+
+Windows follow-up, September 26
+
+The supplied 2552 × 1345 recording contained 1,420 hit tests and 14 board
+renders. Hit testing took at most 0.5 ms, while drag frame p95 was 58.1 ms.
+This pointed beyond React render frequency. Local Chromium traces at the same
+viewport showed repeated map painting when the highlight path changed. Moving
+the overlay out of grid sizing into a contained viewport and compositing the
+map reduced raster work substantially in the local comparison. Windows must be
+retested; local browser timings do not establish Windows GPU performance.

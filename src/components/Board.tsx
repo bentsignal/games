@@ -120,492 +120,504 @@ export default function Board({
       : [];
   return (
     <div className={`atlas ${demo ? "atlas-preview" : ""}`}>
-      <svg
-        ref={svg}
-        className="railway-map"
-        viewBox="0 0 1400 900"
-        aria-label="USA railway map"
-        role="group"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.target !== e.currentTarget) return;
-          if (e.key === "+" || e.key === "=") zoom(1.3);
-          if (e.key === "-") zoom(1 / 1.3);
-          if (e.key === "0") setView({ x: 0, y: 0, z: 1 });
-          if (e.key.startsWith("Arrow")) {
-            e.preventDefault();
-            setView((v) => ({
-              ...v,
-              x:
-                v.x +
-                (e.key === "ArrowLeft" ? 60 : e.key === "ArrowRight" ? -60 : 0),
-              y:
-                v.y +
-                (e.key === "ArrowUp" ? 60 : e.key === "ArrowDown" ? -60 : 0),
-            }));
-          }
-        }}
-        onPointerDown={(e) => {
-          pointers.current.set(e.pointerId, [e.clientX, e.clientY]);
-          moved.current = false;
-        }}
-        onPointerMove={(e) => {
-          const old = pointers.current.get(e.pointerId);
-          if (!old) return;
-          const next: Point = [e.clientX, e.clientY];
-          const others = [...pointers.current.entries()].filter(
-            ([key]) => key !== e.pointerId,
-          );
-          const rect = e.currentTarget.getBoundingClientRect();
-          const scale = Math.max(1400 / rect.width, 900 / rect.height);
-          const dx = next[0] - old[0],
-            dy = next[1] - old[1];
-          if (Math.abs(dx) + Math.abs(dy) > 2) moved.current = true;
-          if (others.length) {
-            const other = others[0][1],
-              before = Math.hypot(old[0] - other[0], old[1] - other[1]),
-              after = Math.hypot(next[0] - other[0], next[1] - other[1]);
-            if (before > 0) zoom(after / before);
-          } else if (moved.current) {
-            e.currentTarget.setPointerCapture(e.pointerId);
-            setView((v) => ({
-              ...v,
-              x: Math.max(-1400, Math.min(1400, v.x + dx * scale)),
-              y: Math.max(-900, Math.min(900, v.y + dy * scale)),
-            }));
-          }
-          pointers.current.set(e.pointerId, next);
-        }}
-        onPointerUp={(e) => pointers.current.delete(e.pointerId)}
-        onPointerCancel={(e) => pointers.current.delete(e.pointerId)}
-        onClick={() => {
-          if (!moved.current) onSelect(null);
-        }}
-      >
-        <defs>
-          <linearGradient id={`${id}ocean`} x2="0" y2="1">
-            <stop stopColor="#b2cbd0" />
-            <stop offset="1" stopColor="#7fabb7" />
-          </linearGradient>
-          <radialGradient id={`${id}paper`}>
-            <stop stopColor="#f7ebce" />
-            <stop offset=".7" stopColor="#ecdbb5" />
-            <stop offset="1" stopColor="#d9c49a" />
-          </radialGradient>
-          <pattern
-            id={`${id}waves`}
-            width="26"
-            height="14"
-            patternUnits="userSpaceOnUse"
-          >
-            <path
-              d="M0 8Q6 3 13 8T26 8"
-              stroke="#f5e7c8"
-              strokeWidth=".65"
-              opacity=".3"
-              fill="none"
-            />
-          </pattern>
-          <pattern
-            id={`${id}grain`}
-            width="7"
-            height="9"
-            patternUnits="userSpaceOnUse"
-          >
-            <circle cx="1" cy="1" r=".5" fill="#785b32" opacity=".16" />
-            <circle cx="5" cy="6" r=".45" fill="#fff9e7" opacity=".7" />
-          </pattern>
-          <clipPath id={`${id}land`}>
-            {geography.land.map((l) => (
-              <path key={l.name} d={l.path} />
-            ))}
-          </clipPath>
-        </defs>
-        <g>
-          <rect
-            x="-4000"
-            y="-4000"
-            width="9000"
-            height="9000"
-            fill={`url(#${id}ocean)`}
-          />
-          <g
-            data-map-world="true"
-            transform={`translate(${700 + view.x} ${450 + view.y}) scale(${view.z}) translate(-700 -450)`}
-          >
+      <div className="map-viewport">
+        <svg
+          ref={svg}
+          className="railway-map"
+          viewBox="0 0 1400 900"
+          aria-label="USA railway map"
+          role="group"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.target !== e.currentTarget) return;
+            if (e.key === "+" || e.key === "=") zoom(1.3);
+            if (e.key === "-") zoom(1 / 1.3);
+            if (e.key === "0") setView({ x: 0, y: 0, z: 1 });
+            if (e.key.startsWith("Arrow")) {
+              e.preventDefault();
+              setView((v) => ({
+                ...v,
+                x:
+                  v.x +
+                  (e.key === "ArrowLeft"
+                    ? 60
+                    : e.key === "ArrowRight"
+                      ? -60
+                      : 0),
+                y:
+                  v.y +
+                  (e.key === "ArrowUp" ? 60 : e.key === "ArrowDown" ? -60 : 0),
+              }));
+            }
+          }}
+          onPointerDown={(e) => {
+            pointers.current.set(e.pointerId, [e.clientX, e.clientY]);
+            moved.current = false;
+          }}
+          onPointerMove={(e) => {
+            const old = pointers.current.get(e.pointerId);
+            if (!old) return;
+            const next: Point = [e.clientX, e.clientY];
+            const others = [...pointers.current.entries()].filter(
+              ([key]) => key !== e.pointerId,
+            );
+            const rect = e.currentTarget.getBoundingClientRect();
+            const scale = Math.max(1400 / rect.width, 900 / rect.height);
+            const dx = next[0] - old[0],
+              dy = next[1] - old[1];
+            if (Math.abs(dx) + Math.abs(dy) > 2) moved.current = true;
+            if (others.length) {
+              const other = others[0][1],
+                before = Math.hypot(old[0] - other[0], old[1] - other[1]),
+                after = Math.hypot(next[0] - other[0], next[1] - other[1]);
+              if (before > 0) zoom(after / before);
+            } else if (moved.current) {
+              e.currentTarget.setPointerCapture(e.pointerId);
+              setView((v) => ({
+                ...v,
+                x: Math.max(-1400, Math.min(1400, v.x + dx * scale)),
+                y: Math.max(-900, Math.min(900, v.y + dy * scale)),
+              }));
+            }
+            pointers.current.set(e.pointerId, next);
+          }}
+          onPointerUp={(e) => pointers.current.delete(e.pointerId)}
+          onPointerCancel={(e) => pointers.current.delete(e.pointerId)}
+          onClick={() => {
+            if (!moved.current) onSelect(null);
+          }}
+        >
+          <defs>
+            <linearGradient id={`${id}ocean`} x2="0" y2="1">
+              <stop stopColor="#b2cbd0" />
+              <stop offset="1" stopColor="#7fabb7" />
+            </linearGradient>
+            <radialGradient id={`${id}paper`}>
+              <stop stopColor="#f7ebce" />
+              <stop offset=".7" stopColor="#ecdbb5" />
+              <stop offset="1" stopColor="#d9c49a" />
+            </radialGradient>
+            <pattern
+              id={`${id}waves`}
+              width="26"
+              height="14"
+              patternUnits="userSpaceOnUse"
+            >
+              <path
+                d="M0 8Q6 3 13 8T26 8"
+                stroke="#f5e7c8"
+                strokeWidth=".65"
+                opacity=".3"
+                fill="none"
+              />
+            </pattern>
+            <pattern
+              id={`${id}grain`}
+              width="7"
+              height="9"
+              patternUnits="userSpaceOnUse"
+            >
+              <circle cx="1" cy="1" r=".5" fill="#785b32" opacity=".16" />
+              <circle cx="5" cy="6" r=".45" fill="#fff9e7" opacity=".7" />
+            </pattern>
+            <clipPath id={`${id}land`}>
+              {geography.land.map((l) => (
+                <path key={l.name} d={l.path} />
+              ))}
+            </clipPath>
+          </defs>
+          <g>
             <rect
               x="-4000"
               y="-4000"
               width="9000"
               height="9000"
-              fill={`url(#${id}waves)`}
+              fill={`url(#${id}ocean)`}
             />
-            <g className="atlas-geography">
-              {geography.land.map((l) => (
-                <path
-                  key={l.name}
-                  d={l.path}
-                  fill={`url(#${id}paper)`}
-                  stroke="#f7ecd1"
-                  strokeWidth="10"
-                  strokeLinejoin="round"
-                />
-              ))}
-              {geography.land.map((l) => (
-                <path
-                  key={l.name}
-                  d={l.path}
-                  fill="none"
-                  stroke="#927b57"
-                  strokeWidth="1.6"
-                />
-              ))}
-              <g clipPath={`url(#${id}land)`}>
-                {geography.borders.map((path, i) => (
+            <g
+              data-map-world="true"
+              transform={`translate(${700 + view.x} ${450 + view.y}) scale(${view.z}) translate(-700 -450)`}
+            >
+              <rect
+                x="-4000"
+                y="-4000"
+                width="9000"
+                height="9000"
+                fill={`url(#${id}waves)`}
+              />
+              <g className="atlas-geography">
+                {geography.land.map((l) => (
+                  <path
+                    key={l.name}
+                    d={l.path}
+                    fill={`url(#${id}paper)`}
+                    stroke="#f7ecd1"
+                    strokeWidth="10"
+                    strokeLinejoin="round"
+                  />
+                ))}
+                {geography.land.map((l) => (
+                  <path
+                    key={l.name}
+                    d={l.path}
+                    fill="none"
+                    stroke="#927b57"
+                    strokeWidth="1.6"
+                  />
+                ))}
+                <g clipPath={`url(#${id}land)`}>
+                  {geography.borders.map((path, i) => (
+                    <path
+                      key={i}
+                      d={path}
+                      fill="none"
+                      stroke="#b8a47b"
+                      strokeWidth="1"
+                      opacity=".65"
+                    />
+                  ))}
+                  {/* Quiet, engraved relief. Clipped to land, underneath every railway. */}
+                  {Array.from({ length: 65 }, (_, i) => {
+                    const x =
+                        310 + (i % 5) * 19 + Math.sin(i * 4) * 12 + (i / 5) * 4,
+                      y = 180 + Math.floor(i / 5) * 36;
+                    return (
+                      <path
+                        key={i}
+                        d={`M${x - 13} ${y + 17}l13 -25 17 25m-17 -25 1 13 7 12m-8 -12 -7 10`}
+                        fill="none"
+                        stroke="#8e8b64"
+                        strokeWidth="1.4"
+                        opacity=".22"
+                      />
+                    );
+                  })}
+                  <rect width="1400" height="900" fill={`url(#${id}grain)`} />
+                </g>
+                {geography.water.map((path, i) => (
                   <path
                     key={i}
                     d={path}
-                    fill="none"
-                    stroke="#b8a47b"
-                    strokeWidth="1"
-                    opacity=".65"
+                    fill="#a8c6ca"
+                    stroke="#819f9e"
+                    strokeWidth=".9"
                   />
                 ))}
-                {/* Quiet, engraved relief. Clipped to land, underneath every railway. */}
-                {Array.from({ length: 65 }, (_, i) => {
-                  const x =
-                      310 + (i % 5) * 19 + Math.sin(i * 4) * 12 + (i / 5) * 4,
-                    y = 180 + Math.floor(i / 5) * 36;
-                  return (
-                    <path
-                      key={i}
-                      d={`M${x - 13} ${y + 17}l13 -25 17 25m-17 -25 1 13 7 12m-8 -12 -7 10`}
-                      fill="none"
-                      stroke="#8e8b64"
-                      strokeWidth="1.4"
-                      opacity=".22"
-                    />
-                  );
-                })}
-                <rect width="1400" height="900" fill={`url(#${id}grain)`} />
               </g>
-              {geography.water.map((path, i) => (
-                <path
-                  key={i}
-                  d={path}
-                  fill="#a8c6ca"
-                  stroke="#819f9e"
-                  strokeWidth=".9"
-                />
-              ))}
-            </g>
-            <g className="map-lettering" pointerEvents="none">
-              <text x="650" y="95" className="country-name">
-                C A N A D A
-              </text>
-              <text x="490" y="864" className="country-name">
-                M É X I C O
-              </text>
-              <text
-                x="22"
-                y="440"
-                transform="rotate(-87 22 440)"
-                className="ocean-name"
-              >
-                PACIFIC OCEAN
-              </text>
-              <text
-                x="1360"
-                y="510"
-                transform="rotate(-78 1360 510)"
-                className="ocean-name"
-              >
-                ATLANTIC OCEAN
-              </text>
-              <text x="990" y="865" className="ocean-name gulf">
-                Gulf of America
-              </text>
-            </g>
-            <g className="ticket-paths" pointerEvents="none">
-              {previewPaths.map((p) => (
-                <g
-                  key={p.ticket.id}
-                  data-ticket-preview={p.ticket.id}
-                  data-hovered={p.hovered || undefined}
+              <g className="map-lettering" pointerEvents="none">
+                <text x="650" y="95" className="country-name">
+                  C A N A D A
+                </text>
+                <text x="490" y="864" className="country-name">
+                  M É X I C O
+                </text>
+                <text
+                  x="22"
+                  y="440"
+                  transform="rotate(-87 22 440)"
+                  className="ocean-name"
                 >
-                  {p.routes.map((route) => (
-                    <path
-                      key={route}
-                      d={tracks.find((t) => t.route.id === route)!.path}
-                      fill="none"
-                      stroke={p.color}
-                      strokeWidth={p.hovered ? 22 : 18}
-                      strokeLinecap="round"
-                      opacity={p.hovered ? 0.6 : 0.34}
-                    />
-                  ))}
-                </g>
-              ))}
-            </g>
-            {[...tracks]
-              .sort(
-                (a, b) =>
-                  Number(!!game?.claimed[a.route.id]) -
-                  Number(!!game?.claimed[b.route.id]),
-              )
-              .map(({ route: r, path, cars }) => {
-                const owner = game?.players.find(
-                  (p) => p.id === game.claimed[r.id],
-                );
-                const demoIndex = demoRoutes.indexOf(Number(r.id.slice(1)));
-                const occupied = !!owner || (demo && demoIndex >= 0);
-                const color = owner
-                  ? playerColors[owner.id]
-                  : occupied
-                    ? PLAYER_COLORS[Math.floor(demoIndex / 4) % 5]
-                    : PALETTE[r.color];
-                const highlighted =
-                  scoreRoutes.includes(r.id) ||
-                  selected === r.id ||
-                  hoverIds.includes(r.id) ||
-                  dropTarget === r.id;
-                const droppable = eligible?.includes(r.id);
-                const blocked = parallelBlockReason(game, r);
-                return (
+                  PACIFIC OCEAN
+                </text>
+                <text
+                  x="1360"
+                  y="510"
+                  transform="rotate(-78 1360 510)"
+                  className="ocean-name"
+                >
+                  ATLANTIC OCEAN
+                </text>
+                <text x="990" y="865" className="ocean-name gulf">
+                  Gulf of America
+                </text>
+              </g>
+              <g className="ticket-paths" pointerEvents="none">
+                {previewPaths.map((p) => (
                   <g
-                    key={r.id}
-                    className={`map-route ${blocked ? "closed" : ""} ${occupied ? "claimed" : ""} ${highlighted ? "highlighted" : ""} ${eligible ? (droppable ? "drop-eligible" : "drop-unavailable") : ""} ${dropTarget === r.id ? "drop-target" : ""}`}
-                    data-route={r.id}
-                    data-owner={owner?.id}
-                    data-owner-color={owner ? color : undefined}
-                    data-droppable={droppable || undefined}
-                    role={demo ? undefined : "button"}
-                    tabIndex={demo ? undefined : 0}
-                    aria-label={`${r.a} to ${r.b}, ${r.length} ${r.color}${owner ? `, claimed by ${owner.name}` : blocked ? `, ${blocked}` : ""}`}
-                    aria-pressed={demo ? undefined : selected === r.id}
-                    onMouseEnter={() => {
-                      if (!eligible) setHover(r.id);
-                    }}
-                    onMouseLeave={() => {
-                      if (!eligible) setHover(undefined);
-                    }}
-                    onFocus={() => setHover(r.id)}
-                    onBlur={() => setHover(undefined)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        onSelect(r);
-                      }
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (!moved.current && !demo) onSelect(r);
-                    }}
+                    key={p.ticket.id}
+                    data-ticket-preview={p.ticket.id}
+                    data-hovered={p.hovered || undefined}
                   >
-                    <title>
-                      {`${r.a} → ${r.b} · ${r.length} ${r.color}${owner ? ` · ${owner.name}` : blocked ? ` · ${blocked}` : ""}`}
-                    </title>
-                    <path
-                      d={path}
-                      fill="none"
-                      stroke="transparent"
-                      strokeWidth="24"
-                    />
-                    {(highlighted || droppable) && (
+                    {p.routes.map((route) => (
                       <path
-                        className="route-halo"
-                        d={path}
-                        fill="none"
-                        stroke={droppable ? "#18a87d" : "#fffae3"}
-                        strokeWidth="24"
-                        strokeLinecap="round"
-                        opacity={
-                          dropTarget === r.id ? 0.75 : droppable ? 0.22 : 0.7
-                        }
-                      />
-                    )}
-                    <TrainPieces
-                      cars={cars}
-                      occupied={occupied}
-                      color={color}
-                      blocked={!!blocked}
-                    />
-                  </g>
-                );
-              })}
-            <g className="ticket-endpoints" pointerEvents="none">
-              {previewPaths.map((p, index) => (
-                <g key={p.ticket.id}>
-                  {[p.ticket.a, p.ticket.b].map((name) => (
-                    <g key={name} transform={`translate(${cities[name]})`}>
-                      <circle
-                        r={p.hovered ? 22 : 16 + index * 3}
+                        key={route}
+                        d={tracks.find((t) => t.route.id === route)!.path}
                         fill="none"
                         stroke={p.color}
-                        strokeWidth={p.hovered ? 4 : 2.5}
-                        opacity={p.hovered ? 1 : 0.85}
+                        strokeWidth={p.hovered ? 22 : 18}
+                        strokeLinecap="round"
+                        opacity={p.hovered ? 0.6 : 0.34}
                       />
-                      <circle
-                        cx="0"
-                        cy={-23 - index * 3}
-                        r="8"
-                        fill={p.color}
-                        stroke="#fff7dc"
-                        strokeWidth="1.2"
-                      />
-                      <text
-                        y={-23 - index * 3}
-                        textAnchor="middle"
-                        dominantBaseline="central"
-                        fill="#fff"
-                        fontSize="10"
-                        fontWeight="800"
-                      >
-                        {index + 1}
-                      </text>
-                    </g>
-                  ))}
-                </g>
-              ))}
-            </g>
-            <g className="stations" pointerEvents="none">
-              {Object.entries(cities).map(([name, [x, y]]) => {
-                const lit = focus.includes(name),
-                  status = destinationStatus[name],
-                  [dx, dy, anchor] = labels[name] || [0, -17, "middle"];
-                return (
-                  <g
-                    key={name}
-                    transform={`translate(${x} ${y})`}
-                    data-city={name}
-                    data-destination-status={status}
-                  >
-                    <title>
-                      {status
-                        ? `${name}: ${status === "incomplete" ? "unfinished destination ticket" : "all destination tickets complete"}`
-                        : name}
-                    </title>
-                    {completedCities.has(name) && (
-                      <circle
-                        className="destination-complete-ring"
-                        key={completedTickets.join("|")}
-                        r="18"
-                        fill="none"
-                        stroke="#55c837"
-                        strokeWidth="3"
-                      />
-                    )}
-                    {status && (
-                      <circle
-                        r="18"
-                        fill={
-                          status === "incomplete" ? "#298cff38" : "#42c63738"
+                    ))}
+                  </g>
+                ))}
+              </g>
+              {[...tracks]
+                .sort(
+                  (a, b) =>
+                    Number(!!game?.claimed[a.route.id]) -
+                    Number(!!game?.claimed[b.route.id]),
+                )
+                .map(({ route: r, path, cars }) => {
+                  const owner = game?.players.find(
+                    (p) => p.id === game.claimed[r.id],
+                  );
+                  const demoIndex = demoRoutes.indexOf(Number(r.id.slice(1)));
+                  const occupied = !!owner || (demo && demoIndex >= 0);
+                  const color = owner
+                    ? playerColors[owner.id]
+                    : occupied
+                      ? PLAYER_COLORS[Math.floor(demoIndex / 4) % 5]
+                      : PALETTE[r.color];
+                  const highlighted =
+                    scoreRoutes.includes(r.id) ||
+                    selected === r.id ||
+                    hoverIds.includes(r.id) ||
+                    dropTarget === r.id;
+                  const droppable = eligible?.includes(r.id);
+                  const blocked = parallelBlockReason(game, r);
+                  return (
+                    <g
+                      key={r.id}
+                      className={`map-route ${blocked ? "closed" : ""} ${occupied ? "claimed" : ""} ${highlighted ? "highlighted" : ""} ${eligible ? (droppable ? "drop-eligible" : "drop-unavailable") : ""} ${dropTarget === r.id ? "drop-target" : ""}`}
+                      data-route={r.id}
+                      data-owner={owner?.id}
+                      data-owner-color={owner ? color : undefined}
+                      data-droppable={droppable || undefined}
+                      role={demo ? undefined : "button"}
+                      tabIndex={demo ? undefined : 0}
+                      aria-label={`${r.a} to ${r.b}, ${r.length} ${r.color}${owner ? `, claimed by ${owner.name}` : blocked ? `, ${blocked}` : ""}`}
+                      aria-pressed={demo ? undefined : selected === r.id}
+                      onMouseEnter={() => {
+                        if (!eligible) setHover(r.id);
+                      }}
+                      onMouseLeave={() => {
+                        if (!eligible) setHover(undefined);
+                      }}
+                      onFocus={() => setHover(r.id)}
+                      onBlur={() => setHover(undefined)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          onSelect(r);
                         }
-                        stroke={status === "incomplete" ? "#238eff" : "#51bb32"}
-                        strokeWidth="1.2"
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!moved.current && !demo) onSelect(r);
+                      }}
+                    >
+                      <title>
+                        {`${r.a} → ${r.b} · ${r.length} ${r.color}${owner ? ` · ${owner.name}` : blocked ? ` · ${blocked}` : ""}`}
+                      </title>
+                      <path
+                        d={path}
+                        fill="none"
+                        stroke="transparent"
+                        strokeWidth="24"
                       />
-                    )}
-                    {lit && (
+                      {(highlighted || droppable) && (
+                        <path
+                          className="route-halo"
+                          d={path}
+                          fill="none"
+                          stroke={droppable ? "#18a87d" : "#fffae3"}
+                          strokeWidth="24"
+                          strokeLinecap="round"
+                          opacity={
+                            dropTarget === r.id ? 0.75 : droppable ? 0.22 : 0.7
+                          }
+                        />
+                      )}
+                      <TrainPieces
+                        cars={cars}
+                        occupied={occupied}
+                        color={color}
+                        blocked={!!blocked}
+                      />
+                    </g>
+                  );
+                })}
+              <g className="ticket-endpoints" pointerEvents="none">
+                {previewPaths.map((p, index) => (
+                  <g key={p.ticket.id}>
+                    {[p.ticket.a, p.ticket.b].map((name) => (
+                      <g key={name} transform={`translate(${cities[name]})`}>
+                        <circle
+                          r={p.hovered ? 22 : 16 + index * 3}
+                          fill="none"
+                          stroke={p.color}
+                          strokeWidth={p.hovered ? 4 : 2.5}
+                          opacity={p.hovered ? 1 : 0.85}
+                        />
+                        <circle
+                          cx="0"
+                          cy={-23 - index * 3}
+                          r="8"
+                          fill={p.color}
+                          stroke="#fff7dc"
+                          strokeWidth="1.2"
+                        />
+                        <text
+                          y={-23 - index * 3}
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                          fill="#fff"
+                          fontSize="10"
+                          fontWeight="800"
+                        >
+                          {index + 1}
+                        </text>
+                      </g>
+                    ))}
+                  </g>
+                ))}
+              </g>
+              <g className="stations" pointerEvents="none">
+                {Object.entries(cities).map(([name, [x, y]]) => {
+                  const lit = focus.includes(name),
+                    status = destinationStatus[name],
+                    [dx, dy, anchor] = labels[name] || [0, -17, "middle"];
+                  return (
+                    <g
+                      key={name}
+                      transform={`translate(${x} ${y})`}
+                      data-city={name}
+                      data-destination-status={status}
+                    >
+                      <title>
+                        {status
+                          ? `${name}: ${status === "incomplete" ? "unfinished destination ticket" : "all destination tickets complete"}`
+                          : name}
+                      </title>
+                      {completedCities.has(name) && (
+                        <circle
+                          className="destination-complete-ring"
+                          key={completedTickets.join("|")}
+                          r="18"
+                          fill="none"
+                          stroke="#55c837"
+                          strokeWidth="3"
+                        />
+                      )}
+                      {status && (
+                        <circle
+                          r="18"
+                          fill={
+                            status === "incomplete" ? "#298cff38" : "#42c63738"
+                          }
+                          stroke={
+                            status === "incomplete" ? "#238eff" : "#51bb32"
+                          }
+                          strokeWidth="1.2"
+                        />
+                      )}
+                      {lit && (
+                        <circle
+                          className="station-pulse"
+                          r="18"
+                          fill="#f8c34677"
+                          stroke="#9f5d19"
+                          strokeWidth="2"
+                        />
+                      )}
                       <circle
-                        className="station-pulse"
-                        r="18"
-                        fill="#f8c34677"
-                        stroke="#9f5d19"
+                        r={status ? 11.5 : 8}
+                        fill={
+                          status === "incomplete"
+                            ? "#0962d1"
+                            : status === "complete"
+                              ? "#239522"
+                              : "#64432b"
+                        }
+                        stroke="#fff8dc"
                         strokeWidth="2"
                       />
-                    )}
-                    <circle
-                      r={status ? 11.5 : 8}
-                      fill={
-                        status === "incomplete"
-                          ? "#0962d1"
-                          : status === "complete"
-                            ? "#239522"
-                            : "#64432b"
-                      }
-                      stroke="#fff8dc"
-                      strokeWidth="2"
-                    />
-                    <circle
-                      r={status ? 6.5 : 4}
-                      fill={
-                        status === "incomplete"
-                          ? "#69cbff"
-                          : status === "complete"
-                            ? "#9bed4c"
-                            : lit
-                              ? "#ffd960"
-                              : "#f9dfa5"
-                      }
-                    />
-                    {status && (
-                      <path
-                        d="M-4-4Q0-7 4-4"
-                        fill="none"
-                        stroke="#fff"
-                        opacity=".85"
-                        strokeWidth="1.7"
-                        strokeLinecap="round"
+                      <circle
+                        r={status ? 6.5 : 4}
+                        fill={
+                          status === "incomplete"
+                            ? "#69cbff"
+                            : status === "complete"
+                              ? "#9bed4c"
+                              : lit
+                                ? "#ffd960"
+                                : "#f9dfa5"
+                        }
                       />
-                    )}
-                    <text
-                      x={dx}
-                      y={dy}
-                      textAnchor={anchor}
-                      className={`station-label ${lit ? "focused" : ""}`}
-                    >
-                      {name}
-                    </text>
-                  </g>
-                );
-              })}
-            </g>
-            <g
-              transform="translate(92 762)"
-              className="map-cartouche"
-              pointerEvents="none"
-            >
-              <path d="M-46 25H46M-35 30H35" stroke="#645038" strokeWidth="1" />
-              <text
-                textAnchor="middle"
-                y="0"
-                fontSize="41"
-                fontFamily="Rye,serif"
-                fill="#544332"
+                      {status && (
+                        <path
+                          d="M-4-4Q0-7 4-4"
+                          fill="none"
+                          stroke="#fff"
+                          opacity=".85"
+                          strokeWidth="1.7"
+                          strokeLinecap="round"
+                        />
+                      )}
+                      <text
+                        x={dx}
+                        y={dy}
+                        textAnchor={anchor}
+                        className={`station-label ${lit ? "focused" : ""}`}
+                      >
+                        {name}
+                      </text>
+                    </g>
+                  );
+                })}
+              </g>
+              <g
+                transform="translate(92 762)"
+                className="map-cartouche"
+                pointerEvents="none"
               >
-                USA
-              </text>
-              <text
-                textAnchor="middle"
-                y="18"
-                fontSize="9"
-                letterSpacing="3"
-                fill="#645038"
-              >
-                RAILWAYS · 1910
-              </text>
+                <path
+                  d="M-46 25H46M-35 30H35"
+                  stroke="#645038"
+                  strokeWidth="1"
+                />
+                <text
+                  textAnchor="middle"
+                  y="0"
+                  fontSize="41"
+                  fontFamily="Rye,serif"
+                  fill="#544332"
+                >
+                  USA
+                </text>
+                <text
+                  textAnchor="middle"
+                  y="18"
+                  fontSize="9"
+                  letterSpacing="3"
+                  fill="#645038"
+                >
+                  RAILWAYS · 1910
+                </text>
+              </g>
             </g>
           </g>
-        </g>
-      </svg>
-      <svg
-        className="drag-highlight-layer"
-        viewBox="0 0 1400 900"
-        aria-hidden="true"
-      >
-        <g
-          transform={`translate(${700 + view.x} ${450 + view.y}) scale(${view.z}) translate(-700 -450)`}
+        </svg>
+        <svg
+          className="drag-highlight-layer"
+          viewBox="0 0 1400 900"
+          aria-hidden="true"
         >
-          <path
-            data-drag-highlight="true"
-            fill="none"
-            stroke="#18a87d"
-            strokeWidth="24"
-            strokeLinecap="round"
-            opacity=".65"
-          />
-        </g>
-      </svg>
+          <g
+            transform={`translate(${700 + view.x} ${450 + view.y}) scale(${view.z}) translate(-700 -450)`}
+          >
+            <path
+              data-drag-highlight="true"
+              fill="none"
+              stroke="#18a87d"
+              strokeWidth="24"
+              strokeLinecap="round"
+              opacity=".65"
+            />
+          </g>
+        </svg>
+      </div>
       {!demo && (
         <>
           <div className="map-controls">

@@ -3455,18 +3455,32 @@ label {
   contain: strict;
   will-change: transform;
 }
-/* Separate SVG surfaces share a grid cell, including at responsive control heights. */
+/* Keep highlight geometry out of grid sizing and the map's paint surface.
+   A relative SVG grid item can invalidate the detailed map when its path changes. */
+.map-viewport {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+  contain: strict;
+}
 .atlas:not(.atlas-preview) {
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto;
 }
-.atlas:not(.atlas-preview) .railway-map {
+.atlas:not(.atlas-preview) .map-viewport {
   grid-area: 1 / 1;
-  height: 100%;
 }
-.atlas:not(.atlas-preview) .drag-highlight-layer {
-  grid-area: 1 / 1;
-  position: relative;
+.atlas .railway-map,
+.atlas:not(.atlas-preview) .railway-map {
+  height: 100%;
+  transform: translateZ(0);
+}
+.atlas .drag-highlight-layer {
+  position: absolute;
+  inset: 0;
+  height: 100%;
 }
 .atlas:not(.atlas-preview) .map-controls {
   grid-area: 2 / 1;

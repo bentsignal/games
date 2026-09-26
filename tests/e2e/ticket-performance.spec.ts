@@ -88,8 +88,12 @@ test("Ticket chat and dragging stay isolated with delayed and failed replies", a
     await input.press("Enter");
     await expect(input).toHaveValue("");
     await expect(a.getByRole("log").getByText("Sending…")).toBeVisible();
+    await input.fill("Second message while first is pending");
+    await input.press("Enter");
+    await expect(input).toHaveValue("");
+    await expect(a.getByRole("log").getByText("Sending…")).toHaveCount(2);
     await input.fill("Keep this new draft");
-    await expect.poll(() => held.length).toBe(1);
+    await expect.poll(() => held.length).toBe(2);
     await b
       .getByRole("textbox", { name: "Chat message" })
       .fill("Incoming also stays in chat");

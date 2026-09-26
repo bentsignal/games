@@ -45,10 +45,9 @@ export default function TicketChat({
     chat.getSnapshot,
   );
   const [draft, setDraft] = useState("");
-  const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const inFlight = useRef(false);
+  const submittedDraft = useRef<string | null>(null);
   const box = useRef<HTMLDivElement>(null);
   const older = useRef<{ height: number; top: number } | null>(null);
   useLayoutEffect(() => {
@@ -63,12 +62,12 @@ export default function TicketChat({
   function submit(event: FormEvent) {
     event.preventDefault();
     const text = draft.trim();
-    if (!text || inFlight.current) return;
+    if (!text || submittedDraft.current === draft) return;
     const started = performance.now();
     diagnosticMeasure("chat-input-delay", event.timeStamp);
     const id = clientId();
-    inFlight.current = true;
-    setSending(true);
+    // Guard repeated submits before React clears the field, not other messages.
+    submittedDraft.current = draft;
     setDraft("");
     chat.pending({
       _id: id,
@@ -81,19 +80,12 @@ export default function TicketChat({
     requestAnimationFrame(() =>
       diagnosticMeasure("chat-pending-frame", started),
     );
-    void send({ code, text, clientId: id })
-      .catch((reason: unknown) => {
-        chat.fail(
-          id,
-          reason instanceof Error
-            ? reason.message
-            : "Message could not be sent.",
-        );
-      })
-      .finally(() => {
-        inFlight.current = false;
-        setSending(false);
-      });
+    void send({ code, text, clientId: id }).catch((reason: unknown) => {
+      chat.fail(
+        id,
+        reason instanceof Error ? reason.message : "Message could not be sent.",
+      );
+    });
   }
   function loadOlder() {
     if (loading) return;
@@ -157,7 +149,10 @@ export default function TicketChat({
                   <button
                     className="text-button"
                     disabled={!!draft}
-                    onClick={() => setDraft(message.text)}
+                    onClick={() => {
+                      submittedDraft.current = null;
+                      setDraft(message.text);
+                    }}
                   >
                     Copy to draft
                   </button>
@@ -178,13 +173,15 @@ export default function TicketChat({
           maxLength={500}
           placeholder="Message the table…"
           value={draft}
-          onChange={(event) => setDraft(event.target.value)}
+          onChange={(event) => {
+            submittedDraft.current = null;
+            setDraft(event.target.value);
+          }}
         />
         <button
           className="icon"
           aria-label="Send message"
-          aria-busy={sending}
-          disabled={sending || !draft.trim()}
+          disabled={!draft.trim()}
         >
           <Send size={18} />
         </button>
