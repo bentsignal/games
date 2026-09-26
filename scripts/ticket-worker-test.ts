@@ -24,7 +24,8 @@ execFileSync(
   { stdio: "pipe" },
 );
 let acceptResults = false;
-let deliveryAttempts = 0;
+let slowResults = false;
+let releaseResult: (() => void) | undefined;
 const delivered: any[] = [];
 const resultServer = createServer(async (req, res) => {
   let body = "";
@@ -36,7 +37,10 @@ const resultServer = createServer(async (req, res) => {
     "local-test-secret",
     "ticket:result",
   );
-  deliveryAttempts++;
+  if (slowResults)
+    await new Promise<void>((resolve) => {
+      releaseResult = resolve;
+    });
   res.setHeader("Content-Type", "application/json");
   if (!acceptResults) {
     res.writeHead(503);
@@ -313,7 +317,12 @@ try {
     name: code,
     webSockets: "hibernate",
   });
-  await a.command({ kind: "send", text: "After hibernation" });
+  const sent = await a.command({
+    kind: "send",
+    text: "After hibernation",
+    clientId: "chat-after-wake",
+  });
+  assert.equal(sent.result.clientId, "chat-after-wake");
   await wait(() =>
     b.messages.some(
       (m) => m.type === "chat" && m.message.text === "After hibernation",
@@ -368,6 +377,7 @@ try {
     await new Promise((r) => setTimeout(r, 50));
   }
   // Play a complete independent room, keeping result delivery offline through a rematch.
+  slowResults = true;
   const fullCode = "BCDEFGHJ";
   await command("Alice", { kind: "create" }, fullCode, { mode: "classic" });
   await command("Bob", { kind: "join" }, fullCode);
@@ -411,7 +421,21 @@ try {
     state = await command(id, { kind: "get" }, fullCode);
   }
   const finalScores = state.game.results;
-  await wait(() => deliveryAttempts > 0);
+  await wait(() => !!releaseResult);
+  // Chat must complete while the external result endpoint is still held open.
+  const chatDuringDelivery = await Promise.race([
+    command(
+      "Alice",
+      { kind: "send", text: "Still responsive", clientId: "delivery-test" },
+      fullCode,
+    ),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Result delivery blocked chat")), 1500),
+    ),
+  ]);
+  assert.equal(chatDuringDelivery.clientId, "delivery-test");
+  slowResults = false;
+  releaseResult!();
   await command("Alice", { kind: "manage", operation: "rematch" }, fullCode);
   assert.equal(
     (await command("Alice", { kind: "get" }, fullCode)).game.phase,

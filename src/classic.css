@@ -3446,7 +3446,7 @@ label {
   }
 }
 
-.drag-highlight-layer {
+.map-interaction-layer {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -3455,18 +3455,32 @@ label {
   contain: strict;
   will-change: transform;
 }
-/* Separate SVG surfaces share a grid cell, including at responsive control heights. */
+/* Keep highlight geometry out of grid sizing and the map's paint surface.
+   A relative SVG grid item can invalidate the detailed map when its path changes. */
+.map-viewport {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+  contain: strict;
+}
 .atlas:not(.atlas-preview) {
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto;
 }
-.atlas:not(.atlas-preview) .railway-map {
+.atlas:not(.atlas-preview) .map-viewport {
   grid-area: 1 / 1;
-  height: 100%;
 }
-.atlas:not(.atlas-preview) .drag-highlight-layer {
-  grid-area: 1 / 1;
-  position: relative;
+.atlas .railway-map,
+.atlas:not(.atlas-preview) .railway-map {
+  height: 100%;
+  transform: translateZ(0);
+}
+.atlas .map-interaction-layer {
+  position: absolute;
+  inset: 0;
+  height: 100%;
 }
 .atlas:not(.atlas-preview) .map-controls {
   grid-area: 2 / 1;
@@ -3770,4 +3784,118 @@ label {
     left: 14px;
     width: min(280px, calc(100vw - 28px));
   }
+}
+
+.chat-box[hidden] {
+  display: none;
+}
+.ticket-diagnostics {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  z-index: 1000;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 8px;
+  background: #fff;
+  color: #222;
+  border: 1px solid #777;
+  font: 12px sans-serif;
+}
+
+/* Delivery is visible without adding a status row or shifting message text. */
+.message {
+  transition: opacity 180ms ease-out;
+}
+.message[data-pending] {
+  opacity: 0.5;
+}
+.message-time {
+  min-height: 1em;
+  opacity: 0;
+  transition: opacity 180ms ease-out;
+}
+.message-time[data-confirmed] {
+  opacity: 1;
+}
+.map-layer-world {
+  position: absolute;
+  width: 1400px;
+  height: 900px;
+  transform-origin: 0 0;
+}
+.route-highlight {
+  position: absolute;
+  contain: strict;
+  opacity: 0;
+  pointer-events: none;
+  will-change: opacity;
+}
+.route-highlight[data-active] {
+  color: #18a87d;
+  opacity: 0.65;
+}
+@media (prefers-reduced-motion: reduce) {
+  .message,
+  .message-time {
+    transition: none;
+  }
+}
+
+.route-highlight[data-hovered]:not([data-active]) {
+  opacity: 0.7;
+  color: #fffae3;
+}
+.ticket-highlight-content {
+  position: absolute;
+  width: 1400px;
+  height: 900px;
+  overflow: visible;
+}
+
+.ticket-preview-surface {
+  position: absolute;
+  contain: strict;
+  opacity: 0;
+  will-change: opacity;
+}
+.ticket-preview-surface[data-visible] {
+  opacity: 1;
+}
+
+.map-artwork {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  contain: strict;
+  transform: translateZ(0);
+  pointer-events: none;
+}
+.map-input-layer {
+  background: transparent;
+}
+
+.map-terrain {
+  z-index: 0;
+}
+.ticket-highlight-layer {
+  z-index: 1;
+}
+.drag-highlight-layer {
+  z-index: 2;
+}
+.map-pieces {
+  z-index: 3;
+}
+.map-input-layer {
+  position: relative;
+  z-index: 4;
+}
+.map-focus-layer {
+  z-index: 5;
+}
+.map-tooltip-layer {
+  z-index: 6;
 }

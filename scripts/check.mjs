@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 
 const commands = [
   "typecheck",
+  "check:react-compiler",
   "lint",
   "format:check",
   "test",

@@ -120,7 +120,7 @@ test("two independent friends join, choose tickets, chat, draw, and reconnect", 
   await expect(a.locator("#payment")).toHaveCount(0);
   const card = a.locator(".hand-cards .train-card:not(:disabled)").first();
   const hand = await card.boundingBox(),
-    target = await a.locator('[data-route="r2"] rect').first().boundingBox();
+    target = await a.locator('[data-route="r2"] path').first().boundingBox();
   await a.mouse.move(hand!.x + hand!.width / 2, hand!.y + hand!.height / 2);
   await a.mouse.down();
   await a.mouse.move(
@@ -182,7 +182,7 @@ test("two independent friends join, choose tickets, chat, draw, and reconnect", 
     .locator(".hand-cards .train-card:not(:disabled)")
     .first()
     .boundingBox())!;
-  const closedSlot = (await closed.locator("rect").first().boundingBox())!;
+  const closedSlot = (await closed.locator("path").first().boundingBox())!;
   await b.mouse.move(held.x + held.width / 2, held.y + held.height / 2);
   await b.mouse.down();
   await b.mouse.move(
@@ -361,7 +361,7 @@ test("mobile landing, catalog, and room remain usable", async ({ page }) => {
     .first()
     .boundingBox())!;
   const target = (await page
-    .locator('[data-route="r1"] rect')
+    .locator('[data-route="r1"] path')
     .first()
     .boundingBox())!;
   const from = {
@@ -603,7 +603,13 @@ test("hovering either available lane highlights the whole connection", async ({
   await page.getByRole("button", { name: "Create a game" }).click();
   for (const id of ["r1", "r2"]) {
     await page.locator(`[data-route="${id}"][role="button"]`).focus();
-    await expect(page.locator('[data-route="r1"]')).toHaveClass(/highlighted/);
-    await expect(page.locator('[data-route="r2"]')).toHaveClass(/highlighted/);
+    await expect(page.locator('[data-route-highlight="r1"]')).toHaveAttribute(
+      "data-hovered",
+      "true",
+    );
+    await expect(page.locator('[data-route-highlight="r2"]')).toHaveAttribute(
+      "data-hovered",
+      "true",
+    );
   }
 });

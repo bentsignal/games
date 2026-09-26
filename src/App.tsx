@@ -1,3 +1,14 @@
+import CardDragGhost, {
+  type DragGhostHandle,
+} from "./components/CardDragGhost";
+import TicketDiagnostics from "./components/TicketDiagnostics";
+import TicketChat, { ChatCount } from "./components/TicketChat";
+import {
+  diagnosticCount,
+  diagnosticMeasure,
+  startDragDiagnostics,
+  stopDragDiagnostics,
+} from "./game/diagnostics";
 import { clientId } from "./clientId";
 import TurnPanel from "./components/TurnPanel";
 import GameEvents from "./components/GameEvents";
@@ -6,7 +17,7 @@ import DestinationFeedback, {
   useDestinationFeedback,
 } from "./components/DestinationFeedback";
 import { playerDisplayColors } from "./game/player-colors";
-import { routeAtMapPoint, tracks } from "./game/map-layout";
+import { routeAtMapPoint } from "./game/map-layout";
 import {
   Component,
   Suspense,
@@ -14,10 +25,10 @@ import {
   useEffect,
   useMemo,
   useCallback,
+  useEffectEvent,
   useRef,
   useState,
   type ReactNode,
-  type FormEvent,
 } from "react";
 import { useTicketRoom } from "./game/useTicketRoom";
 import {
@@ -30,7 +41,6 @@ import {
   X,
   Plus,
   Bot,
-  Send,
   RotateCcw,
   Maximize,
   BookOpen,
@@ -338,6 +348,14 @@ function Rules({ onClose }: { onClose: () => void }) {
   );
 }
 
+async function withCleanup(run: () => Promise<unknown>, cleanup: () => void) {
+  try {
+    await run();
+  } finally {
+    cleanup();
+  }
+}
+
 export default function App({ username }: { username: string }) {
   const [watching, setWatching] = useState(() =>
     new URLSearchParams(location.search).has("watch"),
@@ -362,8 +380,7 @@ export default function App({ username }: { username: string }) {
     [catalog, setCatalog] = useState(false),
     [resign, setResign] = useState(false);
   const [cardColor, setCardColor] = useState<Color | null>(null),
-    [dragPoint, setDragPoint] = useState<CardPoint | null>(null),
-    [dropRoute, setDropRoute] = useState<string>();
+    [dragPoint, setDragPoint] = useState<CardPoint | null>(null);
   const pendingDraw = useRef<{
     code: string;
     hand: Color[];
@@ -377,10 +394,18 @@ export default function App({ username }: { username: string }) {
     [],
   );
   const dragSession = useRef<{ color: Color; point: CardPoint } | null>(null);
-  const dragGhost = useRef<HTMLDivElement>(null);
+  const dragGhost = useRef<DragGhostHandle>(null);
   const dragFrame = useRef<number | null>(null);
   const lastDragTarget = useRef<string | undefined>(undefined);
-  const releaseDrag = useRef<(point: CardPoint) => void>(() => {});
+  useEffect(
+    () => () => {
+      stopDragDiagnostics();
+      if (dragFrame.current !== null) cancelAnimationFrame(dragFrame.current);
+      dragFrame.current = null;
+      dragSession.current = null;
+    },
+    [code],
+  );
   const [ticketSelection, setTicketSelection] = useState<string[]>([]),
     [pinnedTickets, setPinnedTickets] = useState<string[]>([]),
     [hoveredTicket, setHoveredTicket] = useState<string>();
@@ -397,15 +422,14 @@ export default function App({ username }: { username: string }) {
     room,
     confirmedRoom,
     connectedServer,
-    messages,
-    chatStatus,
+    chat,
     loadMoreChat,
   } = useTicketRoom(code);
   const game = room?.game as View | null | undefined;
   const me = game?.me;
   const playerColors = useMemo(
     () => playerDisplayColors(game, code),
-    [game?.players, me?.id, code],
+    [game, code],
   );
   const completion = useDestinationFeedback(confirmedRoom?.game, code);
   const scoreReveal = useScoreReveal(
@@ -418,37 +442,8 @@ export default function App({ username }: { username: string }) {
       setSelected(null);
     } else if (game?.phase === "lobby") setTab("tickets");
   }, [game?.phase, code]);
-  const [chatText, setChatText] = useState("");
-  const [sendingChat, setSendingChat] = useState(false);
-  const [chatNotices, setChatNotices] = useState<
-    {
-      _id: string;
-      code: string;
-      time: number;
-      text: string;
-      name: string;
-      sender: string;
-    }[]
-  >([]);
-  const chatMessages = [
-    ...messages,
-    ...chatNotices.filter((m) => m.code === code),
-  ].sort((a, b) => a.time - b.time);
   const activeTab =
     game?.phase === "lobby" || (!me && tab === "tickets") ? "chat" : tab;
-  const chatEnd = useRef<HTMLDivElement>(null);
-  const messagesBox = useRef<HTMLDivElement>(null);
-  const olderChatScroll = useRef<{ height: number; top: number } | null>(null);
-  useEffect(() => {
-    const box = messagesBox.current;
-    if (box) {
-      const prior = olderChatScroll.current;
-      box.scrollTop = prior
-        ? prior.top + box.scrollHeight - prior.height
-        : box.scrollHeight;
-      olderChatScroll.current = null;
-    }
-  }, [chatMessages.length, activeTab]);
   useEffect(() => {
     const pop = () => {
       setCode(roomFromUrl());
@@ -476,19 +471,19 @@ export default function App({ username }: { username: string }) {
   }, [code, me?.pending.join("|")]);
   useEffect(() => {
     if (!mine) {
+      stopDragDiagnostics();
       dragSession.current = null;
       setCardColor(null);
       setDragPoint(null);
-      setDropRoute(undefined);
     }
   }, [mine]);
   useEffect(() => {
     const escape = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        stopDragDiagnostics();
         dragSession.current = null;
         setCardColor(null);
         setDragPoint(null);
-        setDropRoute(undefined);
       }
     };
     window.addEventListener("keydown", escape);
@@ -552,6 +547,7 @@ export default function App({ username }: { username: string }) {
     [cardColor, game, canAct],
   );
   function routeAt(point: CardPoint) {
+    diagnosticCount("drag-hit-tests");
     const world = document.querySelector<SVGGElement>("[data-map-world]");
     const map = world?.ownerSVGElement;
     if (!map) return undefined;
@@ -575,6 +571,7 @@ export default function App({ username }: { username: string }) {
     const starting = !dragSession.current;
     dragSession.current = { color, point };
     if (starting) {
+      startDragDiagnostics();
       setCardColor(color);
       setDragPoint(point);
       setSelected(null);
@@ -587,46 +584,49 @@ export default function App({ username }: { username: string }) {
       const session = dragSession.current;
       if (!session) return;
       // Read SVG geometry before moving the ghost, avoiding a write/read layout flush.
-      const hit = ROUTES.find((r) => r.id === routeAt(session.point));
+      const started = performance.now();
+      const hitId = routeAt(session.point);
+      const hit = ROUTES.find((r) => r.id === hitId);
       const target =
         hit && game
           ? (automaticRoute(game, hit, session.color)?.id ?? hit.id)
           : undefined;
-      if (dragGhost.current)
-        dragGhost.current.style.translate = `${session.point.x}px ${session.point.y}px`;
+      dragGhost.current?.move(session.point);
+      diagnosticMeasure("drag-hit", started);
       if (target !== lastDragTarget.current) {
         lastDragTarget.current = target;
-        setDropRoute(target);
-        const paths =
-          hit && game
-            ? tracks
-                .filter(
-                  (t) =>
-                    t.route.a === hit.a &&
-                    t.route.b === hit.b &&
-                    routeAvailable(game as unknown as Game, game.me!, t.route),
-                )
-                .map((t) => t.path)
-                .join(" ")
-            : "";
+        dragGhost.current?.target(target);
         document
-          .querySelector("[data-drag-highlight]")
-          ?.setAttribute("d", paths);
+          .querySelectorAll("[data-drag-highlight][data-active]")
+          .forEach((element) => element.removeAttribute("data-active"));
+        if (hit && game) {
+          for (const route of ROUTES) {
+            if (
+              route.a === hit.a &&
+              route.b === hit.b &&
+              routeAvailable(game as unknown as Game, game.me!, route)
+            )
+              document
+                .querySelector(`[data-drag-highlight="${route.id}"]`)
+                ?.setAttribute("data-active", "true");
+          }
+        }
       }
     });
   }
   useEffect(() => {
     if (!dragPoint) {
       lastDragTarget.current = undefined;
-      const overlay = document.querySelector("[data-drag-highlight]");
-      if (overlay?.getAttribute("d")) overlay.setAttribute("d", "");
+      document
+        .querySelectorAll("[data-drag-highlight][data-active]")
+        .forEach((element) => element.removeAttribute("data-active"));
     }
   }, [dragPoint]);
   function cancelCard() {
+    stopDragDiagnostics();
     dragSession.current = null;
     setCardColor(null);
     setDragPoint(null);
-    setDropRoute(undefined);
   }
   function dropCard(color: Color, point: CardPoint) {
     if (dragSession.current?.color !== color) return;
@@ -635,30 +635,6 @@ export default function App({ username }: { username: string }) {
     const route = ROUTES.find((r) => r.id === id);
     if (route) claimWithCard(route, color);
   }
-  releaseDrag.current = (point) => {
-    const session = dragSession.current;
-    if (session) dropCard(session.color, point);
-  };
-  useEffect(() => {
-    const release = (event: MouseEvent) =>
-      releaseDrag.current({ x: event.clientX, y: event.clientY });
-    const cancel = () => {
-      dragSession.current = null;
-      setCardColor(null);
-      setDragPoint(null);
-      setDropRoute(undefined);
-    };
-    // Release at the window as well as the source card: browsers can transfer
-    // capture during a native drag, zoom gesture, or a rapid pointer movement.
-    window.addEventListener("pointerup", release, true);
-    window.addEventListener("mouseup", release, true);
-    window.addEventListener("blur", cancel);
-    return () => {
-      window.removeEventListener("pointerup", release, true);
-      window.removeEventListener("mouseup", release, true);
-      window.removeEventListener("blur", cancel);
-    };
-  }, []);
   function claimWithCard(route: Route, color: Color) {
     if (!game || !canAct || game.drawn) return;
     route = automaticRoute(game, route, color) ?? route;
@@ -674,11 +650,6 @@ export default function App({ username }: { username: string }) {
     cancelCard();
     void action({ type: "claim", route: route.id, ...payment });
   }
-  const dragRoute = ROUTES.find((r) => r.id === dropRoute),
-    dragPayment =
-      game && dragRoute && cardColor
-        ? cardPayment(game, dragRoute, cardColor)
-        : undefined;
   const visit = (roomCode: string) => {
     history.pushState(
       {},
@@ -705,9 +676,10 @@ export default function App({ username }: { username: string }) {
     actionInFlight.current = true;
     setBusy(true);
     setError("");
-    try {
-      await fn();
-    } catch (e) {
+    await withCleanup(fn, () => {
+      actionInFlight.current = false;
+      setBusy(false);
+    }).catch((e: unknown) => {
       setError(
         e instanceof ConvexError && typeof e.data === "string"
           ? e.data
@@ -715,10 +687,7 @@ export default function App({ username }: { username: string }) {
             ? e.message
             : "Something went wrong. Please try again.",
       );
-    } finally {
-      actionInFlight.current = false;
-      setBusy(false);
-    }
+    });
   }
   async function action(a: Action) {
     if (!room) return;
@@ -789,36 +758,6 @@ export default function App({ username }: { username: string }) {
     if (r) setFocus([r.a, r.b]);
     else setFocus([]);
   };
-  const chatSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    const text = chatText.trim();
-    if (!text || sendingChat) return;
-    setSendingChat(true);
-    try {
-      await send({ code, text });
-      setChatText((current) => (current.trim() === text ? "" : current));
-    } catch (e) {
-      const message =
-        e instanceof ConvexError && typeof e.data === "string"
-          ? e.data
-          : e instanceof Error
-            ? e.message
-            : "Message could not be sent. Please try again.";
-      setChatNotices((current) => [
-        ...current,
-        {
-          _id: clientId(),
-          code,
-          time: Date.now(),
-          text: message,
-          name: "Server",
-          sender: "local-server",
-        },
-      ]);
-    } finally {
-      setSendingChat(false);
-    }
-  };
   const setTable = async (
     operation:
       "bot" | "remove" | "mode" | "timer" | "rematch" | "leave" | "resign",
@@ -842,14 +781,20 @@ export default function App({ username }: { username: string }) {
       tableQueue.current.catch(() => {}),
       task.catch(() => {}),
     ]);
-    try {
-      await task;
-      if (operation === "leave") visit("");
-      if (operation === "resign") {
-        setResign(false);
-        visit("");
-      }
-    } catch (e) {
+    await withCleanup(
+      async () => {
+        await task;
+        if (operation === "leave") visit("");
+        if (operation === "resign") {
+          setResign(false);
+          visit("");
+        }
+      },
+      () => {
+        pendingTableRef.current.delete(key);
+        setPendingTable([...pendingTableRef.current]);
+      },
+    ).catch((e: unknown) => {
       setError(
         e instanceof ConvexError && typeof e.data === "string"
           ? e.data
@@ -857,13 +802,35 @@ export default function App({ username }: { username: string }) {
             ? e.message
             : "Could not update the game. Please try again.",
       );
-    } finally {
-      pendingTableRef.current.delete(key);
-      setPendingTable([...pendingTableRef.current]);
-    }
+    });
   };
+  const releaseDrag = useEffectEvent((point: CardPoint) => {
+    const session = dragSession.current;
+    if (session) dropCard(session.color, point);
+  });
+  useEffect(() => {
+    const release = (event: MouseEvent) =>
+      releaseDrag({ x: event.clientX, y: event.clientY });
+    const cancel = () => {
+      stopDragDiagnostics();
+      dragSession.current = null;
+      setCardColor(null);
+      setDragPoint(null);
+    };
+    // Release at the window as well as the source card: browsers can transfer
+    // capture during a native drag, zoom gesture, or a rapid pointer movement.
+    window.addEventListener("pointerup", release, true);
+    window.addEventListener("mouseup", release, true);
+    window.addEventListener("blur", cancel);
+    return () => {
+      window.removeEventListener("pointerup", release, true);
+      window.removeEventListener("mouseup", release, true);
+      window.removeEventListener("blur", cancel);
+    };
+  }, []);
   return (
     <div className={`app ${code ? "at-table" : ""}`}>
+      <TicketDiagnostics />
       <PlatformHeader
         username={username}
         game="ticket"
@@ -1636,7 +1603,7 @@ export default function App({ username }: { username: string }) {
                     aria-selected={activeTab === "chat"}
                     onClick={() => setTab("chat")}
                   >
-                    Chat <span>{messages.length}</span>
+                    Chat <ChatCount chat={chat} />
                   </button>
                   {game.phase !== "lobby" && (
                     <button
@@ -1651,6 +1618,16 @@ export default function App({ username }: { username: string }) {
                 <div
                   className={`sidebar-content ${activeTab === "chat" ? "chat-content" : ""}`}
                 >
+                  <TicketChat
+                    key={code}
+                    chat={chat}
+                    code={code}
+                    name={username}
+                    playerId={me?.id}
+                    active={activeTab === "chat"}
+                    send={send}
+                    loadMore={loadMoreChat}
+                  />
                   {activeTab === "scoreboard" && game.phase === "finished" ? (
                     <Scoreboard
                       game={game}
@@ -1696,76 +1673,7 @@ export default function App({ username }: { username: string }) {
                         </div>
                       )}
                     </>
-                  ) : activeTab === "chat" ? (
-                    <div className="chat-box">
-                      <div
-                        className="messages"
-                        ref={messagesBox}
-                        role="log"
-                        aria-label="Conversation"
-                        aria-live="polite"
-                      >
-                        {chatStatus === "CanLoadMore" && (
-                          <button
-                            className="text-button"
-                            onClick={() => {
-                              const box = messagesBox.current;
-                              if (box)
-                                olderChatScroll.current = {
-                                  height: box.scrollHeight,
-                                  top: box.scrollTop,
-                                };
-                              loadMoreChat(50);
-                            }}
-                          >
-                            Load older messages
-                          </button>
-                        )}
-                        {chatMessages.length ? (
-                          chatMessages.map((m) => (
-                            <div
-                              className={`message ${m.sender === "local-server" ? "server-message" : m.sender === me?.id ? "own" : ""}`}
-                              key={m._id}
-                            >
-                              <div>
-                                <strong>{m.name}</strong>
-                                <time>
-                                  {new Date(m.time).toLocaleTimeString([], {
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  })}
-                                </time>
-                              </div>
-                              <p>{m.text}</p>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="empty-note">
-                            <Send size={25} />
-                            <p>No messages yet.</p>
-                          </div>
-                        )}
-                        <div ref={chatEnd} />
-                      </div>
-                      <form onSubmit={chatSubmit}>
-                        <input
-                          aria-label="Chat message"
-                          maxLength={500}
-                          placeholder="Message the table…"
-                          value={chatText}
-                          onChange={(e) => setChatText(e.target.value)}
-                        />
-                        <button
-                          className="icon"
-                          aria-label="Send message"
-                          aria-busy={sendingChat}
-                          disabled={sendingChat || !chatText.trim()}
-                        >
-                          <Send size={18} />
-                        </button>
-                      </form>
-                    </div>
-                  ) : (
+                  ) : activeTab === "chat" ? null : (
                     <ol className="activity">
                       {game.log.length ? (
                         [...game.log]
@@ -1794,26 +1702,12 @@ export default function App({ username }: { username: string }) {
         />
       ))}
       {dragPoint && cardColor && (
-        <div
-          className="card-drag-ghost"
+        <CardDragGhost
           ref={dragGhost}
-          style={
-            {
-              left: 0,
-              top: 0,
-              translate: `${dragPoint.x}px ${dragPoint.y}px`,
-              "--card": PALETTE[cardColor],
-            } as React.CSSProperties
-          }
-          aria-hidden="true"
-        >
-          <TrainArtwork color={cardColor} />
-          <b>
-            {dragPayment && dragRoute
-              ? `${dragRoute.length - dragPayment.wilds} ${dragPayment.color}${dragPayment.wilds ? ` + ${dragPayment.wilds} ★` : ""}`
-              : cardColor}
-          </b>
-        </div>
+          point={dragPoint}
+          color={cardColor}
+          game={game}
+        />
       )}
       {cardColor && !dragPoint && (
         <div className="card-held-note">
