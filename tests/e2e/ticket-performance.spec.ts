@@ -103,10 +103,21 @@ test("Ticket chat and dragging stay isolated with delayed and failed replies", a
     ).toBeVisible();
     expect(await boardRenders(a)).toBe(0);
     mode = "normal";
-    held.splice(0).forEach((send) => send());
+    // Release held requests across the server's 750 ms anti-spam window.
+    // The composer must accept both before either request reaches the server.
+    const queued = held.splice(0);
+    queued[0]();
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    queued[1]();
     await expect(a.getByRole("log").getByText("Sending…")).toHaveCount(0);
     await expect(
       a.getByRole("log").getByText("Typing must stay in chat", { exact: true }),
+    ).toHaveCount(1);
+    await expect(a.getByRole("log").getByRole("alert")).toHaveCount(0);
+    await expect(
+      a
+        .getByRole("log")
+        .getByText("Second message while first is pending", { exact: true }),
     ).toHaveCount(1);
     await expect(input).toHaveValue("Keep this new draft");
     expect(await boardRenders(a)).toBe(0);
