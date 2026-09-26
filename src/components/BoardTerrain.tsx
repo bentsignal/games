@@ -1,14 +1,7 @@
 import { memo } from "react";
 import geography from "../game/geography.json";
-import type { MapView } from "./MapLayer";
 import { diagnosticCount } from "../game/diagnostics";
-export default memo(function BoardTerrain({
-  id,
-  view,
-}: {
-  id: string;
-  view: MapView;
-}) {
+export default memo(function BoardTerrain({ id }: { id: string }) {
   diagnosticCount("map-artwork-renders");
   return (
     <>
@@ -59,9 +52,7 @@ export default memo(function BoardTerrain({
           height="9000"
           fill={`url(#${id}ocean)`}
         />
-        <g
-          transform={`translate(${700 + view.x} ${450 + view.y}) scale(${view.z}) translate(-700 -450)`}
-        >
+        <g>
           <rect
             x="-4000"
             y="-4000"

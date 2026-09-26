@@ -1,3 +1,4 @@
+import MapCamera from "./MapCamera";
 import RouteHighlights from "./RouteHighlights";
 import BoardArtwork from "./BoardArtwork";
 import BoardTerrain from "./BoardTerrain";
@@ -98,25 +99,39 @@ export default function Board({
   return (
     <div className={`atlas ${demo ? "atlas-preview" : ""}`}>
       <div className="map-viewport">
-        <svg
-          className="map-artwork map-terrain"
-          viewBox="0 0 1400 900"
-          aria-hidden="true"
-        >
-          <BoardTerrain id={id} view={view} />
-        </svg>
-        <svg
-          className="map-artwork map-pieces"
-          viewBox="0 0 1400 900"
-          aria-hidden="true"
-        >
-          <BoardArtwork
+        <MapCamera view={view}>
+          <svg
+            className="map-artwork map-terrain"
+            viewBox="0 0 1400 900"
+            aria-hidden="true"
+          >
+            <BoardTerrain id={id} />
+          </svg>
+          <svg
+            className="map-artwork map-pieces"
+            viewBox="0 0 1400 900"
+            aria-hidden="true"
+          >
+            <BoardArtwork
+              game={game}
+              eligible={eligible}
+              colorSeed={colorSeed}
+            />
+          </svg>
+          <TicketHighlights
             game={game}
-            view={view}
-            eligible={eligible}
-            colorSeed={colorSeed}
+            previews={previews}
+            focus={focus}
+            completedTickets={completedTickets}
           />
-        </svg>
+          {game && (
+            <RouteHighlights
+              hoverIds={eligible ? [] : hoverIds}
+              selected={selected}
+              scoreRoutes={scoreRoutes}
+            />
+          )}
+        </MapCamera>
         <svg
           ref={svg}
           className="railway-map map-input-layer"
@@ -214,21 +229,6 @@ export default function Board({
             />
           </g>
         </svg>
-        <TicketHighlights
-          game={game}
-          view={view}
-          previews={previews}
-          focus={focus}
-          completedTickets={completedTickets}
-        />
-        {game && (
-          <RouteHighlights
-            view={view}
-            hoverIds={eligible ? [] : hoverIds}
-            selected={selected}
-            scoreRoutes={scoreRoutes}
-          />
-        )}
         {!demo && (
           <div
             className="map-interaction-layer map-tooltip-layer"

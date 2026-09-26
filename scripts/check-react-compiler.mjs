@@ -63,6 +63,7 @@ const required = [
   "src/components/CardDragGhost.tsx:CardDragGhost",
   "src/components/RouteHighlights.tsx:RouteHighlights",
   "src/components/MapLayer.tsx:MapLayer",
+  "src/components/MapCamera.tsx:MapCamera",
   "src/components/BoardArtwork.tsx:BoardArtwork",
   "src/components/BoardTerrain.tsx:BoardTerrain",
   "src/components/BoardHitTargets.tsx:BoardHitTargets",

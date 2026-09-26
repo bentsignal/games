@@ -2,11 +2,9 @@ import { useLayoutEffect, useRef, type ReactNode } from "react";
 export type MapView = { x: number; y: number; z: number };
 // All interaction layers share the same letterboxing and camera transform.
 export default function MapLayer({
-  view,
   children,
   className,
 }: {
-  view: MapView;
   children: ReactNode;
   className: string;
 }) {
@@ -34,14 +32,7 @@ export default function MapLayer({
       aria-hidden="true"
     >
       <div className="map-layer-world" ref={world}>
-        <div
-          className="map-layer-world"
-          style={{
-            transform: `translate(${700 + view.x}px, ${450 + view.y}px) scale(${view.z}) translate(-700px, -450px)`,
-          }}
-        >
-          {children}
-        </div>
+        {children}
       </div>
     </div>
   );

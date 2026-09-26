@@ -16,6 +16,19 @@ receives no hover callbacks or preview state. Terrain and pieces stay on separat
 so route and ticket highlights remain beneath the trains. BoardHitTargets contains the small
 interactive paths and keyboard targets. The Board shell delegates input events.
 
+Pan and zoom transform a shared CSS camera containing the painted layers. Camera
+state does not reach the artwork or highlight geometry. The separate transparent
+input SVG follows the same camera in map coordinates, preserving route selection
+and card hit testing. ResizeObserver maintains the viewport-to-map scale. This
+avoids changing transforms inside the detailed SVGs on every pointer movement.
+The camera regression checks zero artwork renders and Paint events while panning
+and zooming under CPU throttling; drag tests check alignment after camera and
+viewport changes. During zoom, `will-change: transform` preserves the painted
+surface. After 200 ms without camera movement, MapCamera briefly releases that
+hint so Chrome can rasterize at the final scale and restore sharp labels. The
+hint is restored after two animation frames. See
+https://developer.chrome.com/blog/re-rastering-composite for the browser behavior.
+
 All transient feedback uses contained layers with a shared aspect-ratio and
 camera transform. Routes and ticket previews are prepared before hover; hover
 changes opacity rather than inserting geometry into the detailed map. The hover

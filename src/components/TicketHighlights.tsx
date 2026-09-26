@@ -8,7 +8,7 @@ import {
 } from "../game/interactions";
 import { cities, tracks } from "../game/map-layout";
 import { labels } from "../game/map-labels";
-import MapLayer, { type MapView } from "./MapLayer";
+import MapLayer from "./MapLayer";
 
 function TicketHighlight({
   game,
@@ -100,13 +100,11 @@ function TicketHighlight({
 }
 export default function TicketHighlights({
   game,
-  view,
   previews,
   focus,
   completedTickets,
 }: {
   game?: View | null;
-  view: MapView;
   previews: TicketPreview[];
   focus: string[];
   completedTickets: string[];
@@ -128,7 +126,7 @@ export default function TicketHighlights({
   ];
   return (
     <>
-      <MapLayer view={view} className="ticket-highlight-layer">
+      <MapLayer className="ticket-highlight-layer">
         {candidates.map((id) => {
           const index = previews.findIndex((p) => p.ticket.id === id);
           return (
@@ -142,7 +140,7 @@ export default function TicketHighlights({
           );
         })}
       </MapLayer>
-      <MapLayer view={view} className="map-focus-layer">
+      <MapLayer className="map-focus-layer">
         <svg className="ticket-highlight-content" viewBox="0 0 1400 900">
           {focus.map((name) => {
             const [dx, dy, anchor] = labels[name] || [0, -17, "middle"];

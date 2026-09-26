@@ -3464,6 +3464,15 @@ label {
   height: 100%;
   overflow: hidden;
   contain: strict;
+  background: #a1bfc6;
+}
+.map-camera {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  transform-origin: center;
+  will-change: transform;
+  isolation: isolate;
 }
 .atlas:not(.atlas-preview) {
   display: grid;
@@ -3870,7 +3879,6 @@ label {
   width: 100%;
   height: 100%;
   contain: strict;
-  transform: translateZ(0);
   pointer-events: none;
 }
 .map-input-layer {

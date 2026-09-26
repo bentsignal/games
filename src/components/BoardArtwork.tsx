@@ -16,12 +16,10 @@ const demoRoutes = [
 ];
 const BoardArtwork = memo(function BoardArtwork({
   game,
-  view,
   eligible,
   colorSeed,
 }: {
   game?: View | null;
-  view: { x: number; y: number; z: number };
   eligible?: string[];
   colorSeed: string;
 }) {
@@ -34,9 +32,7 @@ const BoardArtwork = memo(function BoardArtwork({
   );
   return (
     <>
-      <g
-        transform={`translate(${700 + view.x} ${450 + view.y}) scale(${view.z}) translate(-700 -450)`}
-      >
+      <g>
         {[...tracks]
           .sort(
             (a, b) =>

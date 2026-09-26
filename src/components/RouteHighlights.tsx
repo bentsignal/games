@@ -1,5 +1,5 @@
 import { tracks } from "../game/map-layout";
-import MapLayer, { type MapView } from "./MapLayer";
+import MapLayer from "./MapLayer";
 const highlights = tracks.map(({ route, path, samples }) => {
   const left = Math.min(...samples.map(([x]) => x)) - 14;
   const top = Math.min(...samples.map(([, y]) => y)) - 14;
@@ -9,18 +9,16 @@ const highlights = tracks.map(({ route, path, samples }) => {
 });
 
 export default function RouteHighlights({
-  view,
   hoverIds,
   selected,
   scoreRoutes,
 }: {
-  view: MapView;
   hoverIds: string[];
   selected?: string;
   scoreRoutes: string[];
 }) {
   return (
-    <MapLayer view={view} className="drag-highlight-layer">
+    <MapLayer className="drag-highlight-layer">
       {highlights.map(({ route, path, left, top, width, height }) => (
         <svg
           key={route.id}
