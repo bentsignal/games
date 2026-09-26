@@ -42,7 +42,6 @@ import {
   Plus,
   Bot,
   RotateCcw,
-  Maximize,
   BookOpen,
   ChevronDown,
   Flag,
@@ -370,8 +369,6 @@ export default function App({ username }: { username: string }) {
     [copied, setCopied] = useState(false);
   const [selected, setSelected] = useState<Route | null>(null),
     [focus, setFocus] = useState<string[]>([]),
-    [reset, setReset] = useState(0),
-    [top, setTop] = useState(false),
     [tab, setTab] = useState<"tickets" | "chat" | "log" | "scoreboard">(
       "tickets",
     ),
@@ -843,6 +840,17 @@ export default function App({ username }: { username: string }) {
             <span>{code}</span>
           </button>
         )}
+        {game && (me || watching) && (
+          <button
+            className="nav-help"
+            onClick={() => setRoutesOpen(true)}
+            aria-label="Open route list"
+            title="Route list"
+          >
+            <List size={17} />
+            <span>Routes</span>
+          </button>
+        )}
         <button className="nav-help" onClick={() => setRules(true)}>
           <BookOpen size={17} />
           <span>How to play</span>
@@ -979,7 +987,7 @@ export default function App({ username }: { username: string }) {
           </section>
           <section className="hero-world" aria-label="USA map">
             <div className="hero-board">
-              <BoardView onSelect={() => {}} top={false} />
+              <BoardView onSelect={() => {}} />
             </div>
           </section>
         </main>
@@ -1133,40 +1141,10 @@ export default function App({ username }: { username: string }) {
                     : focus
                 }
                 scoreRoutes={scoreReveal.step?.routes}
-                reset={reset}
-                top={top}
                 previews={
                   game.phase === "finished" && !scoreReveal.done ? [] : previews
                 }
                 eligible={eligible}
-                controls={
-                  <>
-                    <button
-                      className="icon"
-                      onClick={() => setReset((v) => v + 1)}
-                      aria-label="Reset map"
-                      title="Reset map"
-                    >
-                      <RotateCcw size={17} />
-                    </button>
-                    <button
-                      className={`icon ${top ? "is-active" : ""}`}
-                      onClick={() => setTop(!top)}
-                      aria-label="Toggle close-up view"
-                      title="Close-up view"
-                    >
-                      <Maximize size={17} />
-                    </button>
-                    <button
-                      className="icon"
-                      onClick={() => setRoutesOpen(true)}
-                      aria-label="Open route list"
-                      title="Route list"
-                    >
-                      <List size={17} />
-                    </button>
-                  </>
-                }
               />
               <GameEvents
                 game={me || watching ? game : undefined}

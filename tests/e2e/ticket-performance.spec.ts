@@ -242,12 +242,9 @@ test("Ticket chat and dragging stay isolated with delayed and failed replies", a
     await a.keyboard.press("Escape");
     await a.mouse.up();
     await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 });
-    // The independent highlight surfaces must follow map zoom, pan and resizing.
+    // Highlight surfaces and card hit targets must stay aligned after resizing.
     for (const width of [1440, 900]) {
       await a.setViewportSize({ width, height: 1000 });
-      await a.getByRole("button", { name: "Zoom in", exact: true }).click();
-      await a.locator(".railway-map").focus();
-      await a.keyboard.press("ArrowRight");
       await card.scrollIntoViewIfNeeded();
       const start = (await card.boundingBox())!;
       await a.mouse.move(start.x + start.width / 2, start.y + start.height / 2);
@@ -314,86 +311,4 @@ test("Ticket chat and dragging stay isolated with delayed and failed replies", a
     await first.close();
     await second.close();
   }
-});
-
-test("Ticket camera moves without rebuilding or repainting map artwork", async ({
-  page,
-}) => {
-  await page.goto("/ticket?diagnostics=1");
-  await signIn(page, `Camera_${Date.now()}`);
-  await page.getByRole("button", { name: "Create a game" }).click();
-  await expect(page).toHaveURL(/\/room\/[A-Z2-9]{8}/);
-  const map = page.locator(".railway-map");
-  await expect(map).toBeVisible();
-  await page.evaluate(() => document.fonts.ready);
-  await map.focus();
-  await page.keyboard.press("+");
-  await expect(page.locator(".map-zoom")).toContainText("130%");
-  await page.keyboard.press("ArrowRight");
-  await expect(page.locator(".map-camera")).toHaveAttribute(
-    "data-camera-settled",
-    "true",
-  );
-  await resetDiagnostics(page);
-  const cdp = await page.context().newCDPSession(page);
-  let paints = 0;
-  cdp.on("Tracing.dataCollected", ({ value }) => {
-    for (const raw of value) {
-      const event = raw as unknown as {
-        name: string;
-        args?: { data?: { nodeName?: string } };
-      };
-      if (
-        event.name === "Paint" &&
-        event.args?.data?.nodeName?.startsWith("svg class='map-artwork")
-      )
-        paints++;
-    }
-  });
-  await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 });
-  await cdp.send("Tracing.start", {
-    categories: "devtools.timeline,disabled-by-default-devtools.timeline",
-    transferMode: "ReportEvents",
-  });
-  const bounds = (await map.boundingBox())!;
-  const before = await page
-    .locator(".map-camera")
-    .evaluate((el) => getComputedStyle(el).transform);
-  await page.mouse.move(
-    bounds.x + bounds.width * 0.5,
-    bounds.y + bounds.height * 0.5,
-  );
-  await page.mouse.down();
-  await page.mouse.move(
-    bounds.x + bounds.width * 0.7,
-    bounds.y + bounds.height * 0.6,
-    { steps: 40 },
-  );
-  await page.mouse.up();
-  for (let i = 0; i < 12; i++) {
-    await page.mouse.wheel(0, i < 8 ? -70 : 70);
-    await page.evaluate(() => new Promise(requestAnimationFrame));
-  }
-  const after = await page
-    .locator(".map-camera")
-    .evaluate((el) => getComputedStyle(el).transform);
-  expect(after).not.toBe(before);
-  expect(
-    await page.evaluate(
-      () =>
-        (window as any).ticketDiagnostics.snapshot().counters[
-          "map-artwork-renders"
-        ] ?? 0,
-    ),
-  ).toBe(0);
-  const complete = new Promise<void>((resolve) =>
-    cdp.once("Tracing.tracingComplete", () => resolve()),
-  );
-  await cdp.send("Tracing.end");
-  await complete;
-  expect(paints).toBe(0);
-  await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 });
-  await map.focus();
-  await page.keyboard.press("0");
-  await expect(page.locator(".map-zoom")).toContainText("100%");
 });

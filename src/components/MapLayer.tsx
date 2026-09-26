@@ -1,6 +1,5 @@
 import { useLayoutEffect, useRef, type ReactNode } from "react";
-export type MapView = { x: number; y: number; z: number };
-// All interaction layers share the same letterboxing and camera transform.
+// All interaction layers share the map SVG's letterboxing.
 export default function MapLayer({
   children,
   className,

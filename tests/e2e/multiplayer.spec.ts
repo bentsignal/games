@@ -228,7 +228,7 @@ test("two independent friends join, choose tickets, chat, draw, and reconnect", 
   await second.close();
 });
 
-test("the 2D atlas supports keyboard route selection, pan, zoom, and optional sound", async ({
+test("the fixed atlas supports keyboard routes and the header route list", async ({
   page,
 }) => {
   await page.goto("/ticket");
@@ -242,8 +242,6 @@ test("the 2D atlas supports keyboard route selection, pan, zoom, and optional so
   await route.focus();
   await page.keyboard.press("Enter");
   await expect(route).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: "Zoom in", exact: true }).click();
-  await expect(page.locator(".map-zoom")).toContainText("130%");
   await map.focus();
   await page.keyboard.press("ArrowRight");
   // A drag across the map must not accidentally choose a different route.
@@ -260,13 +258,21 @@ test("the 2D atlas supports keyboard route selection, pan, zoom, and optional so
   );
   await page.mouse.up();
   await expect(route).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: "Reset map", exact: true }).click();
-  await expect(page.locator(".map-zoom")).toContainText("100%");
+  await page.mouse.wheel(0, -200);
   await map.focus();
   await page.keyboard.press("+");
-  await expect(page.locator(".map-zoom")).toContainText("130%");
-  await page.keyboard.press("0");
-  await expect(page.locator(".map-zoom")).toContainText("100%");
+  expect(
+    await page.locator("[data-map-world]").getAttribute("transform"),
+  ).toBeNull();
+  await expect(
+    page.locator(".map-controls, .map-camera, .map-zoom"),
+  ).toHaveCount(0);
+  await page
+    .locator("header")
+    .getByRole("button", { name: "Open route list" })
+    .click();
+  await expect(page.getByRole("dialog", { name: "Route list" })).toBeVisible();
+  await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Leave table", exact: true }).click();
 });
 test("computer takeover finishes the game, reveals scores, and rematches", async ({
@@ -352,31 +358,7 @@ test("mobile landing, catalog, and room remain usable", async ({ page }) => {
   ).toBe(true);
   const map = page.getByRole("group", { name: "USA railway map" });
   await map.scrollIntoViewIfNeeded();
-  const rect = (await map.boundingBox())!;
-  const cx = rect.x + rect.width / 2,
-    cy = rect.y + rect.height / 2;
   const touch = await page.context().newCDPSession(page);
-  await touch.send("Input.dispatchTouchEvent", {
-    type: "touchStart",
-    touchPoints: [
-      { x: cx - 25, y: cy, id: 1 },
-      { x: cx + 25, y: cy, id: 2 },
-    ],
-  });
-  await touch.send("Input.dispatchTouchEvent", {
-    type: "touchMove",
-    touchPoints: [
-      { x: cx - 50, y: cy, id: 1 },
-      { x: cx + 50, y: cy, id: 2 },
-    ],
-  });
-  await touch.send("Input.dispatchTouchEvent", {
-    type: "touchEnd",
-    touchPoints: [],
-  });
-  await expect(page.locator(".map-zoom")).toContainText("200%");
-  await page.getByRole("button", { name: "Reset map", exact: true }).click();
-  await expect(page.locator(".map-zoom")).toContainText("100%");
   const hand = (await page
     .locator(".hand-cards .train-card:not(:disabled)")
     .first()
