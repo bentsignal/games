@@ -10,17 +10,30 @@ message ID, including after reconnection. A failed or interrupted send remains
 visible as unconfirmed. Copy to draft lets the player recover its text without
 overwriting a newer draft. Interrupted sends are never replayed automatically.
 
+The board separates terrain, train/station artwork, input targets, camera controls, route
+highlights, ticket previews, and the hover caption. BoardArtwork is memoized and
+receives no hover callbacks or preview state. Terrain and pieces stay on separate paint layers
+so route and ticket highlights remain beneath the trains. BoardHitTargets contains the small
+interactive paths and keyboard targets. The Board shell delegates input events.
+
+All transient feedback uses contained layers with a shared aspect-ratio and
+camera transform. Routes and ticket previews are prepared before hover; hover
+changes opacity rather than inserting geometry into the detailed map. The hover
+caption also lives inside a contained layer. Its former placement outside the
+map viewport caused browser layout and repainting even when React left the
+artwork unchanged. Regression tests check both zero artwork renders and zero
+artwork Paint events while hovering routes and tickets.
+
 The drag handler performs one geometric hit test per animation frame. Pointer
-coordinates update the ghost's CSS translate directly. Route labels update the
-ghost component, and route highlights toggle the opacity of prebuilt, cropped
-SVG surfaces. Highlight changes do not rewrite path geometry or resize the
-overlay. A ResizeObserver matches the map's centered aspect ratio, and the
-overlay shares its zoom and pan transform. Crossing
-routes does not update game-screen state. The board updates when dragging starts
-or ends to show eligible routes. The map and absolute highlight overlay share a
-contained viewport. The detailed map has its own composited surface, and highlight
-geometry cannot participate in the parent grid sizing. A relative SVG grid item
-previously repainted the underlying map as the drag crossed routes.
+coordinates update the ghost's CSS translate directly. The ghost label updates
+independently. Game changes and drag eligibility can update the artwork; ordinary
+hover and ticket previews cannot.
+
+Chat positions and UI keys are separate from displayed server timestamps. A
+pending message keeps its position and identity through acknowledgements,
+broadcasts, reconnect history, and spectator identity resolution. A confirmation
+changes its contents and delivery appearance without moving it below later
+pending messages. History still sorts chronologically when first loaded.
 
 Result delivery to Convex runs outside the Durable Object's command lock. The
 persistent outbox still retries failed deliveries and survives restarts. Commands
@@ -29,8 +42,8 @@ outbox entry and preserves the latest room state.
 
 Run `pnpm run check:react-compiler` to verify the installed compiler against the
 actual Vite production pipeline. `pnpm run check` and the React Compiler CI job
-include it. App, Board, CardDragGhost, DragHighlights, TicketChat, and useTicketRoom must
-compile.
+include it. App, Board, BoardTerrain, BoardArtwork, BoardHitTargets, MapLayer, RouteHighlights,
+TicketHighlights, CardDragGhost, TicketChat, and useTicketRoom must compile.
 The check rejects increased skip counts elsewhere. The checked-in baseline records
 existing skips in account/sign-in, Grams, Music, and Scoreboard, so unrelated
 limitations remain visible without hiding regressions in Ticket's critical path.

@@ -118,6 +118,11 @@ test("Ticket chat and dragging stay isolated with delayed and failed replies", a
     const queued = held.splice(0);
     queued[0]();
     await new Promise((resolve) => setTimeout(resolve, 800));
+    await expect(a.getByRole("log").locator(".message p")).toHaveText([
+      "Typing must stay in chat",
+      "Second message while first is pending",
+      "Incoming also stays in chat",
+    ]);
     queued[1]();
     await expect(
       a.getByRole("log").locator(".message[data-pending]"),
@@ -154,6 +159,60 @@ test("Ticket chat and dragging stay isolated with delayed and failed replies", a
     await expect(input).toHaveValue("Another draft");
 
     const cdp = await first.newCDPSession(a);
+    let artworkPaints = 0;
+    cdp.on("Tracing.dataCollected", ({ value }) => {
+      for (const raw of value) {
+        const event = raw as unknown as {
+          name: string;
+          args?: { data?: { nodeName?: string } };
+        };
+        if (
+          event.name === "Paint" &&
+          event.args?.data?.nodeName?.startsWith("svg class='map-artwork")
+        )
+          artworkPaints++;
+      }
+    });
+    // Ordinary route hover and ticket previews must never rebuild the map artwork.
+    await a.getByRole("tab", { name: /^Tickets/ }).click();
+    await a.evaluate(() => document.fonts.ready);
+    await a.locator('[data-route="r1"]').focus();
+    await resetDiagnostics(a);
+    await cdp.send("Tracing.start", {
+      categories: "devtools.timeline,disabled-by-default-devtools.timeline",
+      transferMode: "ReportEvents",
+    });
+    for (const id of ["r1", "r2", "r3", "r4"]) {
+      await a.locator(`[data-route="${id}"]`).focus();
+      await expect(a.locator(`[data-route-highlight="${id}"]`)).toHaveAttribute(
+        "data-hovered",
+        "true",
+      );
+    }
+    const tickets = a.locator(".ticket-tile");
+    for (let index = 0; index < (await tickets.count()); index++) {
+      await tickets.nth(index).hover();
+      await expect(
+        a.locator("[data-ticket-preview][data-hovered]"),
+      ).toHaveCount(1);
+      await a.mouse.move(5, 5);
+    }
+    expect(
+      await a.evaluate(
+        () =>
+          (window as any).ticketDiagnostics.snapshot().counters[
+            "map-artwork-renders"
+          ] ?? 0,
+      ),
+    ).toBe(0);
+
+    await a.evaluate(() => new Promise(requestAnimationFrame));
+    const tracingComplete = new Promise<void>((resolve) =>
+      cdp.once("Tracing.tracingComplete", () => resolve()),
+    );
+    await cdp.send("Tracing.end");
+    await tracingComplete;
+    expect(artworkPaints).toBe(0);
     await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 });
     const card = a.locator(".hand-cards .train-card:not(:disabled)").first();
     const hand = (await card.boundingBox())!;

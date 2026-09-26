@@ -75,3 +75,76 @@ test("legacy server replies settle pending UI during a rolling deployment", () =
   chat.acknowledge("local", null);
   expect(chat.getSnapshot().messages).toEqual([legacy]);
 });
+
+test("local order and identity survive out-of-order delivery, broadcasts, history and clock skew", () => {
+  const chat = createTicketChat();
+  const sent = ["z", "a", "m"].map((id) => ({
+    ...pending,
+    _id: id,
+    clientId: id,
+    text: id,
+    time: 100,
+  }));
+  sent.forEach((m) => chat.pending(m));
+  const keys = chat.getSnapshot().messages.map(chat.keyFor);
+  const order = () =>
+    chat
+      .getSnapshot()
+      .messages.filter((m) => m.clientId !== "older")
+      .map((m) => m.text);
+  expect(order()).toEqual(["z", "a", "m"]);
+  for (const index of [0, 2, 1]) {
+    const delivered = {
+      ...sent[index],
+      _id: `chat:${index}`,
+      time: 1000 + index,
+    };
+    chat.merge([delivered]);
+    expect(order()).toEqual(["z", "a", "m"]);
+    chat.acknowledge(sent[index].clientId, delivered);
+    chat.merge([delivered]);
+    expect(order()).toEqual(["z", "a", "m"]);
+    expect(chat.getSnapshot().messages.map(chat.keyFor)).toEqual(keys);
+  }
+  chat.merge(
+    [{ ...confirmed, _id: "older", clientId: "older", time: 1 }],
+    true,
+  );
+  expect(chat.getSnapshot().messages.map((m) => m.time)).toEqual([
+    1, 1000, 1001, 1002,
+  ]);
+});
+
+test("acknowledgement preserves spectator order and identity after sender resolution", () => {
+  const chat = createTicketChat();
+  chat.pending({ ...pending, sender: "spectator-name" });
+  const key = chat.keyFor(chat.getSnapshot().messages[0]);
+  chat.pending({ ...pending, _id: "next", clientId: "next", time: 3 });
+  chat.merge([{ ...confirmed, time: 50 }]);
+  chat.acknowledge("local", { ...confirmed, time: 50 });
+  expect(chat.getSnapshot().messages.map((m) => m.clientId)).toEqual([
+    "local",
+    "next",
+  ]);
+  expect(chat.keyFor(chat.getSnapshot().messages[0])).toBe(key);
+});
+
+test("new local sends append even when the local clock is behind server history", () => {
+  const chat = createTicketChat();
+  chat.merge([
+    { ...confirmed, clientId: "history", _id: "chat:history", time: 5000 },
+  ]);
+  chat.pending({ ...pending, time: 100 });
+  chat.pending({ ...pending, _id: "next", clientId: "next", time: 90 });
+  expect(chat.getSnapshot().messages.map((m) => m.clientId)).toEqual([
+    "history",
+    "local",
+    "next",
+  ]);
+  chat.acknowledge("local", { ...confirmed, time: 6000 });
+  expect(chat.getSnapshot().messages.map((m) => m.clientId)).toEqual([
+    "history",
+    "local",
+    "next",
+  ]);
+});

@@ -3446,7 +3446,7 @@ label {
   }
 }
 
-.drag-highlight-layer {
+.map-interaction-layer {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -3477,7 +3477,7 @@ label {
   height: 100%;
   transform: translateZ(0);
 }
-.atlas .drag-highlight-layer {
+.atlas .map-interaction-layer {
   position: absolute;
   inset: 0;
   height: 100%;
@@ -3819,19 +3819,21 @@ label {
 .message-time[data-confirmed] {
   opacity: 1;
 }
-.drag-highlight-world {
+.map-layer-world {
   position: absolute;
   width: 1400px;
   height: 900px;
   transform-origin: 0 0;
 }
-.drag-route-highlight {
+.route-highlight {
   position: absolute;
   contain: strict;
   opacity: 0;
   pointer-events: none;
+  will-change: opacity;
 }
-.drag-route-highlight[data-active] {
+.route-highlight[data-active] {
+  color: #18a87d;
   opacity: 0.65;
 }
 @media (prefers-reduced-motion: reduce) {
@@ -3839,4 +3841,61 @@ label {
   .message-time {
     transition: none;
   }
+}
+
+.route-highlight[data-hovered]:not([data-active]) {
+  opacity: 0.7;
+  color: #fffae3;
+}
+.ticket-highlight-content {
+  position: absolute;
+  width: 1400px;
+  height: 900px;
+  overflow: visible;
+}
+
+.ticket-preview-surface {
+  position: absolute;
+  contain: strict;
+  opacity: 0;
+  will-change: opacity;
+}
+.ticket-preview-surface[data-visible] {
+  opacity: 1;
+}
+
+.map-artwork {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  contain: strict;
+  transform: translateZ(0);
+  pointer-events: none;
+}
+.map-input-layer {
+  background: transparent;
+}
+
+.map-terrain {
+  z-index: 0;
+}
+.ticket-highlight-layer {
+  z-index: 1;
+}
+.drag-highlight-layer {
+  z-index: 2;
+}
+.map-pieces {
+  z-index: 3;
+}
+.map-input-layer {
+  position: relative;
+  z-index: 4;
+}
+.map-focus-layer {
+  z-index: 5;
+}
+.map-tooltip-layer {
+  z-index: 6;
 }

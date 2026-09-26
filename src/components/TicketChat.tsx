@@ -128,11 +128,7 @@ export default function TicketChat({
               className={`message ${message.sender === playerId || message.pending || message.error ? "own" : ""}`}
               data-pending={message.pending || undefined}
               aria-busy={message.pending || undefined}
-              key={
-                message.clientId
-                  ? `${message.sender}:${message.clientId}`
-                  : message._id
-              }
+              key={chat.keyFor(message)}
             >
               <div>
                 <strong>{message.name}</strong>

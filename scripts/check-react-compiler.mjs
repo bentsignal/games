@@ -61,7 +61,12 @@ const required = [
   "src/App.tsx:App",
   "src/components/Board.tsx:Board",
   "src/components/CardDragGhost.tsx:CardDragGhost",
-  "src/components/DragHighlights.tsx:DragHighlights",
+  "src/components/RouteHighlights.tsx:RouteHighlights",
+  "src/components/MapLayer.tsx:MapLayer",
+  "src/components/BoardArtwork.tsx:BoardArtwork",
+  "src/components/BoardTerrain.tsx:BoardTerrain",
+  "src/components/BoardHitTargets.tsx:BoardHitTargets",
+  "src/components/TicketHighlights.tsx:TicketHighlights",
   "src/components/TicketChat.tsx:TicketChat",
   "src/game/useTicketRoom.ts:useTicketRoom",
 ];

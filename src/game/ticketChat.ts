@@ -10,10 +10,30 @@ export function createTicketChat(code = "") {
     more: false,
   };
   const listeners = new Set<() => void>();
+  // Delivery time is display data. A locally appended message keeps its place
+  // and React identity when its server ID, timestamp or sender is confirmed.
+  const positions = new Map<
+    string,
+    { time: number; tie: string; key: string }
+  >();
+  let sequence = 0;
+  const position = (message: ChatEntry) =>
+    positions.get(message._id) ?? {
+      time: message.time,
+      tie: message._id,
+      key: message._id,
+    };
+  function transfer(from: string, to: string) {
+    const saved = positions.get(from);
+    if (saved) positions.set(to, saved);
+    if (from !== to) positions.delete(from);
+  }
   function publish(messages: ChatEntry[], more = snapshot.more) {
     snapshot = {
       messages: messages.sort(
-        (a, b) => a.time - b.time || a._id.localeCompare(b._id),
+        (a, b) =>
+          position(a).time - position(b).time ||
+          position(a).tie.localeCompare(position(b).tie),
       ),
       more,
     };
@@ -22,6 +42,7 @@ export function createTicketChat(code = "") {
   return {
     code,
     getSnapshot: () => snapshot,
+    keyFor: (message: ChatEntry) => position(message).key,
     subscribe: (listener: () => void) => {
       listeners.add(listener);
       return () => {
@@ -39,8 +60,10 @@ export function createTicketChat(code = "") {
             message.clientId &&
             entry.clientId === message.clientId &&
             entry.sender === message.sender
-          )
+          ) {
+            transfer(id, message._id);
             all.delete(id);
+          }
         }
         all.set(message._id, message);
       }
@@ -48,6 +71,8 @@ export function createTicketChat(code = "") {
     },
     acknowledge(clientId: string, message: ChatMessage | null) {
       // The reply identifies the outgoing message even for a spectator without a player ID.
+      if (message) transfer(clientId, message._id);
+      else positions.delete(clientId);
       snapshot = {
         ...snapshot,
         messages: snapshot.messages.filter((entry) => entry._id !== clientId),
@@ -56,6 +81,12 @@ export function createTicketChat(code = "") {
       else publish([...snapshot.messages]);
     },
     pending(message: ChatMessage) {
+      const last = snapshot.messages.at(-1);
+      positions.set(message._id, {
+        time: Math.max(message.time, last ? position(last).time : message.time),
+        tie: `\ufffflocal:${String(++sequence).padStart(12, "0")}`,
+        key: `local:${message._id}`,
+      });
       publish([...snapshot.messages, { ...message, pending: true }]);
     },
     fail(id: string, error: string) {

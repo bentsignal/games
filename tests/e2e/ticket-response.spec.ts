@@ -6,7 +6,7 @@ async function drop(page: Page) {
   await card.hover();
   const hand = (await card.boundingBox())!;
   const route = (await page
-    .locator('[data-route="r1"] rect')
+    .locator('[data-route="r1"] path')
     .first()
     .boundingBox())!;
   await page.mouse.move(hand.x + hand.width / 2, hand.y + hand.height / 2);
