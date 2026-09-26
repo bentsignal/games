@@ -3803,3 +3803,40 @@ label {
   border: 1px solid #777;
   font: 12px sans-serif;
 }
+
+/* Delivery is visible without adding a status row or shifting message text. */
+.message {
+  transition: opacity 180ms ease-out;
+}
+.message[data-pending] {
+  opacity: 0.5;
+}
+.message-time {
+  min-height: 1em;
+  opacity: 0;
+  transition: opacity 180ms ease-out;
+}
+.message-time[data-confirmed] {
+  opacity: 1;
+}
+.drag-highlight-world {
+  position: absolute;
+  width: 1400px;
+  height: 900px;
+  transform-origin: 0 0;
+}
+.drag-route-highlight {
+  position: absolute;
+  contain: strict;
+  opacity: 0;
+  pointer-events: none;
+}
+.drag-route-highlight[data-active] {
+  opacity: 0.65;
+}
+@media (prefers-reduced-motion: reduce) {
+  .message,
+  .message-time {
+    transition: none;
+  }
+}

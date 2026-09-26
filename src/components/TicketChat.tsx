@@ -126,6 +126,8 @@ export default function TicketChat({
           messages.map((message) => (
             <div
               className={`message ${message.sender === playerId || message.pending || message.error ? "own" : ""}`}
+              data-pending={message.pending || undefined}
+              aria-busy={message.pending || undefined}
               key={
                 message.clientId
                   ? `${message.sender}:${message.clientId}`
@@ -134,15 +136,21 @@ export default function TicketChat({
             >
               <div>
                 <strong>{message.name}</strong>
-                <time>
-                  {new Date(message.time).toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
+                <time
+                  className="message-time"
+                  data-confirmed={
+                    (!message.pending && !message.error) || undefined
+                  }
+                >
+                  {!message.pending && !message.error
+                    ? new Date(message.time).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : null}
                 </time>
               </div>
               <p>{message.text}</p>
-              {message.pending && <small role="status">Sending…</small>}
               {message.error && (
                 <>
                   <small role="alert">Not confirmed: {message.error}</small>

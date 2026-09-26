@@ -87,11 +87,21 @@ test("Ticket chat and dragging stay isolated with delayed and failed replies", a
     mode = "hold";
     await input.press("Enter");
     await expect(input).toHaveValue("");
-    await expect(a.getByRole("log").getByText("Sending…")).toBeVisible();
+    await expect(
+      a.getByRole("log").locator(".message[data-pending]"),
+    ).toBeVisible();
+    await expect(
+      a.getByRole("log").locator(".message[data-pending]"),
+    ).toHaveCSS("opacity", "0.5");
+    await expect(
+      a.getByRole("log").locator(".message[data-pending] time"),
+    ).toHaveText("");
     await input.fill("Second message while first is pending");
     await input.press("Enter");
     await expect(input).toHaveValue("");
-    await expect(a.getByRole("log").getByText("Sending…")).toHaveCount(2);
+    await expect(
+      a.getByRole("log").locator(".message[data-pending]"),
+    ).toHaveCount(2);
     await input.fill("Keep this new draft");
     await expect.poll(() => held.length).toBe(2);
     await b
@@ -109,11 +119,20 @@ test("Ticket chat and dragging stay isolated with delayed and failed replies", a
     queued[0]();
     await new Promise((resolve) => setTimeout(resolve, 800));
     queued[1]();
-    await expect(a.getByRole("log").getByText("Sending…")).toHaveCount(0);
+    await expect(
+      a.getByRole("log").locator(".message[data-pending]"),
+    ).toHaveCount(0);
     await expect(
       a.getByRole("log").getByText("Typing must stay in chat", { exact: true }),
     ).toHaveCount(1);
     await expect(a.getByRole("log").getByRole("alert")).toHaveCount(0);
+    await expect(a.getByRole("log").locator(".message").first()).toHaveCSS(
+      "opacity",
+      "1",
+    );
+    await expect(
+      a.getByRole("log").locator(".message time").first(),
+    ).not.toBeEmpty();
     await expect(
       a
         .getByRole("log")
@@ -164,6 +183,62 @@ test("Ticket chat and dragging stay isolated with delayed and failed replies", a
     await a.keyboard.press("Escape");
     await a.mouse.up();
     await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 });
+    // The independent highlight surfaces must follow map zoom, pan and resizing.
+    for (const width of [1440, 900]) {
+      await a.setViewportSize({ width, height: 1000 });
+      await a.getByRole("button", { name: "Zoom in", exact: true }).click();
+      await a.locator(".railway-map").focus();
+      await a.keyboard.press("ArrowRight");
+      await card.scrollIntoViewIfNeeded();
+      const start = (await card.boundingBox())!;
+      await a.mouse.move(start.x + start.width / 2, start.y + start.height / 2);
+      await a.mouse.down();
+      await a.mouse.move(start.x + start.width / 2, start.y - 10);
+      await expect(a.locator(".card-drag-ghost")).toBeVisible();
+      await a.locator(".railway-map").scrollIntoViewIfNeeded();
+      const target = await a.evaluate(() => {
+        const bounds = document
+          .querySelector(".railway-map")!
+          .getBoundingClientRect();
+        for (const route of document.querySelectorAll<SVGGElement>(
+          ".map-route[data-droppable]",
+        )) {
+          const path = route.querySelector("path")!;
+          const point = path
+            .getPointAtLength(path.getTotalLength() / 2)
+            .matrixTransform(path.getScreenCTM()!);
+          if (
+            point.x > bounds.left + 10 &&
+            point.x < bounds.right - 10 &&
+            point.y > bounds.top + 10 &&
+            point.y < bounds.bottom - 10 &&
+            point.y < innerHeight - 10
+          )
+            return { id: route.dataset.route!, x: point.x, y: point.y };
+        }
+        throw new Error(
+          "No visible payable route for the drag alignment check",
+        );
+      });
+      await a.mouse.move(target.x, target.y);
+      const highlight = a.locator(`[data-drag-highlight="${target.id}"]`);
+      await expect(highlight).toHaveAttribute("data-active", "true");
+      await expect
+        .poll(async () =>
+          highlight.locator("path").evaluate((path, target) => {
+            const point = (path as SVGPathElement)
+              .getPointAtLength((path as SVGPathElement).getTotalLength() / 2)
+              .matrixTransform((path as SVGPathElement).getScreenCTM()!);
+            return Math.hypot(point.x - target.x, point.y - target.y);
+          }, target),
+        )
+        .toBeLessThan(1);
+      await a.keyboard.press("Escape");
+      await a.mouse.up();
+      await expect(a.locator("[data-drag-highlight][data-active]")).toHaveCount(
+        0,
+      );
+    }
     // Room changes must replace the chat store, including in compiler output.
     await a
       .getByRole("button", { name: "Ticket to Ride home", exact: true })

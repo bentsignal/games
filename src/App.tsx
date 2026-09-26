@@ -17,7 +17,7 @@ import DestinationFeedback, {
   useDestinationFeedback,
 } from "./components/DestinationFeedback";
 import { playerDisplayColors } from "./game/player-colors";
-import { routeAtMapPoint, tracks } from "./game/map-layout";
+import { routeAtMapPoint } from "./game/map-layout";
 import {
   Component,
   Suspense,
@@ -596,29 +596,30 @@ export default function App({ username }: { username: string }) {
       if (target !== lastDragTarget.current) {
         lastDragTarget.current = target;
         dragGhost.current?.target(target);
-        const paths =
-          hit && game
-            ? tracks
-                .filter(
-                  (t) =>
-                    t.route.a === hit.a &&
-                    t.route.b === hit.b &&
-                    routeAvailable(game as unknown as Game, game.me!, t.route),
-                )
-                .map((t) => t.path)
-                .join(" ")
-            : "";
         document
-          .querySelector("[data-drag-highlight]")
-          ?.setAttribute("d", paths);
+          .querySelectorAll("[data-drag-highlight][data-active]")
+          .forEach((element) => element.removeAttribute("data-active"));
+        if (hit && game) {
+          for (const route of ROUTES) {
+            if (
+              route.a === hit.a &&
+              route.b === hit.b &&
+              routeAvailable(game as unknown as Game, game.me!, route)
+            )
+              document
+                .querySelector(`[data-drag-highlight="${route.id}"]`)
+                ?.setAttribute("data-active", "true");
+          }
+        }
       }
     });
   }
   useEffect(() => {
     if (!dragPoint) {
       lastDragTarget.current = undefined;
-      const overlay = document.querySelector("[data-drag-highlight]");
-      if (overlay?.getAttribute("d")) overlay.setAttribute("d", "");
+      document
+        .querySelectorAll("[data-drag-highlight][data-active]")
+        .forEach((element) => element.removeAttribute("data-active"));
     }
   }, [dragPoint]);
   function cancelCard() {

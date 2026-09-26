@@ -1,3 +1,4 @@
+import DragHighlights from "./DragHighlights";
 import { diagnosticCount } from "../game/diagnostics";
 import {
   memo,
@@ -599,24 +600,9 @@ export default function Board({
             </g>
           </g>
         </svg>
-        <svg
-          className="drag-highlight-layer"
-          viewBox="0 0 1400 900"
-          aria-hidden="true"
-        >
-          <g
-            transform={`translate(${700 + view.x} ${450 + view.y}) scale(${view.z}) translate(-700 -450)`}
-          >
-            <path
-              data-drag-highlight="true"
-              fill="none"
-              stroke="#18a87d"
-              strokeWidth="24"
-              strokeLinecap="round"
-              opacity=".65"
-            />
-          </g>
-        </svg>
+        {game && (
+          <DragHighlights game={game} view={view} dragging={!!eligible} />
+        )}
       </div>
       {!demo && (
         <>

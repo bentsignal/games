@@ -2,7 +2,9 @@ Ticket performance checks and diagnostics
 
 Chat owns its draft and subscribes to a room-specific message store. The game
 screen does not subscribe to chat messages. Outgoing messages appear immediately
-with a Sending status. Each message can remain pending independently; sending
+at half opacity without a timestamp. Confirmation fades the message to full
+opacity and reveals its timestamp. Failed messages keep their recovery controls.
+Each message can remain pending independently; sending
 another message does not wait for earlier acknowledgements. Server broadcasts and replies reconcile the same client
 message ID, including after reconnection. A failed or interrupted send remains
 visible as unconfirmed. Copy to draft lets the player recover its text without
@@ -10,7 +12,10 @@ overwriting a newer draft. Interrupted sends are never replayed automatically.
 
 The drag handler performs one geometric hit test per animation frame. Pointer
 coordinates update the ghost's CSS translate directly. Route labels update the
-ghost component, and route highlights update a separate SVG overlay. Crossing
+ghost component, and route highlights toggle the opacity of prebuilt, cropped
+SVG surfaces. Highlight changes do not rewrite path geometry or resize the
+overlay. A ResizeObserver matches the map's centered aspect ratio, and the
+overlay shares its zoom and pan transform. Crossing
 routes does not update game-screen state. The board updates when dragging starts
 or ends to show eligible routes. The map and absolute highlight overlay share a
 contained viewport. The detailed map has its own composited surface, and highlight
@@ -24,7 +29,8 @@ outbox entry and preserves the latest room state.
 
 Run `pnpm run check:react-compiler` to verify the installed compiler against the
 actual Vite production pipeline. `pnpm run check` and the React Compiler CI job
-include it. App, Board, CardDragGhost, TicketChat, and useTicketRoom must compile.
+include it. App, Board, CardDragGhost, DragHighlights, TicketChat, and useTicketRoom must
+compile.
 The check rejects increased skip counts elsewhere. The checked-in baseline records
 existing skips in account/sign-in, Grams, Music, and Scoreboard, so unrelated
 limitations remain visible without hiding regressions in Ticket's critical path.

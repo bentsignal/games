@@ -61,6 +61,7 @@ const required = [
   "src/App.tsx:App",
   "src/components/Board.tsx:Board",
   "src/components/CardDragGhost.tsx:CardDragGhost",
+  "src/components/DragHighlights.tsx:DragHighlights",
   "src/components/TicketChat.tsx:TicketChat",
   "src/game/useTicketRoom.ts:useTicketRoom",
 ];
